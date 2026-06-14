@@ -35,6 +35,10 @@
     .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
     .chip { background:var(--panel); border:1px solid #2a3441; color:var(--muted); padding:7px 12px; border-radius:999px; font-size:13px; cursor:pointer; }
     .chip:hover { color:var(--text); border-color:var(--accent); }
+    .follow { margin-top:14px; display:flex; flex-wrap:wrap; gap:6px; }
+    .follow-lbl { width:100%; color:var(--muted); font-size:12px; margin-bottom:2px; }
+    .fchip { background:transparent; border:1px solid #2a3441; color:var(--accent); padding:6px 11px; border-radius:999px; font-size:12px; cursor:pointer; text-align:left; }
+    .fchip:hover { background:var(--panel); }
     details.ctx { margin-top:12px; }
     details.ctx summary { cursor:pointer; color:var(--muted); font-size:12px; }
     details.ctx .ctx-item { border-left:2px solid #2a3441; padding:6px 10px; margin:8px 0; font-size:12px; color:var(--muted); }
@@ -77,6 +81,9 @@
 
     document.getElementById('chips').addEventListener('click', (e) => {
       if (e.target.classList.contains('chip')) { input.value = e.target.textContent; form.requestSubmit(); }
+    });
+    log.addEventListener('click', (e) => {
+      if (e.target.classList.contains('fchip')) { input.value = e.target.textContent; form.requestSubmit(); }
     });
 
     function el(cls, html) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; }
@@ -136,6 +143,11 @@
       if (a.disclaimer) html += `<div class="disclaimer">${esc(a.disclaimer)}</div>`;
       const f = (a.faithfulness != null) ? ` · fidelidad ${a.faithfulness.toFixed(2)}` : '';
       html += `<div class="meta">${a.latency_ms} ms${f}${a.reason ? ' · '+esc(a.reason) : ''}</div>`;
+      if (a.follow_ups && a.follow_ups.length) {
+        html += '<div class="follow"><span class="follow-lbl">Seguir explorando:</span>';
+        a.follow_ups.forEach(q => { html += `<button class="fchip">${esc(q)}</button>`; });
+        html += '</div>';
+      }
       return el('msg bot', html);
     }
   </script>

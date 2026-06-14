@@ -76,6 +76,23 @@ def _extract_citations(answer_text: str, chunks: list[ScoredChunk]) -> list[Cita
     return citations
 
 
+_FOLLOWUP_RE = re.compile(r"\n?\s*SEGUIMIENTO\s*:\s*", re.IGNORECASE)
+
+
+def _split_followups(text: str) -> tuple[str, list[str]]:
+    """Separa la sección 'SEGUIMIENTO:' del cuerpo y devuelve (texto, preguntas)."""
+    m = _FOLLOWUP_RE.search(text)
+    if not m:
+        return text, []
+    body = text[: m.start()].rstrip()
+    follow: list[str] = []
+    for line in text[m.end() :].splitlines():
+        q = line.strip().lstrip("-•*0123456789. ").strip()
+        if "?" in q and len(q) > 8:
+            follow.append(q)
+    return body, follow[:3]
+
+
 def _persist(session, ans: Answer, tenant: str) -> None:
     session.add(
         QueryLog(
@@ -208,6 +225,8 @@ def answer(
 
         # Si el modelo dejó el marcador de abstención suelto en una respuesta larga, lo quitamos.
         raw = raw.replace(ABSTENTION_MARKER, "").strip()
+        # Separa las preguntas de seguimiento del cuerpo de la respuesta.
+        raw, follow_ups = _split_followups(raw)
 
         # Guardarraíles.
         doses_ok, unsupported = (
@@ -239,6 +258,7 @@ def answer(
             reason=reason,
             citations=citations,
             contexts=contexts,
+            follow_ups=follow_ups,
             disclaimer=DISCLAIMER,
             latency_ms=int((time.perf_counter() - t0) * 1000),
             provider_info=pinfo,

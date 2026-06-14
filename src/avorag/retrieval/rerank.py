@@ -18,8 +18,12 @@ def rerank_chunks(
 
     provider = get_rerank_provider()
     # El reranker ve el contenido enriquecido (contexto + texto), igual que el índice.
+    # Se trunca a rerank_max_chars: el cross-encoder en CPU es mucho más rápido con secuencias
+    # cortas y la relevancia se decide casi siempre en el inicio del fragmento.
+    maxc = settings.rerank_max_chars
     docs = [
-        ((c.chunk.context + "\n") if c.chunk.context else "") + c.chunk.content for c in candidates
+        (((c.chunk.context + "\n") if c.chunk.context else "") + c.chunk.content)[:maxc]
+        for c in candidates
     ]
     ranking = provider.rerank(query, docs, final_k)
 

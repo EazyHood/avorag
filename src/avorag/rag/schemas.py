@@ -48,6 +48,7 @@ class Answer(BaseModel):
     reason: str | None = None
     citations: list[Citation] = Field(default_factory=list)
     contexts: list[RetrievedContext] = Field(default_factory=list)
+    follow_ups: list[str] = Field(default_factory=list)  # preguntas de seguimiento sugeridas
     disclaimer: str = ""
     latency_ms: int = 0
     provider_info: dict = Field(default_factory=dict)

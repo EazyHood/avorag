@@ -48,13 +48,14 @@ class Settings(BaseSettings):
     # --- Reranker ---
     rerank_provider: str = "none"  # none | cohere | local
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_max_chars: int = 900  # trunca cada candidato antes del cross-encoder (CPU más rápido)
     cohere_api_key: str = ""
 
     # --- Ollama ---
     ollama_host: str = "http://localhost:11434"
 
     # --- Recuperación / RAG ---
-    retrieval_top_k: int = 20
+    retrieval_top_k: int = 12  # candidatos antes del reranking (menos = más rápido)
     final_top_k: int = 6
     rrf_k: int = 60
     min_retrieval_score: float = 0.0
