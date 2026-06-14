@@ -30,6 +30,8 @@ data/cache/
 eval/reports/
 *.sqlite
 *.duckdb
+# PDFs sueltos en la raíz (corpus mal ubicado): nunca versionar
+/*.pdf
 
 # --- IDE / SO ---
 .idea/
