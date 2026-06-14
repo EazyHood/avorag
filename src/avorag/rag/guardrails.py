@@ -34,13 +34,22 @@ def extract_dose_numbers(text: str) -> list[str]:
 # Normalización de unidades para comparar dosis EQUIVALENTES (5 kg/ha == 5000 g/ha).
 _DOSE_PAIR_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?(" + _UNITS + r")\b", re.IGNORECASE)
 _UNIT_FACTORS: dict[str, tuple[str, float]] = {
-    "%": ("pct", 1.0), "ppm": ("ppm", 1.0), "mm": ("mm", 1.0),
-    "g": ("mass", 1.0), "gr": ("mass", 1.0), "kg": ("mass", 1000.0),
-    "ml": ("vol", 1.0), "cc": ("vol", 1.0), "cm3": ("vol", 1.0),
-    "l": ("vol", 1000.0), "litros": ("vol", 1000.0),
-    "g/ha": ("mass_ha", 1.0), "kg/ha": ("mass_ha", 1000.0),
+    "%": ("pct", 1.0),
+    "ppm": ("ppm", 1.0),
+    "mm": ("mm", 1.0),
+    "g": ("mass", 1.0),
+    "gr": ("mass", 1.0),
+    "kg": ("mass", 1000.0),
+    "ml": ("vol", 1.0),
+    "cc": ("vol", 1.0),
+    "cm3": ("vol", 1.0),
+    "l": ("vol", 1000.0),
+    "litros": ("vol", 1000.0),
+    "g/ha": ("mass_ha", 1.0),
+    "kg/ha": ("mass_ha", 1000.0),
     "l/ha": ("vol_ha", 1000.0),
-    "g/l": ("conc_g_l", 1.0), "cc/l": ("conc_ml_l", 1.0),
+    "g/l": ("conc_g_l", 1.0),
+    "cc/l": ("conc_ml_l", 1.0),
 }
 
 

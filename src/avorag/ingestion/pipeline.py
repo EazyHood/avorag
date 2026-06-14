@@ -79,6 +79,8 @@ def ingest_document(
             sha256=digest,
             raw_path=str(path.resolve()),
             corpus_version=meta.corpus_version,
+            url=meta.url,
+            doi=meta.doi,
         )
         session.add(document)
         session.flush()  # asigna document.id
@@ -103,6 +105,8 @@ def ingest_document(
                     fecha_publicacion=meta.fecha_publicacion,
                     nivel_autoridad=meta.nivel_autoridad,
                     licencia_uso=meta.licencia,
+                    url=meta.url,
+                    doi=meta.doi,
                 )
                 chunk = Chunk(
                     document_id=document.id,

@@ -24,11 +24,15 @@ NUNCA inventes una dosis.
 4. Si los fragmentos no contienen la respuesta, responde EXACTAMENTE con la palabra \
 {abstention} y nada más.
 5. No diagnostiques con certeza a partir de una foto; trátala como una pista.
-6. Sé conciso y accionable (pasos si aplica)."""
+6. Sé conciso y accionable (pasos si aplica).
+7. Si se indica el TIPO DE SUELO o la REGIÓN de la finca, adapta la recomendación —sobre todo \
+de fertilización y riego— a esas condiciones, apoyándote en los fragmentos (p.ej. en suelo \
+arenoso el nitrógeno se lixivia más y conviene fraccionar; en arcilloso vigila el drenaje y la \
+compactación). No inventes datos fuera de los fragmentos."""
 
 USER_PROMPT = """PREGUNTA DEL PRODUCTOR:
 {question}
-
+{farm_context}
 FRAGMENTOS (numerados; úsalos como única fuente):
 {contexts}
 
@@ -50,9 +54,11 @@ def format_contexts(chunks: list[ScoredChunk]) -> str:
     return "\n\n".join(blocks)
 
 
-def build_user_prompt(question: str, chunks: list[ScoredChunk]) -> str:
+def build_user_prompt(question: str, chunks: list[ScoredChunk], farm_context: str = "") -> str:
+    fc = f"\nCONTEXTO DE LA FINCA: {farm_context}.\n" if farm_context else ""
     return USER_PROMPT.format(
         question=question,
+        farm_context=fc,
         contexts=format_contexts(chunks),
         abstention=ABSTENTION_MARKER,
     )

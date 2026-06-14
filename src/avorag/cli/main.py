@@ -69,6 +69,8 @@ def ingest(
     pais: str = typer.Option("CO", "--pais", help="País del documento (CO, ES)."),
     cultivo: str = typer.Option("hass", "--cultivo", help="Cultivo del documento."),
     fecha: str | None = typer.Option(None, "--fecha", help="Fecha de publicación."),
+    url: str | None = typer.Option(None, "--url", help="Enlace de descarga directa de la fuente."),
+    doi: str | None = typer.Option(None, "--doi", help="DOI de la fuente (si tiene)."),
     tenant: str | None = typer.Option(None, "--tenant"),
     contextual: bool = typer.Option(True, "--contextual/--no-contextual"),
     force: bool = typer.Option(False, "--force", help="Re-ingerir aunque ya exista."),
@@ -84,6 +86,8 @@ def ingest(
         pais=pais.upper(),
         cultivo=cultivo.lower(),
         fecha_publicacion=fecha,
+        url=url,
+        doi=doi,
     )
     with console.status(f"Ingiriendo {path.name}…"):
         res = ingest_document(path, meta, tenant=tenant, contextual=contextual, force=force)
@@ -101,19 +105,22 @@ def ask(
     question: str = typer.Argument(..., help="Pregunta agronómica."),
     tenant: str | None = typer.Option(None, "--tenant"),
     country: str | None = typer.Option(None, "--country"),
+    soil: str | None = typer.Option(None, "--soil", help="Tipo de suelo (arenoso, arcilloso…)."),
+    region: str | None = typer.Option(None, "--region", help="Región/zona de la finca."),
 ) -> None:
     """Pregunta por consola (respuesta citada)."""
     from avorag.rag import answer
 
     configure_logging()
-    ans = answer(question, tenant=tenant, country=country)
+    ans = answer(question, tenant=tenant, country=country, soil_type=soil, region=region)
     color = {"verde": "green", "amarillo": "yellow", "rojo": "red"}.get(ans.semaforo.value, "white")
     body = ans.text
     if ans.citations:
         body += "\n\n[bold]Fuentes:[/bold]"
         for i, c in enumerate(ans.citations, start=1):
             pag = f", p.{c.pagina}" if c.pagina else ""
-            body += f"\n  [{i}] {c.fuente}{pag}"
+            link = c.doi and f"  doi:{c.doi}" or (c.url and f"  {c.url}") or ""
+            body += f"\n  [{i}] {c.fuente}{pag}{link}"
     body += f"\n\n[dim]{ans.disclaimer}[/dim]"
     console.print(
         Panel(body, title=f"[{color}]{ans.semaforo.value.upper()}[/{color}]", border_style=color)

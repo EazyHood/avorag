@@ -4,8 +4,18 @@ from avorag.ingestion.loaders import strip_running_headers
 
 
 def test_strip_removes_repeated_header_keeps_content():
-    temas = ["trips", "acaros", "monalonion", "pega pega", "antracnosis",
-             "roña", "barrenador", "chinche", "mosca", "escama"]
+    temas = [
+        "trips",
+        "acaros",
+        "monalonion",
+        "pega pega",
+        "antracnosis",
+        "roña",
+        "barrenador",
+        "chinche",
+        "mosca",
+        "escama",
+    ]
     pages = [
         f"[ {i + 1} ] Manejo fitosanitario del aguacate Hass\nContenido sobre {temas[i]}."
         for i in range(10)

@@ -51,6 +51,8 @@ class Document(Base):
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     raw_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     corpus_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    url: Mapped[str | None] = mapped_column(String(1024), nullable=True)  # descarga directa
+    doi: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     chunks: Mapped[list[Chunk]] = relationship(

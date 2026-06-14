@@ -64,8 +64,7 @@ def strip_running_headers(
     if not headers:
         return page_texts
     return [
-        "\n".join(ln for ln in t.splitlines() if _norm_line(ln) not in headers)
-        for t in page_texts
+        "\n".join(ln for ln in t.splitlines() if _norm_line(ln) not in headers) for t in page_texts
     ]
 
 

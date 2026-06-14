@@ -25,6 +25,8 @@ class Citation(BaseModel):
     fuente: str
     pagina: int | None = None
     fecha_publicacion: str | None = None
+    url: str | None = None
+    doi: str | None = None
     quote: str | None = None
 
 

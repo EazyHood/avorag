@@ -68,6 +68,8 @@ def _extract_citations(answer_text: str, chunks: list[ScoredChunk]) -> list[Cita
                     fuente=c.meta.get("fuente", "desconocida"),
                     pagina=c.pagina,
                     fecha_publicacion=c.meta.get("fecha_publicacion"),
+                    url=c.meta.get("url"),
+                    doi=c.meta.get("doi"),
                     quote=(c.content[:200] + "…") if len(c.content) > 200 else c.content,
                 )
             )
@@ -116,12 +118,30 @@ def _abstention(
     )
 
 
-def answer(question: str, *, tenant: str | None = None, country: str | None = None) -> Answer:
+def answer(
+    question: str,
+    *,
+    tenant: str | None = None,
+    country: str | None = None,
+    soil_type: str | None = None,
+    region: str | None = None,
+) -> Answer:
     settings = get_settings()
     tenant = tenant or settings.default_tenant
     country = country or settings.country
     t0 = time.perf_counter()
     pinfo = _provider_info()
+
+    # Contexto de la finca: el suelo y la región cambian la recomendación (sobre todo
+    # de fertilización: en arenoso el N se lixivia más; en arcilloso cuidar el drenaje).
+    fc_parts: list[str] = []
+    if soil_type:
+        fc_parts.append(f"suelo {soil_type}")
+    if region:
+        fc_parts.append(f"región {region}")
+    farm_context = ", ".join(fc_parts)
+    # La consulta de recuperación se enriquece con el contexto para traer fragmentos relevantes.
+    retrieval_query = f"{question} {farm_context}".strip()
 
     with get_session() as session:
         # Pre-filtro de intención: cultivo ajeno → corta antes de gastar embeddings/LLM.
@@ -139,9 +159,11 @@ def answer(question: str, *, tenant: str | None = None, country: str | None = No
             _persist(session, ans, tenant)
             return ans
 
-        query_vec = get_embedding_provider().embed_query(question)
-        candidates = hybrid_search(session, question, query_vec, tenant=tenant, country=country)
-        final = rerank_chunks(question, candidates)
+        query_vec = get_embedding_provider().embed_query(retrieval_query)
+        candidates = hybrid_search(
+            session, retrieval_query, query_vec, tenant=tenant, country=country
+        )
+        final = rerank_chunks(retrieval_query, candidates)
 
         # Sin evidencia suficiente → abstención honesta, etiquetada según el dominio.
         if not final or (final[0].score < settings.min_retrieval_score):
@@ -163,7 +185,7 @@ def answer(question: str, *, tenant: str | None = None, country: str | None = No
             return ans
 
         system = build_system_prompt(country)
-        user = build_user_prompt(question, final)
+        user = build_user_prompt(question, final, farm_context=farm_context)
         raw = get_llm_provider().complete(system, user).strip()
 
         contexts = _build_contexts(final)

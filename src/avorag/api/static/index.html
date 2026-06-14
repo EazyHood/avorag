@@ -59,6 +59,10 @@
     </div>
   </main>
   <form id="form">
+    <div class="row" style="margin-bottom:8px">
+      <input id="soil" placeholder="Suelo (opcional): arenoso, arcilloso, franco…" autocomplete="off" style="flex:1" />
+      <input id="region" placeholder="Región (opcional): Quindío, Antioquia…" autocomplete="off" style="flex:1" />
+    </div>
     <div class="row">
       <input id="q" placeholder="Ej: ¿Cómo manejo los trips en aguacate Hass?" autocomplete="off" />
       <button id="send" type="submit">Preguntar</button>
@@ -89,9 +93,11 @@
       log.appendChild(pending);
       window.scrollTo(0, document.body.scrollHeight);
       try {
+        const soil = (document.getElementById('soil').value || '').trim();
+        const region = (document.getElementById('region').value || '').trim();
         const r = await fetch('/api/ask', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ question: q })
+          body: JSON.stringify({ question: q, soil_type: soil || null, region: region || null })
         });
         const a = await r.json();
         pending.remove();
@@ -112,7 +118,10 @@
         html += '<div class="cites"><b>Fuentes:</b>';
         a.citations.forEach((c, i) => {
           const pag = c.pagina ? `, p.${c.pagina}` : '';
-          html += `<div class="cite">[${i+1}] <b>${esc(c.fuente)}</b>${pag}${c.quote ? ' — “'+esc(c.quote)+'”' : ''}</div>`;
+          let link = '';
+          if (c.doi) link = ` · <a href="https://doi.org/${esc(c.doi)}" target="_blank" rel="noopener">doi:${esc(c.doi)}</a>`;
+          else if (c.url) link = ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">ver fuente</a>`;
+          html += `<div class="cite">[${i+1}] <b>${esc(c.fuente)}</b>${pag}${link}${c.quote ? ' — “'+esc(c.quote)+'”' : ''}</div>`;
         });
         html += '</div>';
       }

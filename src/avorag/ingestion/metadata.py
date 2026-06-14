@@ -25,6 +25,8 @@ class ChunkMetadata(BaseModel):
     nivel_autoridad: NivelAutoridad = "oficial-regulador"
     registro_ica: str | None = None
     licencia_uso: str = "por-verificar"
+    url: str | None = None  # enlace de descarga directa de la fuente
+    doi: str | None = None  # DOI cuando la fuente lo tenga
 
     def as_dict(self) -> dict:
         return self.model_dump(exclude_none=False)
@@ -43,3 +45,5 @@ class DocumentMeta(BaseModel):
     nivel_autoridad: NivelAutoridad = "oficial-regulador"
     fecha_publicacion: str | None = None
     corpus_version: str | None = None
+    url: str | None = None  # enlace de descarga directa de la fuente
+    doi: str | None = None  # DOI cuando la fuente lo tenga
