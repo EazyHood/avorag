@@ -1,0 +1,33 @@
+# Postgres + pgvector local (alternativa a Neon/Supabase). Redis queda listo para la Ruta 🅱️.
+#   docker compose up -d db
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: avorag-db
+    environment:
+      POSTGRES_USER: avorag
+      POSTGRES_PASSWORD: avorag
+      POSTGRES_DB: avorag
+    ports:
+      - "5432:5432"
+    volumes:
+      - avorag_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avorag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cola/caché para la Ruta 🅱️ (WhatsApp, fotos offline). No requerido en la Ruta 🅰️.
+  redis:
+    image: redis:7-alpine
+    container_name: avorag-redis
+    ports:
+      - "6379:6379"
+    profiles: ["queue"]
+    volumes:
+      - avorag_redisdata:/data
+
+volumes:
+  avorag_pgdata:
+  avorag_redisdata:

@@ -1,0 +1,43 @@
+# --- Secretos y entorno ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.uv/
+build/
+dist/
+
+# --- Herramientas ---
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Datos del proyecto (NO versionar corpus ni datos de cliente) ---
+data/corpus/*
+!data/corpus/.gitkeep
+data/cache/
+eval/reports/
+*.sqlite
+*.duckdb
+
+# --- IDE / SO ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Modelos locales descargados ---
+models/
+*.gguf
+*.safetensors

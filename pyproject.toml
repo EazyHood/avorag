@@ -1,0 +1,101 @@
+[project]
+name = "avorag"
+version = "0.1.0"
+description = "AvoRAG — asistente agronómico RAG en español, neutral y con citación a fuente, especializado en aguacate Hass."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "Jhonatan del Rio" }]
+
+# --- Dependencias base (ligeras, sin ML pesado ni Docker) ---
+dependencies = [
+    # API
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    # Config / validación
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    # Base de datos + vectores
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "psycopg[binary]>=3.2.0",
+    "pgvector>=0.3.6",
+    # Utilidades
+    "httpx>=0.27.0",
+    "tenacity>=9.0.0",
+    "structlog>=24.4.0",
+    "numpy>=2.1.0",
+    "typer>=0.15.0",
+    "rich>=13.9.0",
+    # Ingesta de PDF (parseo preservando texto/tablas)
+    "pymupdf>=1.24.0",
+    "pypdf>=5.1.0",
+    # SDKs de proveedores (livianos; las llamadas reales son opcionales)
+    "ollama>=0.4.0",
+    "anthropic>=0.40.0",
+    "openai>=1.57.0",
+]
+
+[project.optional-dependencies]
+# Ruta GPU local (RTX): embeddings y reranker self-hosted. Instalar con: uv sync --extra local
+local = [
+    "sentence-transformers>=3.3.0",
+    "torch>=2.5.0",
+]
+# Reranker por API (alternativa al local)
+cohere = ["cohere>=5.13.0"]
+# Evaluación avanzada (RAGAS). El runner propio funciona SIN esto.
+eval = ["ragas>=0.2.0", "datasets>=3.2.0"]
+
+[project.scripts]
+avorag = "avorag.cli.main:app"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pre-commit>=4.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/avorag"]
+
+# ----------------------------- Herramientas -----------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "PTH"]
+ignore = ["E501"]  # el formateador maneja el largo de línea
+
+[tool.ruff.lint.isort]
+known-first-party = ["avorag"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer exige llamadas en los defaults (Argument/Option); es el patrón idiomático.
+"src/avorag/cli/*" = ["B008"]
+# Los tests usan asserts y fixtures con nombres flexibles.
+"tests/*" = ["B008", "S101"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"

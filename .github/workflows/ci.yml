@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sincronizar dependencias (Python 3.12)
+        run: uv sync --frozen
+
+      - name: Ruff (lint + formato)
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+
+      - name: Mypy (tipos)
+        run: uv run mypy
+        continue-on-error: true   # informativo al inicio; endurecer luego
+
+      - name: Tests unitarios (puros, sin DB ni LLM)
+        run: uv run pytest
+
+  # ---------------------------------------------------------------------------
+  # GATE DE CALIDAD (golden set). Requiere Postgres + un LLM disponible.
+  # Se deja documentado: actívalo en un runner con servicios o self-hosted con
+  # Ollama. NO debe quedar como gate "verde falso" sin datos reales.
+  # ---------------------------------------------------------------------------
+  # eval-gate:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: pgvector/pgvector:pg16
+  #       env: { POSTGRES_USER: avorag, POSTGRES_PASSWORD: avorag, POSTGRES_DB: avorag }
+  #       ports: ["5432:5432"]
+  #       options: >-
+  #         --health-cmd "pg_isready -U avorag" --health-interval 5s
+  #         --health-timeout 5s --health-retries 10
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: astral-sh/setup-uv@v5
+  #     - run: uv sync --frozen
+  #     - run: uv run avorag db upgrade
+  #     # - run: (ingerir corpus de prueba + servir LLM) ...
+  #     - run: uv run avorag eval data/golden/golden_set.example.jsonl

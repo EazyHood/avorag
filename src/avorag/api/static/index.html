@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AvoRAG — Asesor Hass</title>
+  <style>
+    :root { --verde:#1f9d55; --amarillo:#d69e2e; --rojo:#c53030; --bg:#0f1419; --panel:#1a212b; --text:#e6edf3; --muted:#8b98a5; --accent:#3fb950; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:16px 20px; border-bottom:1px solid #2a3441; display:flex; align-items:center; gap:10px; }
+    header h1 { font-size:18px; margin:0; font-weight:600; }
+    header .tag { font-size:12px; color:var(--muted); border:1px solid #2a3441; border-radius:999px; padding:2px 10px; }
+    main { max-width:820px; margin:0 auto; padding:20px; }
+    #log { display:flex; flex-direction:column; gap:16px; margin-bottom:90px; }
+    .msg { padding:14px 16px; border-radius:12px; line-height:1.5; }
+    .user { background:#22303f; align-self:flex-end; max-width:85%; }
+    .bot { background:var(--panel); border:1px solid #2a3441; }
+    .bot .answer { white-space:pre-wrap; }
+    .semaforo { display:inline-block; font-size:12px; font-weight:600; padding:2px 10px; border-radius:999px; margin-bottom:8px; }
+    .s-verde { background:rgba(31,157,85,.15); color:var(--verde); }
+    .s-amarillo { background:rgba(214,158,46,.15); color:var(--amarillo); }
+    .s-rojo { background:rgba(197,48,48,.15); color:var(--rojo); }
+    .cites { margin-top:12px; border-top:1px dashed #2a3441; padding-top:10px; font-size:13px; }
+    .cite { color:var(--muted); margin:4px 0; }
+    .cite b { color:var(--text); }
+    .disclaimer { margin-top:10px; font-size:12px; color:var(--muted); }
+    .meta { margin-top:8px; font-size:11px; color:var(--muted); }
+    form { position:fixed; bottom:0; left:0; right:0; background:var(--bg); border-top:1px solid #2a3441; padding:14px; }
+    .row { max-width:820px; margin:0 auto; display:flex; gap:10px; }
+    input { flex:1; background:var(--panel); border:1px solid #2a3441; color:var(--text); padding:12px 14px; border-radius:10px; font-size:15px; }
+    button { background:var(--accent); color:#062b12; border:none; padding:0 20px; border-radius:10px; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:default; }
+    .empty { color:var(--muted); text-align:center; margin-top:40px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+    .chip { background:var(--panel); border:1px solid #2a3441; color:var(--muted); padding:7px 12px; border-radius:999px; font-size:13px; cursor:pointer; }
+    .chip:hover { color:var(--text); border-color:var(--accent); }
+    details.ctx { margin-top:12px; }
+    details.ctx summary { cursor:pointer; color:var(--muted); font-size:12px; }
+    details.ctx .ctx-item { border-left:2px solid #2a3441; padding:6px 10px; margin:8px 0; font-size:12px; color:var(--muted); }
+    details.ctx .ctx-item b { color:var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <span style="font-size:22px">🥑</span>
+    <h1>AvoRAG — Asesor Hass</h1>
+    <span class="tag">neutral · cita su fuente · se abstiene si no sabe</span>
+  </header>
+  <main>
+    <div id="chips" class="chips">
+      <button class="chip">¿Cómo manejo los trips en aguacate Hass?</button>
+      <button class="chip">¿Qué hago contra la mancha negra (lenticelosis)?</button>
+      <button class="chip">¿Cuál es el plan de fertilización del Hass?</button>
+      <button class="chip">¿Cómo siembro arroz?</button>
+    </div>
+    <div id="log">
+      <div class="empty">Pregunta sobre manejo del aguacate Hass. Cada respuesta cita su fuente oficial. (La última pregunta de ejemplo muestra cómo se abstiene si está fuera de su especialidad.)</div>
+    </div>
+  </main>
+  <form id="form">
+    <div class="row">
+      <input id="q" placeholder="Ej: ¿Cómo manejo los trips en aguacate Hass?" autocomplete="off" />
+      <button id="send" type="submit">Preguntar</button>
+    </div>
+  </form>
+
+  <script>
+    const log = document.getElementById('log');
+    const form = document.getElementById('form');
+    const input = document.getElementById('q');
+    const send = document.getElementById('send');
+
+    document.getElementById('chips').addEventListener('click', (e) => {
+      if (e.target.classList.contains('chip')) { input.value = e.target.textContent; form.requestSubmit(); }
+    });
+
+    function el(cls, html) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; }
+    function esc(s) { return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      if (log.querySelector('.empty')) log.innerHTML = '';
+      log.appendChild(el('msg user', esc(q)));
+      input.value = ''; send.disabled = true;
+      const pending = el('msg bot', '<span class="meta">Consultando fuentes…</span>');
+      log.appendChild(pending);
+      window.scrollTo(0, document.body.scrollHeight);
+      try {
+        const r = await fetch('/api/ask', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ question: q })
+        });
+        const a = await r.json();
+        pending.remove();
+        log.appendChild(renderAnswer(a));
+      } catch (err) {
+        pending.innerHTML = '<span class="s-rojo semaforo">Error</span> ' + esc(String(err));
+      }
+      send.disabled = false;
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    function renderAnswer(a) {
+      const sClass = { verde:'s-verde', amarillo:'s-amarillo', rojo:'s-rojo' }[a.semaforo] || 's-amarillo';
+      const sLabel = { verde:'✓ Respaldada', amarillo:'⚠ Cautela', rojo:'⛔ Requiere agrónomo' }[a.semaforo] || a.semaforo;
+      let html = `<span class="semaforo ${sClass}">${sLabel}</span>`;
+      html += `<div class="answer">${esc(a.text)}</div>`;
+      if (a.citations && a.citations.length) {
+        html += '<div class="cites"><b>Fuentes:</b>';
+        a.citations.forEach((c, i) => {
+          const pag = c.pagina ? `, p.${c.pagina}` : '';
+          html += `<div class="cite">[${i+1}] <b>${esc(c.fuente)}</b>${pag}${c.quote ? ' — “'+esc(c.quote)+'”' : ''}</div>`;
+        });
+        html += '</div>';
+      }
+      if (a.contexts && a.contexts.length) {
+        const items = a.contexts.map(c => {
+          const pag = c.pagina ? `, p.${c.pagina}` : '';
+          const score = (typeof c.score === 'number') ? c.score.toFixed(3) : c.score;
+          return `<div class="ctx-item"><b>${esc(c.fuente)}</b>${pag} · score ${score}<br>${esc((c.content||'').slice(0,180))}…</div>`;
+        }).join('');
+        html += `<details class="ctx"><summary>Fragmentos recuperados (${a.contexts.length})</summary>${items}</details>`;
+      }
+      if (a.disclaimer) html += `<div class="disclaimer">${esc(a.disclaimer)}</div>`;
+      const f = (a.faithfulness != null) ? ` · fidelidad ${a.faithfulness.toFixed(2)}` : '';
+      html += `<div class="meta">${a.latency_ms} ms${f}${a.reason ? ' · '+esc(a.reason) : ''}</div>`;
+      return el('msg bot', html);
+    }
+  </script>
+</body>
+</html>
