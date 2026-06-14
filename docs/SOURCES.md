@@ -48,5 +48,30 @@ cuantifican esto. Se añadió un limpiador de encabezados/pies repetidos en la i
 > redistribuyen desde el repo. Para la fase comercial, sustituir/complementar con fuentes
 > de licencia comercial o conseguir permiso de Agrosavia/Corpohass.
 
+## Ampliación del corpus (2026-06-14): insumos ICA, MIP y fertilización
+Corpus ampliado a **~1015 fragmentos / 9 documentos con texto**. Las citas ahora incluyen
+**enlace (URL)/DOI + página exacta**. Fuentes nuevas (todas con URL en metadatos):
+
+| Archivo | Fuente | URL/DOI | Notas |
+|---|---|---|---|
+| `ica_pqua_aguacate.txt` | **ICA — Registro Nacional PQUA** (insumos registrados para aguacate) | [registro PQUA (PDF)](https://www.ica.gov.co/getattachment/Areas/Agricola/Servicios/Regulacion-y-Control-de-Plaguicidas-Quimicos/PUBLICACION-BD_RN-RF-5.pdf.aspx?lang=es-CO) | **Extracto de las 110 págs. que mencionan aguacate** del registro oficial (174 págs.). Datos a **mar-2022** — confirmar vigencia contra el portal SimplifICA/Power BI |
+| `agrosavia_mip_stenoma_heilipus.pdf` | Agrosavia — MIP (Stenoma catenifer, Heilipus) | [bitstream](https://repository.agrosavia.co/server/api/core/bitstreams/04c154ea-cedc-4602-a057-65302f55a630/content) | CC BY-NC |
+| `agrosavia_requerimientos_nutric.pdf` | Agrosavia — Requerimientos nutricionales del Hass | [bitstream](https://repository.agrosavia.co/bitstream/handle/20.500.12324/39489/Ver_Documento_39489.pdf) | CC BY-NC; fertilización |
+| `AlfonsoJose2008.pdf` | FHIA/MCA-Honduras — Manual técnico del cultivo del Hass (2008) | [avocadosource](http://www.avocadosource.com/books/AlfonsoJose2008.pdf) | **Honduras** (no ICA); útil para principios, no para insumos registrados CO |
+
+**Limitaciones honestas:**
+- **Resolución ICA 1507/2016** (plagas de control oficial en aguacate) NO se pudo ingerir: el
+  PDF oficial es **escaneado (solo imagen, sin texto)** → requiere OCR. Pendiente.
+- El registro PQUA del ICA es de **marzo 2022** (no la versión "viva"); el estado actualizado de
+  cada producto vive en el portal de consulta SimplifICA. No existe un Excel/CSV oficial
+  "solo aguacate" descargable: hay que filtrar la BD completa (lo hicimos por página).
+- Fuentes con **DOI pero detrás de WAF/paywall** (MDPI agronomy13081956 de Rebolledo-Roa &
+  Burbano-Díaz; Silber et al. 10.1016/j.scienta.2018.06.094; Salvo & Lovatt
+  10.21273/HORTTECH.26.4.426): existen y se pueden citar por DOI, pero su PDF no se pudo
+  descargar de forma automatizada (403). Se descargarían manualmente desde un navegador.
+- **Contexto de suelo/región:** implementado como parámetro (`soil_type`, `region`) que afina el
+  prompt y la recuperación; la evidencia directa de lixiviación de N por textura más fuerte es
+  californiana (transferir principios, no dosis).
+
 ## Para fase España/UE
 Registro nacional MAPA (Reg. CE 1107/2009), RD 1311/2012 (GIP), LMR UE.
