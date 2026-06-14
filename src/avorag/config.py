@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ruta ABSOLUTA al .env (raíz del proyecto). Robusto al directorio de trabajo: funciona
+# aunque la app se ejecute desde otro cwd (servidor gestionado, `uv run --project`, etc.).
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
     """Todas las variables de entorno del proyecto, con valores por defecto seguros."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
