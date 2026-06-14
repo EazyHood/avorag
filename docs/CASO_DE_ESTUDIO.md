@@ -72,4 +72,4 @@ Python 3.12 · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · RAGAS ·
 - A medir calidad con números propios y a comunicar límites con honestidad.
 
 ## Enlaces
-- Repo: <!-- URL -->  · Demo (Loom): <!-- URL -->  · Dashboard de evaluación: <!-- captura -->
+- Repo: **https://github.com/EazyHood/avorag**  · Demo (Loom): <!-- URL -->  · Dashboard de evaluación: <!-- captura -->
