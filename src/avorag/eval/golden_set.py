@@ -13,6 +13,10 @@ class GoldenItem(BaseModel):
     id: str
     question: str
     expected_answer: str | None = None
+    # Hechos atómicos verificables (dosis, producto, carencia, fuente) que la respuesta DEBE
+    # contener. A diferencia de expected_answer (texto libre, difícil de comparar), estos SÍ se
+    # evalúan automáticamente (avg_correctness) — cierra el hueco #2.
+    expected_facts: list[str] = Field(default_factory=list)
     must_cite: list[str] = Field(default_factory=list)  # subcadenas de fuente que deben citarse
     category: str | None = None  # plaga | fertilizacion | dosis | inocuidad | ...
     is_trap: bool = False  # pregunta fuera de cobertura: se espera ABSTENCIÓN

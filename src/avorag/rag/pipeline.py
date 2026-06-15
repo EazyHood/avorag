@@ -63,6 +63,8 @@ def _cache_put(key: str, ans: Answer) -> None:
 
 
 def _provider_info() -> dict:
+    from avorag.providers import judge_provider_label
+
     s = get_settings()
     llm_model = {
         "ollama": s.llm_model,
@@ -73,6 +75,7 @@ def _provider_info() -> dict:
         "llm": f"{s.llm_provider}:{llm_model}",
         "embedding": f"{s.embedding_provider}:{s.embedding_model}",
         "rerank": s.rerank_provider,
+        "judge": judge_provider_label(),
     }
 
 
@@ -228,8 +231,20 @@ def answer(
         )
         final = rerank_chunks(retrieval_query, candidates)
 
+        # Señal de evidencia y umbral según el reranker: con reranker activo, el score del
+        # cross-encoder/Cohere es discriminante (negativo = irrelevante); con 'none' usamos el
+        # score RRF del candidato mejor rankeado (señal débil; ver config). La abstención ocurre
+        # AQUÍ, antes de gastar el LLM de generación.
+        if settings.rerank_provider.lower() == "none":
+            evidence_score = candidates[0].score if candidates else float("-inf")
+            evidence_threshold = settings.min_rrf_score
+        else:
+            evidence_score = final[0].score if final else float("-inf")
+            evidence_threshold = settings.min_rerank_score
+        pinfo["evidence_score"] = round(float(evidence_score), 5) if final else None
+
         # Sin evidencia suficiente → abstención honesta, etiquetada según el dominio.
-        if not final or (final[0].score < settings.min_retrieval_score):
+        if not final or (evidence_score < evidence_threshold):
             atype = (
                 AbstentionType.OUT_OF_CONTENT
                 if guardrails.has_agronomic_signal(question)

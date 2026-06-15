@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_llm_model: str = "gpt-4o-mini"
 
+    # --- LLM juez (fidelidad/seguridad/corrección) ---
+    # Por defecto vacío = el MISMO modelo que genera se autoevalúa (correlacionado; cifra
+    # indicativa, no comercial). Define un proveedor/modelo DISTINTO para una segunda opinión
+    # independiente, p.ej. judge_llm_provider=anthropic mientras generas con Ollama.
+    judge_llm_provider: str = ""  # vacío = usa el de generación
+    judge_llm_model: str = ""  # vacío = modelo por defecto del proveedor del juez
+
     # --- Embeddings ---
     embedding_provider: str = "ollama"  # ollama | openai | local
     embedding_model: str = "bge-m3"
@@ -58,7 +65,15 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 12  # candidatos antes del reranking (menos = más rápido)
     final_top_k: int = 6
     rrf_k: int = 60
-    min_retrieval_score: float = 0.0
+    # Umbral de evidencia para ABSTENERSE sin llamar al LLM. El score significa cosas distintas
+    # según el reranker, así que hay dos umbrales y se aplica el que corresponde:
+    #  - min_rerank_score: score del cross-encoder (local: logit; cohere: 0..1). Con bge-reranker
+    #    un logit < ~0 indica que el mejor fragmento es más irrelevante que relevante.
+    #  - min_rrf_score: score RRF (cuando RERANK_PROVIDER=none). Es una señal débil (los scores
+    #    RRF son minúsculos, ~1/61), así que con 'none' la abstención recae sobre todo en el LLM.
+    # Calibrar con `avorag eval --sweep` (reporta el umbral que mejor separa trampas de reales).
+    min_rerank_score: float = 0.0
+    min_rrf_score: float = 0.0
 
     # --- Multi-tenant ---
     default_tenant: str = "demo"

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from avorag.agro_terms import active_ingredients_in, extract_active_ingredient
 from avorag.logging import get_logger
-from avorag.providers import get_llm_provider
+from avorag.providers import get_judge_llm_provider
 from avorag.rag.schemas import AbstentionType, Semaforo
 from avorag.retrieval.types import ScoredChunk
 
@@ -148,7 +148,7 @@ def dose_safety_judge(answer: str, contexts_text: str) -> DoseSafety | None:
     """Juez-LLM que verifica la ASOCIACIÓN producto–plaga–dosis–carencia (no solo el número).
     Si falla, devuelve None → el pipeline lo trata como AMARILLO (no se pudo verificar)."""
     try:
-        llm = get_llm_provider()
+        llm = get_judge_llm_provider()
         raw = llm.complete(
             _SAFETY_SYSTEM,
             f"FRAGMENTOS:\n{contexts_text}\n\nRESPUESTA:\n{answer}\n\nJSON:",
@@ -451,7 +451,7 @@ def faithfulness_judge(
     Si el juez FALLA, devuelve (None, []) — el pipeline lo trata como AMARILLO,
     NUNCA como fidelidad perfecta (fail-safe, no fail-open)."""
     try:
-        llm = get_llm_provider()
+        llm = get_judge_llm_provider()
         raw = llm.complete(
             _JUDGE_SYSTEM,
             f"CONTEXTO:\n{contexts_text}\n\nPREGUNTA:\n{question}\n\nRESPUESTA:\n{answer}\n\nJSON:",

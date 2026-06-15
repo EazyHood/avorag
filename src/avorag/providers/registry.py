@@ -45,6 +45,47 @@ def get_llm_provider() -> LLMProvider:
 
 
 @lru_cache
+def get_judge_llm_provider() -> LLMProvider:
+    """Proveedor LLM para los JUECES (fidelidad/seguridad/corrección).
+
+    Si `judge_llm_provider` está vacío, usa el MISMO que genera (autoevaluación correlacionada;
+    cifra indicativa). Si se define uno distinto, da una segunda opinión independiente.
+    """
+    s = get_settings()
+    p = (s.judge_llm_provider or s.llm_provider).lower()
+    model = s.judge_llm_model or None
+    if p == "ollama":
+        from avorag.providers.llm import OllamaLLM
+
+        return OllamaLLM(model=model)
+    if p == "anthropic":
+        from avorag.providers.llm import AnthropicLLM
+
+        return AnthropicLLM(model=model)
+    if p == "openai":
+        from avorag.providers.llm import OpenAILLM
+
+        return OpenAILLM(model=model)
+    raise ValueError(f"JUDGE_LLM_PROVIDER desconocido: {p!r}")
+
+
+def judge_provider_label() -> str:
+    """Etiqueta del juez para provider_info (transparencia: ¿se autoevalúa?)."""
+    s = get_settings()
+    p = s.judge_llm_provider or s.llm_provider
+    m = s.judge_llm_model or {
+        "ollama": s.llm_model,
+        "anthropic": s.anthropic_model,
+        "openai": s.openai_llm_model,
+    }.get(p.lower(), s.llm_model)
+    independent = bool(s.judge_llm_provider) and (
+        s.judge_llm_provider.lower() != s.llm_provider.lower()
+        or (s.judge_llm_model and s.judge_llm_model != s.llm_model)
+    )
+    return f"{p}:{m}{'' if independent else ' (autoevaluación)'}"
+
+
+@lru_cache
 def get_rerank_provider() -> RerankProvider:
     p = get_settings().rerank_provider.lower()
     if p in ("none", "", "off"):

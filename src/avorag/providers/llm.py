@@ -15,12 +15,12 @@ class OllamaLLM(LLMProvider):
 
     name = "ollama"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from ollama import Client
 
         s = get_settings()
         self._client = Client(host=s.ollama_host)
-        self._model = s.llm_model
+        self._model = model or s.llm_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 
@@ -45,14 +45,14 @@ class AnthropicLLM(LLMProvider):
 
     name = "anthropic"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from anthropic import Anthropic
 
         s = get_settings()
         if not s.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY vacío pero LLM_PROVIDER=anthropic")
         self._client = Anthropic(api_key=s.anthropic_api_key)
-        self._model = s.anthropic_model
+        self._model = model or s.anthropic_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 
@@ -73,14 +73,14 @@ class OpenAILLM(LLMProvider):
 
     name = "openai"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from openai import OpenAI
 
         s = get_settings()
         if not s.openai_api_key:
             raise ValueError("OPENAI_API_KEY vacío pero LLM_PROVIDER=openai")
         self._client = OpenAI(api_key=s.openai_api_key)
-        self._model = s.openai_llm_model
+        self._model = model or s.openai_llm_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 

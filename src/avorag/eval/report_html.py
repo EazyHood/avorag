@@ -55,12 +55,28 @@ def render_html(
                 else None,
             ),
             _card("Tasa de respuesta", _pct(m.answered_rate)),
+            _card(
+                "Soporte de cita (cifra en el fragmento)",
+                _pct(m.citation_support_rate),
+                good=m.citation_support_rate >= GATE_THRESHOLDS["citation_support_rate"]
+                if m.n_answered
+                else None,
+            ),
             _card("must_cite cumplido", _pct(m.must_cite_rate)),
             _card(
-                "Fidelidad media",
+                "Groundedness (respaldo en fuente, no exactitud)",
                 "n/a" if m.avg_faithfulness is None else f"{m.avg_faithfulness:.2f}",
-                good=m.avg_faithfulness >= GATE_THRESHOLDS["avg_faithfulness"]
+                good=m.avg_faithfulness >= GATE_THRESHOLDS["groundedness"]
                 if m.avg_faithfulness is not None
+                else None,
+            ),
+            _card(
+                "Corrección (vs hechos esperados)",
+                "n/a"
+                if m.avg_correctness is None
+                else f"{m.avg_correctness:.2f} (n={m.n_correctness_evaluated})",
+                good=m.avg_correctness >= GATE_THRESHOLDS["avg_correctness"]
+                if m.avg_correctness is not None
                 else None,
             ),
             _card("Tasa rojo (HITL)", _pct(m.rojo_rate)),

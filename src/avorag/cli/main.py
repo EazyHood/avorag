@@ -153,12 +153,15 @@ def serve(
 def eval(  # noqa: A001 (nombre del comando, intencional)
     golden: Path = typer.Argument(..., help="Ruta al golden set JSONL."),
     tenant: str | None = typer.Option(None, "--tenant"),
+    sweep: bool = typer.Option(
+        False, "--sweep", help="Calibra el umbral de evidencia (separa trampas de reales)."
+    ),
 ) -> None:
     """Corre el golden set y reporta métricas (gate de calidad)."""
     from avorag.eval import run_eval
 
     configure_logging()
-    _, passed = run_eval(golden, tenant=tenant)
+    _, passed = run_eval(golden, tenant=tenant, sweep=sweep)
     raise typer.Exit(code=0 if passed else 1)
 
 
