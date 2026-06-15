@@ -83,6 +83,20 @@ def test_dose_conflicts_across_sources() -> None:
     assert conflicts and "abamectina" in conflicts[0]
 
 
+def test_dose_conflicts_ratio_exacto_1_5_se_detecta() -> None:
+    # Un ratio exacto de 1.5 (50% de diferencia) es crítico en dosis y SÍ debe avisar.
+    chunks = [mk("abamectina 2,0 cc/L"), mk("abamectina 3,0 cc/L")]
+    conflicts = dose_conflicts(chunks)
+    assert conflicts and "abamectina" in conflicts[0]
+
+
+def test_dose_conflicts_compacta_muchos_valores() -> None:
+    # Con >3 valores dispares se resume (rango + nº), no se vuelca la lista completa.
+    chunks = [mk(f"abamectina {v} cc/L") for v in ("1", "2", "5", "10", "20")]
+    conflicts = dose_conflicts(chunks)
+    assert conflicts and "valores distintos" in conflicts[0]
+
+
 def test_is_offlabel_when_only_other_crop_supports() -> None:
     answer = "Aplica abamectina 2,5 cc/L."
     chunks = [mk("abamectina 2,5 cc/L en tomate", cultivo="tomate")]

@@ -283,7 +283,7 @@ def dose_conflicts(chunks: list[ScoredChunk]) -> list[str]:
     conflicts: list[str] = []
     for active, bydim in by_active.items():
         for _dim, vals in bydim.items():
-            if len(vals) >= 2 and max(vals) / max(min(vals), 1e-9) > 1.5:
+            if len(vals) >= 2 and max(vals) / max(min(vals), 1e-9) >= 1.5:
                 svals = sorted(vals)
                 if len(svals) > 3:
                     pretty = f"de {round(svals[0], 1)} a {round(svals[-1], 1)}, {len(svals)} valores distintos"

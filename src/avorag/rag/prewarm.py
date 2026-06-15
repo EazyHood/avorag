@@ -31,7 +31,7 @@ DEFAULT_QUESTIONS = [
 _STORE = Path(__file__).resolve().parents[3] / "data" / "cache" / "default_answers.json"
 
 # Súbelo al cambiar la lógica de guardarraíles/formato de respuesta, para invalidar la caché en disco.
-_LOGIC_VERSION = "2"
+_LOGIC_VERSION = "3"
 
 
 def _signature() -> str:
@@ -66,7 +66,10 @@ def load_from_disk() -> int:
 
 
 def _persist() -> None:
-    answers = {q: pipeline._PINNED[_key(q)] for q in DEFAULT_QUESTIONS if _key(q) in pipeline._PINNED}
+    with pipeline._CACHE_LOCK:
+        answers = {
+            q: pipeline._PINNED[_key(q)] for q in DEFAULT_QUESTIONS if _key(q) in pipeline._PINNED
+        }
     if not answers:
         return
     try:

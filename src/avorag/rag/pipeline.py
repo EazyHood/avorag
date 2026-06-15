@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -38,6 +39,8 @@ _RESPONSE_CACHE: dict[str, tuple[float, Answer]] = {}
 _CACHE_MAX = 256
 # Respuestas "fijadas": preguntas por defecto precalculadas. No expiran y se sirven al instante.
 _PINNED: dict[str, Answer] = {}
+# Protege las cachés: el hilo de precálculo escribe mientras las peticiones HTTP leen.
+_CACHE_LOCK = threading.Lock()
 
 
 def _cache_key(
@@ -55,24 +58,30 @@ def pin_answer(question: str, ans: Answer) -> None:
     """Fija la respuesta de una pregunta por defecto (clave con tenant/país por defecto, sin
     suelo/región) para servirla al instante. La usa el precálculo de arranque."""
     s = get_settings()
-    _PINNED[_cache_key(question, s.default_tenant, s.country, None, None)] = ans
+    with _CACHE_LOCK:
+        _PINNED[_cache_key(question, s.default_tenant, s.country, None, None)] = ans
 
 
 def _cache_get(key: str, ttl: int) -> Answer | None:
-    pinned = _PINNED.get(key)
-    if pinned is not None:
-        return pinned
-    item = _RESPONSE_CACHE.get(key)
-    if item is not None and (time.time() - item[0]) < ttl:
-        return item[1]
-    return None
+    with _CACHE_LOCK:
+        pinned = _PINNED.get(key)
+        if pinned is not None:
+            return pinned
+        item = _RESPONSE_CACHE.get(key)
+        if item is None:
+            return None
+        if (time.time() - item[0]) < ttl:
+            return item[1]
+        _RESPONSE_CACHE.pop(key, None)  # expirada: limpieza proactiva
+        return None
 
 
 def _cache_put(key: str, ans: Answer) -> None:
-    if len(_RESPONSE_CACHE) >= _CACHE_MAX:
-        oldest = min(_RESPONSE_CACHE, key=lambda k: _RESPONSE_CACHE[k][0])
-        _RESPONSE_CACHE.pop(oldest, None)
-    _RESPONSE_CACHE[key] = (time.time(), ans)
+    with _CACHE_LOCK:
+        if len(_RESPONSE_CACHE) >= _CACHE_MAX:
+            oldest = min(_RESPONSE_CACHE, key=lambda k: _RESPONSE_CACHE[k][0])
+            _RESPONSE_CACHE.pop(oldest, None)
+        _RESPONSE_CACHE[key] = (time.time(), ans)
 
 
 @lru_cache(maxsize=1)
@@ -478,7 +487,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         # descarta el cuerpo del modelo (suele divagar) y el ruido de dosis/avisos (es irrelevante
         # si no debe usarse).
         raw = (
-            f"⛔ No, no debes usar {banned[0]} en aguacate Hass de exportación.\n\n"
+            f"⛔ No, no debes usar {' ni '.join(banned[:2])} en aguacate Hass de exportación.\n\n"
             "Es un producto prohibido o restringido. Consulta con tu técnico alternativas "
             "registradas y vigentes ante el ICA, y verifica el límite máximo de residuos (LMR) "
             "del país de destino antes de cualquier aplicación."
@@ -617,9 +626,14 @@ def answer_stream(
 
     if _raw_is_bad(raw):
         raw = _regenerate(gen)
-        new_body, _ = _split_followups(raw.replace(ABSTENTION_MARKER, "").strip())
+        regen_body, _ = _split_followups(raw.strip())
         yield "reset", None
-        yield "delta", (new_body if new_body.strip() else raw)
+        if _is_abstention(regen_body):
+            ans = _finalize(question, raw, gen, pinfo=pinfo, t0=t0, tenant=tenant)
+            yield "final", ans
+            return
+        new_body = regen_body.replace(ABSTENTION_MARKER, "").strip()
+        yield "delta", (new_body if new_body else raw)
 
     yield "verifying", None
     ans = _finalize(question, raw, gen, pinfo=pinfo, t0=t0, tenant=tenant)

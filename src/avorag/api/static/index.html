@@ -386,7 +386,7 @@
               }
               acc += data.t; live.textContent = acc; nearBottom();
             } else if (data.type === 'reset') {
-              acc = ''; if (live) live.textContent = '';
+              acc = ''; if (live) { live.textContent = ''; live.classList.remove('streaming'); }
               const flag = pending.querySelector('.flag');
               if (flag) flag.innerHTML = `<span class="dot"></span>Un momento…`;
             } else if (data.type === 'verifying') {
@@ -400,7 +400,17 @@
             }
           }
         }
-        if (!settled && acc) { /* el stream terminó sin 'final': deja el texto crudo */ }
+        if (!settled) {
+          // El stream terminó sin 'final' (corte de red): no dejes la UI colgada con el cursor.
+          if (live) live.classList.remove('streaming');
+          const flag = pending.querySelector('.flag');
+          if (!acc) {
+            pending.className = 'msg bot v-rojo';
+            pending.innerHTML = `<span class="flag v-rojo"><span class="dot"></span>Conexión perdida</span><div class="errbox">No se recibió la respuesta completa. Intenta de nuevo.</div>`;
+          } else if (flag) {
+            flag.innerHTML = `<span class="dot"></span>Conexión interrumpida (respuesta parcial)`;
+          }
+        }
       } catch (err) {
         pending.className = 'msg bot v-rojo';
         pending.innerHTML = `<span class="flag v-rojo"><span class="dot"></span>Error</span><div class="errbox">${esc(String(err.message||err))}</div>`;
