@@ -86,6 +86,20 @@ def test_lluvia_y_suelo_no_son_dosis() -> None:
     assert not recommends_pesticide(txt)
 
 
+def test_porcentaje_de_pendiente_no_es_dosis() -> None:
+    # Falso positivo real: "pendiente del 10% al 20%, menores al 40%" no es concentración de plaguicida.
+    txt = "Se recomienda una pendiente entre el 10% y el 20%, y no hay problema con pendientes menores al 40%."
+    ok, unsupported = dose_product_grounded(txt, [mk("topografía y drenaje del lote", cultivo="hass")])
+    assert ok and not unsupported
+
+
+def test_porcentaje_de_plaguicida_si_se_verifica() -> None:
+    # No debilitar la seguridad: un % de concentración de un plaguicida sin respaldo SÍ se marca.
+    txt = "Aplica glifosato al 2% en la calle."
+    ok, unsupported = dose_product_grounded(txt, [mk("manejo de coberturas", cultivo="hass")])
+    assert not ok and "2" in unsupported
+
+
 def test_dose_conflicts_across_sources() -> None:
     chunks = [mk("abamectina 2,5 cc/L"), mk("abamectina 10 cc/L")]
     conflicts = dose_conflicts(chunks)

@@ -57,10 +57,30 @@ _UNIT_FACTORS: dict[str, tuple[str, float]] = {
 }
 
 
+# Un "%" aparece en pendiente, materia orgánica, saturación, humedad, arcilla/arena… no solo en
+# concentración de plaguicida. Un "%" en ese contexto NO es una dosis fitosanitaria.
+_NON_DOSE_PCT_CTX = re.compile(
+    r"pendient|inclinaci|declive|talud|saturaci|humedad|materia\s+org|\bm\.?o\.?\b|arcill|"
+    r"areno|\barena\b|retenci[oó]n|drenaj|capacidad de campo|saturaci[oó]n de al",
+    re.IGNORECASE,
+)
+
+
+def _is_non_dose_match(text: str, m: re.Match) -> bool:
+    """True si el match es un '%' en contexto de pendiente/suelo (no una dosis fitosanitaria)."""
+    unit = re.sub(r"\s+", "", (m.group(2) if m.lastindex and m.lastindex >= 2 else "").lower())
+    if unit != "%":
+        return False
+    window = text[max(0, m.start() - 40) : min(len(text), m.end() + 15)]
+    return bool(_NON_DOSE_PCT_CTX.search(window))
+
+
 def _canonical_doses(text: str) -> set[tuple[str, float]]:
     """Extrae dosis como (dimensión, valor en unidad base), normalizando equivalencias."""
     out: set[tuple[str, float]] = set()
     for m in _DOSE_PAIR_RE.finditer(text):
+        if _is_non_dose_match(text, m):
+            continue
         value = float(m.group(1).replace(",", "."))
         unit = re.sub(r"\s+", "", m.group(2).lower())
         dim, factor = _UNIT_FACTORS.get(unit, (unit, 1.0))
@@ -73,6 +93,8 @@ def doses_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str
     ctx = _canonical_doses(contexts_text)
     unsupported: list[str] = []
     for m in _DOSE_PAIR_RE.finditer(answer_text):
+        if _is_non_dose_match(answer_text, m):
+            continue
         value = float(m.group(1).replace(",", "."))
         unit = re.sub(r"\s+", "", m.group(2).lower())
         dim, factor = _UNIT_FACTORS.get(unit, (unit, 1.0))
@@ -211,6 +233,8 @@ def dose_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[
     answer_actives = active_ingredients_in(answer_text)
     unsupported: list[str] = []
     for m in _DOSE_PAIR_RE.finditer(answer_text):
+        if _is_non_dose_match(answer_text, m):
+            continue
         value = float(m.group(1).replace(",", "."))
         unit = re.sub(r"\s+", "", m.group(2).lower())
         dim, factor = _UNIT_FACTORS.get(unit, (unit, 1.0))
