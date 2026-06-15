@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from dataclasses import dataclass
 
 from avorag.logging import get_logger
 from avorag.providers import get_llm_provider
@@ -77,6 +78,91 @@ def doses_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str
         if (dim, round(value * factor, 6)) not in ctx:
             unsupported.append(m.group(1).replace(",", "."))
     return (len(unsupported) == 0, unsupported)
+
+
+# --- Periodo de carencia (PHI) y reingreso: igual de crítico que la dosis (LMR/rechazos) ---
+_PHI_TERMS = r"(?:carencia|per[ií]odo de seguridad|periodo de seguridad|plazo de seguridad|reingreso|reentrada)"
+_PHI_RE = re.compile(
+    rf"(?:{_PHI_TERMS}\D{{0,40}}?(\d+)\s*(d[ií]as?|horas?|h)\b)"
+    rf"|(?:(\d+)\s*(d[ií]as?|horas?|h)\b\D{{0,25}}?{_PHI_TERMS})",
+    re.IGNORECASE,
+)
+
+
+def _phi_values(text: str) -> set[tuple[str, float]]:
+    out: set[tuple[str, float]] = set()
+    for m in _PHI_RE.finditer(text):
+        num = m.group(1) or m.group(3)
+        unit = (m.group(2) or m.group(4) or "").lower()
+        if not num:
+            continue
+        base = "hora" if unit.startswith("h") else "dia"
+        out.add((base, float(num.replace(",", "."))))
+    return out
+
+
+def phi_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str]]:
+    """El periodo de carencia/reingreso de la respuesta debe aparecer en el contexto.
+    Una carencia inventada (p.ej. '12 días') puede dejar residuos > LMR y provocar el
+    rechazo del contenedor en destino — el riesgo central del producto."""
+    ctx = _phi_values(contexts_text)
+    unsupported = [f"{int(v)} {u}" for (u, v) in _phi_values(answer_text) if (u, v) not in ctx]
+    return (len(unsupported) == 0, unsupported)
+
+
+_ACTIONABLE_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?\s?" + _UNITS + r")|" + _PHI_TERMS + r"|\baplica(?:r|ci[oó]n)?\b|\bdosis\b",
+    re.IGNORECASE,
+)
+
+
+def has_actionable_recommendation(answer_text: str) -> bool:
+    """¿La respuesta trae una dosis, una carencia o una indicación de aplicar un producto?
+    Solo entonces se invoca el juez de seguridad (evita latencia en respuestas generales)."""
+    return bool(_ACTIONABLE_RE.search(answer_text))
+
+
+@dataclass
+class DoseSafety:
+    safe: bool
+    issues: list[str]
+    cat_i_ii: bool
+
+
+_SAFETY_SYSTEM = (
+    "Eres un ingeniero agrónomo revisor de seguridad fitosanitaria. Dada una RESPUESTA y los "
+    "FRAGMENTOS fuente, verifica que CADA recomendación accionable de la respuesta esté EXACTAMENTE "
+    "respaldada por un fragmento, asociando correctamente: PRODUCTO/ingrediente activo + PLAGA u "
+    "objetivo + DOSIS (valor y unidad) + PERIODO DE CARENCIA/reingreso. Es un PROBLEMA GRAVE si la "
+    "respuesta pega una dosis o una carencia a un producto o a una plaga DISTINTOS de los del "
+    "fragmento, o si inventa una carencia/dosis. Indica además si algún producto citado es de "
+    'categoría toxicológica I o II. Devuelve SOLO un JSON: {"seguro": true|false, '
+    '"problemas": ["..."], "categoria_I_II": true|false}.'
+)
+
+
+def dose_safety_judge(answer: str, contexts_text: str) -> DoseSafety | None:
+    """Juez-LLM que verifica la ASOCIACIÓN producto–plaga–dosis–carencia (no solo el número).
+    Si falla, devuelve None → el pipeline lo trata como AMARILLO (no se pudo verificar)."""
+    try:
+        llm = get_llm_provider()
+        raw = llm.complete(
+            _SAFETY_SYSTEM,
+            f"FRAGMENTOS:\n{contexts_text}\n\nRESPUESTA:\n{answer}\n\nJSON:",
+            temperature=0.0,
+            max_tokens=400,
+        )
+        data = _extract_json(raw)
+        if not data:
+            return None
+        return DoseSafety(
+            safe=bool(data.get("seguro", False)),
+            issues=[str(x) for x in data.get("problemas", [])][:4],
+            cat_i_ii=bool(data.get("categoria_I_II", False)),
+        )
+    except Exception as exc:
+        log.warning("dose_safety_judge_failed", error=str(exc))
+        return None
 
 
 def cited_categoria_toxicologica(chunks: list[ScoredChunk]) -> set[str]:
@@ -222,18 +308,38 @@ def decide_semaforo(
     faithfulness: float | None,
     has_citations: bool = True,
     judge_failed: bool = False,
+    phi_ok: bool = True,
+    safety: DoseSafety | None = None,
+    safety_required: bool = False,
     faithfulness_threshold: float = 0.6,
 ) -> tuple[Semaforo, str]:
     """Combina las señales en un semáforo con su razón. Orden: rojo > amarillo > verde."""
     if not doses_ok:
         return (
             Semaforo.ROJO,
-            "Dosis no rastreable a una etiqueta citada: requiere validación de un agrónomo.",
+            "Dosis no rastreable a una fuente citada: requiere validación de un agrónomo.",
         )
-    if {"I", "II"} & cat_tox:
+    if not phi_ok:
+        return (
+            Semaforo.ROJO,
+            "Periodo de carencia no rastreable a una fuente: riesgo de superar el LMR y rechazo "
+            "en destino. Requiere validación de un agrónomo.",
+        )
+    if {"I", "II"} & cat_tox or (safety is not None and safety.cat_i_ii):
         return (
             Semaforo.ROJO,
             "Producto de categoría toxicológica I/II: requiere receta firmada por profesional.",
+        )
+    if safety is not None and not safety.safe:
+        detalle = "; ".join(safety.issues[:2]) if safety.issues else "asociación no verificable"
+        return (
+            Semaforo.ROJO,
+            f"Asociación producto–plaga–dosis–carencia insegura: {detalle}. Requiere agrónomo.",
+        )
+    if safety_required and safety is None:
+        return (
+            Semaforo.AMARILLO,
+            "No se pudo verificar la asociación dosis–producto–plaga (juez no disponible): revisar.",
         )
     if judge_failed:
         return Semaforo.AMARILLO, "No se pudo verificar la fidelidad (juez no disponible): revisar."

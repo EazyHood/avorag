@@ -5,14 +5,18 @@ curado por un ingeniero agrónomo, especializado en **aguacate Hass de exportaci
 **citando la fuente oficial** (Agrosavia, ICA, Corpohass…), **se abstiene cuando no sabe** y
 **bloquea recomendaciones de dosis no rastreables a una etiqueta registrada**.
 
-## 📊 Resultados (golden set de 16 preguntas · corpus oficial ICA/Agrosavia, ~460 fragmentos)
+## 📊 Resultados (línea base v1, n=16 · corpus oficial ICA/Agrosavia, ~1015 fragmentos)
 
 | Fidelidad media | Citación | Abstención correcta (trampas) | Errores de dosis | Gate |
 |:--:|:--:|:--:|:--:|:--:|
 | **0.96** | **100%** | **100%** | **0** | **✓ PASA** |
 
 Probado **end-to-end en vivo**: Postgres + pgvector en la nube (Neon) + modelos locales en GPU
-(Ollama). El **dashboard reproducible** se genera en `eval/reports/report.html`.
+(Ollama). El **dashboard reproducible** se genera en `eval/reports/report.html`. El golden set se
+amplió a **n=50** (con bloques de dosis, carencia/PHI y categoría toxicológica); n=16 es una
+muestra pequeña — ver la nota de validez estadística en el [caso de estudio](docs/CASO_DE_ESTUDIO.md).
+El corpus se reconstruye desde fuentes públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py)
+([manifiesto](data/corpus_manifest.json)).
 
 ## 🎯 Qué demuestra
 RAG **de producción** (recuperación híbrida + reranking + evaluación con gate de CI), **criterio
@@ -64,6 +68,14 @@ uv run avorag eval data/golden/golden_set.example.jsonl
 | `uv run avorag serve` | API FastAPI + UI web |
 | `uv run avorag eval <golden.jsonl>` | Corre el golden set y reporta métricas |
 
+## Reconstruir el corpus (reproducibilidad)
+Los PDF no se versionan (licencia + peso). Para que un tercero reproduzca los números:
+```powershell
+python scripts/build_corpus.py --ingest   # descarga las fuentes públicas y vectoriza
+```
+Descarga lo descargable por HTTP, lista lo que requiere bajada manual (landings de repositorio /
+extracción de páginas) y respeta `data/corpus_manifest.json` (fuentes, URLs y licencias).
+
 ## Documentación
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — componentes y flujo.
 - [`docs/adr/`](docs/adr/) — decisiones de arquitectura (por qué de cada elección).
@@ -77,4 +89,7 @@ uv run avorag eval data/golden/golden_set.example.jsonl
 La evaluación genera un **dashboard HTML** en `eval/reports/report.html` (captúralo para el portafolio).
 
 ## Licencia
-Propietario. El corpus se rige por las licencias de cada fuente (ver `docs/SOURCES.md`).
+**Código: MIT** (ver [`LICENSE`](LICENSE)) — libre de reutilizar, incluso comercialmente.
+El **corpus** NO está cubierto por MIT: se rige por la licencia de cada fuente (varias de Agrosavia
+son CC BY-NC = no comercial). Para vender el asistente, sustituir/licenciar el corpus aparte
+(ver [`docs/SOURCES.md`](docs/SOURCES.md)).

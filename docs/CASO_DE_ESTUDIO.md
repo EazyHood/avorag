@@ -43,7 +43,7 @@ Recuperación **híbrida** (denso `pgvector` + léxico FTS español) → fusión
 Proveedores intercambiables por configuración (local gratis con Ollama, o Claude para el
 demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Resultados (medidos sobre mi golden set de 16 preguntas)
+## Resultados (línea base v1, medida sobre 16 preguntas)
 <!-- Pega aquí la captura de eval/reports/report.html -->
 | Métrica | Valor |
 |---|---|
@@ -52,16 +52,30 @@ demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 | Abstención correcta (trampas) | **100%** |
 | Alucinaciones de dosis de alta severidad | **0** |
 | Tasa de respuesta (reales) | **83% (10/12; 2 abstenciones honestas)** |
-| Latencia media | **44 847 ms** (reranker en CPU) |
+| Latencia media (primer hit) | **44 847 ms** (reranker en CPU) · **<50 ms** en repetidas (caché) |
 
 > Cómo lo logré: corpus curado + Contextual Retrieval + búsqueda híbrida + reranking +
-> guardarraíl de dosis. _(Si comparo modelos/configs, pongo la tabla antes/después.)_
+> guardarraíl de dosis + caché de respuestas. _(Comparo configs con la tabla antes/después.)_
+
+> **Validez estadística (honesto):** estos números son de la **v1 con n=16** preguntas — una
+> muestra **pequeña**, suficiente para una prueba de concepto pero **no** para afirmar tasas
+> poblacionales con intervalos de confianza estrechos. El golden set se amplió a **n=50**
+> (`data/golden/hass_v1.jsonl`, con bloques de dosis, carencia/PHI y categoría toxicológica);
+> la re-medición sobre n=50 es el siguiente hito. Para una afirmación comercial se necesitan
+> **≥200** preguntas curadas por el agrónomo y un segundo evaluador humano (acuerdo inter-anotador).
 
 ## Limitaciones honestas (lo que NO hace)
 - No reemplaza a un ingeniero agrónomo; es herramienta de **apoyo**.
 - El diagnóstico por foto sería una pista, no un veredicto (no implementado en esta versión).
-- La equivalencia de unidades de dosis (kg↔g) es una mejora pendiente del guardarraíl.
 - Cobertura limitada al corpus curado; fuera de él, se abstiene a propósito.
+- El registro PQUA del ICA es de **mar-2022**; el estado vivo de cada producto está en SimplifICA.
+
+## Guardarraíles de seguridad (qué verifica antes de mostrar una dosis)
+- **Dosis con fuente:** toda cifra de dosis debe estar respaldada por el contexto (con equivalencia kg↔g); si no, **ROJO**.
+- **Asociación producto–plaga–dosis–carencia:** un juez verifica que la dosis correcta vaya con el **producto y la plaga correctos** (no una dosis válida pegada al producto equivocado).
+- **Periodo de carencia (PHI)/reingreso:** si el texto afirma una carencia que no está en la fuente, **ROJO** (riesgo de LMR en exportación).
+- **Categoría toxicológica I/II:** se extrae del registro en la ingesta; si el producto recomendado es cat. I/II, **ROJO** con advertencia.
+- Estos guardarraíles están cubiertos por **tests unitarios en el CI**.
 
 ## Stack
 Python 3.12 · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · RAGAS · ruff/mypy/pytest · CI.

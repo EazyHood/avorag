@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AvoRAG — asistente agronómico RAG en español, neutral y con citación a fuente, especializado en aguacate Hass."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "Jhonatan del Rio" }]
 
 # --- Dependencias base (ligeras, sin ML pesado ni Docker) ---

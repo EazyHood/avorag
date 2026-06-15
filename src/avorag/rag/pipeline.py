@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import time
 
@@ -27,6 +28,38 @@ from avorag.retrieval import ScoredChunk, hybrid_search, rerank_chunks
 
 log = get_logger(__name__)
 _CITE_RE = re.compile(r"\[(\d+)\]")
+
+# --- Caché de respuestas en memoria (latencia) -----------------------------------
+# Las preguntas repetidas (caso WhatsApp/FAQ de campo) responden al instante en vez de
+# repetir embed + búsqueda híbrida + reranker (CPU) + LLM. TTL y on/off en config.
+# Es por-proceso (no compartida entre workers); para multi-worker usar Redis más adelante.
+_RESPONSE_CACHE: dict[str, tuple[float, Answer]] = {}
+_CACHE_MAX = 256
+
+
+def _cache_key(
+    question: str,
+    tenant: str,
+    country: str,
+    soil_type: str | None,
+    region: str | None,
+) -> str:
+    raw = "|".join([question.strip().lower(), tenant, country, soil_type or "", region or ""])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _cache_get(key: str, ttl: int) -> Answer | None:
+    item = _RESPONSE_CACHE.get(key)
+    if item is not None and (time.time() - item[0]) < ttl:
+        return item[1]
+    return None
+
+
+def _cache_put(key: str, ans: Answer) -> None:
+    if len(_RESPONSE_CACHE) >= _CACHE_MAX:
+        oldest = min(_RESPONSE_CACHE, key=lambda k: _RESPONSE_CACHE[k][0])
+        _RESPONSE_CACHE.pop(oldest, None)
+    _RESPONSE_CACHE[key] = (time.time(), ans)
 
 
 def _provider_info() -> dict:
@@ -149,6 +182,19 @@ def answer(
     t0 = time.perf_counter()
     pinfo = _provider_info()
 
+    # Caché: si esta misma pregunta (mismo tenant/país/suelo/región) ya se respondió y sigue
+    # fresca, se devuelve al instante. Reemite la latencia real (≈0 ms) y marca "(cacheada)".
+    ckey = _cache_key(question, tenant, country, soil_type, region)
+    if settings.cache_enabled:
+        cached = _cache_get(ckey, settings.cache_ttl_seconds)
+        if cached is not None:
+            return cached.model_copy(
+                update={
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                    "reason": ((cached.reason or "") + " · (cacheada)").strip(" ·"),
+                }
+            )
+
     # Contexto de la finca: el suelo y la región cambian la recomendación (sobre todo
     # de fertilización: en arenoso el N se lixivia más; en arcilloso cuidar el drenaje).
     fc_parts: list[str] = []
@@ -232,6 +278,14 @@ def answer(
         doses_ok, unsupported = (
             guardrails.doses_grounded(raw, contexts_text) if settings.dose_guardrail else (True, [])
         )
+        phi_ok, phi_unsupported = (
+            guardrails.phi_grounded(raw, contexts_text) if settings.dose_guardrail else (True, [])
+        )
+        # Juez de asociación producto–plaga–dosis–carencia: SOLO si la respuesta es accionable
+        # (trae dosis/carencia/aplicación). Evita latencia en respuestas generales.
+        actionable = settings.dose_guardrail and guardrails.has_actionable_recommendation(raw)
+        safety = guardrails.dose_safety_judge(raw, contexts_text) if actionable else None
+
         faithfulness: float | None = None
         judge_failed = False
         if settings.faithfulness_judge:
@@ -241,13 +295,18 @@ def answer(
         cat_tox = guardrails.cited_categoria_toxicologica(final)
         semaforo, reason = guardrails.decide_semaforo(
             doses_ok=doses_ok,
+            phi_ok=phi_ok,
             cat_tox=cat_tox,
             faithfulness=faithfulness,
             has_citations=bool(citations),
             judge_failed=judge_failed,
+            safety=safety,
+            safety_required=actionable,
         )
         if not doses_ok:
-            reason += f" (valores sin fuente: {', '.join(unsupported)})"
+            reason += f" (dosis sin fuente: {', '.join(unsupported)})"
+        if not phi_ok:
+            reason += f" (carencia sin fuente: {', '.join(phi_unsupported)})"
 
         ans = Answer(
             question=question,
@@ -272,4 +331,6 @@ def answer(
             n_citations=len(ans.citations),
             latency_ms=ans.latency_ms,
         )
+        if settings.cache_enabled:
+            _cache_put(ckey, ans)
         return ans

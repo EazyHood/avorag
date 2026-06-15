@@ -1,0 +1,116 @@
+{
+  "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
+  "corpus_version": "2026-06-14",
+  "documents": [
+    {
+      "filename": "ica_manejo_fitosanitario_hass.pdf",
+      "fuente": "ICA - Manejo fitosanitario del aguacate Hass",
+      "autoridad": "oficial-regulador",
+      "licencia": "publica-ICA",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://www.ica.gov.co/getattachment/4b5b9b6f-ecfc-46e1-b9ca-b35cc1cefee2/-",
+      "download": "auto",
+      "note": "Publicación oficial ICA (~75 pp.). Núcleo de plagas/enfermedades."
+    },
+    {
+      "filename": "ica_pqua_aguacate.txt",
+      "fuente": "ICA - Registro Nacional PQUA: insumos registrados para aguacate (mar-2022)",
+      "autoridad": "oficial-regulador",
+      "licencia": "publica-ICA",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://www.ica.gov.co/getattachment/Areas/Agricola/Servicios/Regulacion-y-Control-de-Plaguicidas-Quimicos/PUBLICACION-BD_RN-RF-5.pdf.aspx?lang=es-CO",
+      "download": "manual",
+      "note": "El .txt es un EXTRACTO de las páginas que mencionan 'aguacate' del registro PQUA completo (174 pp., mar-2022). Para reconstruirlo: descargar el PDF de la URL y extraer las páginas con 'aguacate'. Estado vivo: portal SimplifICA."
+    },
+    {
+      "filename": "ica_resolucion_1507_2016.pdf",
+      "fuente": "ICA - Resolucion 1507 de 2016 (plagas de control oficial en aguacate)",
+      "autoridad": "oficial-regulador",
+      "licencia": "publica-ICA",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://www.ica.gov.co/getattachment/81591168-ac45-478a-b84b-f054d4e5829b/2016R1507.aspx",
+      "download": "auto",
+      "note": "PDF ESCANEADO (solo imagen). 0 chunks sin OCR. Pendiente: pasar OCR antes de ingerir."
+    },
+    {
+      "filename": "agrosavia_mip_stenoma_heilipus.pdf",
+      "fuente": "Agrosavia - Manejo integrado de plagas (Stenoma catenifer, Heilipus) en aguacate",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/server/api/core/bitstreams/04c154ea-cedc-4602-a057-65302f55a630/content",
+      "download": "auto",
+      "note": "CC BY-NC: uso no comercial."
+    },
+    {
+      "filename": "agrosavia_poscosecha_hass.pdf",
+      "fuente": "Agrosavia - Cosecha y poscosecha del aguacate Hass (Cap. VII)",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/bitstreams/4c0726d2-459b-45a5-9f35-bdbe7e889b12/download",
+      "download": "auto",
+      "note": "CC BY-NC."
+    },
+    {
+      "filename": "agrosavia_requerimientos_nutric.pdf",
+      "fuente": "Agrosavia - Requerimientos nutricionales del aguacate Hass",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/handle/20.500.12324/39489",
+      "download": "manual",
+      "note": "CC BY-NC. URL = landing del repositorio: abrir y descargar el PDF 'Ver_Documento_39489.pdf'."
+    },
+    {
+      "filename": "fertilizacion_hass.pdf",
+      "fuente": "Agrosavia - Criterios de fertilizacion del aguacate Hass",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/handle/20.500.12324/13143",
+      "download": "manual",
+      "note": "CC BY-NC. URL = landing del repositorio: abrir y descargar el PDF."
+    },
+    {
+      "filename": "agrosavia_hass_doc.pdf",
+      "fuente": "Agrosavia - Bases tecnicas manejo de plagas en aguacate Hass (Cauca)",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/handle/20.500.12324/20496",
+      "download": "manual",
+      "note": "CC BY-NC. URL = landing del repositorio: abrir y descargar el PDF."
+    },
+    {
+      "filename": "guia_plagas_hass.pdf",
+      "fuente": "Agrosavia - Guia de reconocimiento y manejo de plagas del aguacate Hass",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC (verificar)",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/handle/20.500.12324/36946",
+      "download": "manual",
+      "note": "CC BY-NC. Guía VISUAL (mucha info en figuras, poco texto extraíble). URL = landing del repositorio."
+    },
+    {
+      "filename": "AlfonsoJose2008.pdf",
+      "fuente": "FHIA/MCA-Honduras - Manual tecnico del cultivo del aguacate Hass (2008, Honduras)",
+      "autoridad": "academico",
+      "licencia": "publica-MCA/FHIA",
+      "pais": "HN",
+      "doi": null,
+      "url": "http://www.avocadosource.com/books/AlfonsoJose2008.pdf",
+      "download": "auto",
+      "note": "Honduras (NO ICA). Útil para principios agronómicos, no para insumos registrados en Colombia."
+    }
+  ]
+}

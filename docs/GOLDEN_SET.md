@@ -40,7 +40,13 @@ uv run avorag eval data/golden/golden_set.example.jsonl
 ```
 Genera: tabla en consola + `eval/reports/last_report.json` + **`eval/reports/report.html`**
 (el dashboard que capturas para el portafolio). El comando devuelve código de salida ≠ 0
-si el gate falla — por eso sirve como gate de CI.
+si el gate falla.
+
+> **Honestidad sobre el gate y el CI:** este gate del golden set requiere Postgres + Ollama +
+> el corpus, así que corre **localmente o en un runner self-hosted**, NO en el CI de la nube
+> (GitHub Actions free no tiene GPU ni el corpus). El CI en la nube ejecuta lint + tipos
+> (`mypy`, bloqueante) + **tests unitarios — que ahora incluyen los guardarraíles de seguridad**
+> (dosis, carencia/PHI, asociación, categoría toxicológica). Ver `.github/workflows/ci.yml`.
 
 ## Qué mide el gate (umbrales en `eval/metrics.py`)
 - **Abstención correcta** en trampas ≥ 80%.

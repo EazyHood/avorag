@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # a otro frontend, define una lista JSON: CORS_ALLOW_ORIGINS='["https://tu.app"]'.
     cors_allow_origins: list[str] = []
 
+    # --- Caché de respuestas (latencia: preguntas repetidas responden al instante) ---
+    cache_enabled: bool = True
+    cache_ttl_seconds: int = 3600
+
     # --- Observabilidad ---
     sentry_dsn: str = ""
 

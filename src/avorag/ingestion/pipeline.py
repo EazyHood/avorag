@@ -13,7 +13,7 @@ from avorag.db import Chunk, Document, get_session
 from avorag.ingestion.chunking import chunk_text
 from avorag.ingestion.contextual import build_doc_summary, contextualize_chunk
 from avorag.ingestion.loaders import load_document, sha256_file
-from avorag.ingestion.metadata import ChunkMetadata, DocumentMeta
+from avorag.ingestion.metadata import ChunkMetadata, DocumentMeta, extract_chunk_fields
 from avorag.logging import get_logger
 from avorag.providers import get_embedding_provider
 
@@ -97,6 +97,7 @@ def ingest_document(
                 ctx = contextualize_chunk(tc.text, doc_summary, meta.fuente) if contextual else ""
                 if contextual and not ctx:
                     contextual_failures += 1
+                fields = extract_chunk_fields(tc.text)
                 cmeta = ChunkMetadata(
                     pais=meta.pais,
                     cultivo=meta.cultivo,
@@ -107,6 +108,10 @@ def ingest_document(
                     licencia_uso=meta.licencia,
                     url=meta.url,
                     doi=meta.doi,
+                    categoria_toxicologica=fields["categoria_toxicologica"],
+                    registro_ica=fields["registro_ica"],
+                    tema=fields["tema"],
+                    plaga_objetivo=fields["plaga_objetivo"],
                 )
                 chunk = Chunk(
                     document_id=document.id,

@@ -24,11 +24,10 @@ jobs:
           uv run ruff check src tests
           uv run ruff format --check src tests
 
-      - name: Mypy (tipos)
+      - name: Mypy (tipos) — bloqueante
         run: uv run mypy
-        continue-on-error: true   # informativo al inicio; endurecer luego
 
-      - name: Tests unitarios (puros, sin DB ni LLM)
+      - name: Tests unitarios (puros, sin DB ni LLM) — incluyen los guardarraíles de seguridad
         run: uv run pytest
 
   # ---------------------------------------------------------------------------
