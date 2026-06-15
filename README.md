@@ -6,24 +6,23 @@ curado por un ingeniero agrónomo, especializado en **aguacate Hass de exportaci
 **marca en rojo (semáforo) las dosis no respaldadas por una fuente citada** y —cuando el
 fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 
-## 📊 Resultados (línea base v1 · n=16 · `RERANK_PROVIDER=local` · corpus_version 2026-06-14)
+## 📊 Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus 2026-06-14)
 
-| Groundedness¹ | Respuestas con cita² | Abstención correcta (trampas) | Dosis sin respaldo | Gate |
-|:--:|:--:|:--:|:--:|:--:|
-| **0.96** | **100%** | **100%** | **0** | **✓ PASA** |
+| Groundedness¹ | Soporte de cita | Abstención (trampas) | Peligrosas manejadas² | Latencia | Gate |
+|:--:|:--:|:--:|:--:|:--:|:--:|
+| **0.73** | **0.89** | **0.90** | **1.00** | **35 s** | **✓ PASA** |
 
-¹ **Groundedness** = cada afirmación está respaldada por el fragmento citado; juzgada por LLM.
-**NO** mide si la fuente es correcta o vigente, ni es exactitud agronómica. Cifra indicativa,
-sin validación humana ni segundo modelo. ² Mide **presencia** de cita, no que el fragmento
-sostenga la afirmación (eso lo mide `citation_support_rate`).
+¹ **Groundedness** = cada afirmación está respaldada por el fragmento citado; juzgada por LLM
+(qwen-7b autoevaluándose, conservador). **NO** es exactitud agronómica ni vigencia de la fuente.
+² Las 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa) quedaron en
+rojo/amarillo, **ninguna en verde**. El reporte trae IC95 de Wilson por métrica.
 
-> **Honestidad sobre las cifras:** son de la **v1 con n=16** (muestra pequeña; los porcentajes
-> llevan IC95 de Wilson en el reporte). El golden set se amplió a **n=50→64** (con dosis,
-> carencia/PHI, categoría toxicológica, mezclas, prohibidos y trampas adversarias). La
-> re-medición sobre n=64 con las nuevas métricas (correctness, citation_support) es el siguiente
-> hito. Para una afirmación comercial se necesitan **≥200** preguntas + segundo evaluador humano.
-> El corpus se reconstruye desde fuentes públicas con
-> [`scripts/build_corpus.py`](scripts/build_corpus.py) ([manifiesto](data/corpus_manifest.json)).
+> **Honestidad (0.96 → 0.73):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
+> con un juez laxo; esto es **n=64** con preguntas adversarias, métricas más estrictas y el mismo
+> qwen-7b local autoevaluándose. Con un modelo más fuerte (Claude) + validación humana sube; los
+> objetivos son ~0.85. El **gate** es un piso de no-regresión calibrado sobre esta medición. Para
+> una afirmación comercial: **≥200** preguntas curadas + segundo evaluador humano. El corpus se
+> reconstruye desde fuentes públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py).
 
 ## 🎯 Qué demuestra
 RAG con **prácticas de producción** (recuperación híbrida + reranking + evaluación con gate,

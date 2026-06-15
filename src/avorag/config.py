@@ -63,9 +63,9 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 12  # candidatos antes del reranking (menos = más rápido)
     final_top_k: int = 6
     rrf_k: int = 60
-    # Umbrales de abstención: cross-encoder logit (bge: <0 = irrelevante) o RRF (~1/61).
-    # Calibrar con `avorag eval --sweep`.
-    min_rerank_score: float = 0.0
+    # Umbrales de abstención (calibrar con `avorag eval --sweep`). El valor del reranker se
+    # calibró sobre el golden n=64: separa trampas (~0) de reales (>=0.02) con ~98% de exactitud.
+    min_rerank_score: float = 0.01
     min_rrf_score: float = 0.0
 
     # --- Multi-tenant ---

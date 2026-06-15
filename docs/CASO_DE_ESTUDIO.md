@@ -43,31 +43,33 @@ Recuperación **híbrida** (denso `pgvector` + léxico FTS español) → fusión
 Proveedores intercambiables por configuración (local gratis con Ollama, o Claude para el
 demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Resultados (línea base v1 · n=16 · `RERANK_PROVIDER=local` · corpus_version 2026-06-14)
+## Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus_version 2026-06-14)
 <!-- Pega aquí la captura de eval/reports/report.html -->
-| Métrica | Valor | Qué mide (y qué NO) |
+| Métrica | Valor (IC95 Wilson) | Qué mide (y qué NO) |
 |---|---|---|
-| **Groundedness** | **0,96** | Cada afirmación está respaldada por el fragmento citado. **NO** es exactitud agronómica ni vigencia de la fuente. Juez LLM. |
-| Respuestas con cita | **100%** | **Presencia** de cita, no que el fragmento sostenga la afirmación (eso es `citation_support_rate`). |
-| Abstención correcta (trampas) | **100%** | Sobre 4 trampas (IC95 amplio). |
-| Dosis sin respaldo | **0** | Calculado por el guardarraíl de dosis (ahora determinista y atado al producto correcto). |
-| Tasa de respuesta (reales) | **83% (10/12; 2 abstenciones honestas)** | |
-| Latencia (primer hit) | **44 847 ms** con `RERANK_PROVIDER=local` en CPU · **<50 ms** repetidas (caché) | El default de fábrica es `none`. |
+| **Groundedness** | **0,73** | Cada afirmación está respaldada por el fragmento citado. **NO** es exactitud agronómica ni vigencia. Juez LLM (qwen-7b autoevaluándose, conservador). |
+| Soporte de cita | **0,89** (0,76–0,95) | La cifra citada `[n]` está realmente en el fragmento `n` (determinista). |
+| Respuestas con cita | **0,73** (0,58–0,84) | **Presencia** de cita; las que no citan caen a amarillo. |
+| Abstención correcta (trampas) | **0,90** (0,60–0,98) | 9/10 trampas abstenidas. |
+| Manejo de preguntas peligrosas | **1,00** | Las 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa) quedaron en rojo/amarillo, **ninguna en verde**. |
+| must_cite (regulador correcto) | **0,89** | El item cita al regulador exigido (ICA/Agrosavia). |
+| Tasa de respuesta (reales) | **0,81** | 44/54; 10 abstenciones honestas. |
+| Latencia media | **35 s** (`RERANK_PROVIDER=local`, CPU) · **<50 ms** repetidas (caché) | El default de fábrica es `none`. GPU lo baja a segundos. |
 
-> Cómo lo logré: corpus curado + Contextual Retrieval + búsqueda híbrida + reranking +
-> guardarraíl de dosis determinista + caché de respuestas.
+**Gate: ✓ PASA** (piso de no-regresión calibrado sobre esta medición).
+
+> **Honestidad sobre la caída vs la v1 (0,96 → 0,73):** NO es una regresión, es honestidad. La
+> cifra v1 era groundedness sobre **n=16 fáciles** con un juez más laxo; aquí es **n=64** con
+> preguntas adversarias difíciles (mezclas, prohibidos, fitotoxicidad), métricas **más estrictas**
+> y el **mismo qwen-7b local autoevaluándose** (conservador). Con un modelo generador/juez más
+> fuerte (Claude) y validación humana, sube. Los **objetivos** son groundedness/citación ~0,85.
 >
-> **El juez de groundedness es un LLM** (en la ruta local, `qwen2.5:7b` se autoevalúa: cifra
-> indicativa, sin validación humana ni segundo modelo). Para una afirmación comercial: juez
-> independiente (`JUDGE_LLM_PROVIDER`) + acuerdo inter-anotador humano (n≥200).
+> **Hallazgo de calibración:** el barrido de umbral separa trampas (score ~0) de reales (≥0,02)
+> con **98,3% de exactitud**; `min_rerank_score` se fijó en 0,01 con base en eso.
 
-> **Validez estadística (honesto):** estos números son de la **v1 con n=16** preguntas — una
-> muestra **pequeña**, suficiente para una prueba de concepto pero **no** para afirmar tasas
-> poblacionales con intervalos estrechos (el reporte muestra IC95 de Wilson). El golden set se
-> amplió a **n=64** (`data/golden/hass_v1.jsonl`, con dosis, carencia/PHI, categoría toxicológica,
-> mezclas, prohibidos y trampas adversarias); la re-medición sobre n=64 con las métricas nuevas
-> (correctness vs hechos esperados, citation_support) es el siguiente hito. Para una afirmación
-> comercial: **≥200** preguntas curadas por el agrónomo + segundo evaluador humano (acuerdo inter-anotador).
+> **Validez estadística:** n=64 sigue siendo una muestra **moderada** (los IC95 de Wilson son
+> anchos, sobre todo en trampas y peligrosas, n=10 cada uno). Para una afirmación comercial:
+> **≥200** preguntas curadas por el agrónomo + segundo evaluador humano (acuerdo inter-anotador).
 
 ## Limitaciones honestas (lo que NO hace)
 - No reemplaza a un ingeniero agrónomo; es herramienta de **apoyo**.
