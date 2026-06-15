@@ -36,6 +36,8 @@ _CITE_RE = re.compile(r"\[(\d+)\]")
 # Caché en memoria por proceso. Multi-worker requeriría Redis.
 _RESPONSE_CACHE: dict[str, tuple[float, Answer]] = {}
 _CACHE_MAX = 256
+# Respuestas "fijadas": preguntas por defecto precalculadas. No expiran y se sirven al instante.
+_PINNED: dict[str, Answer] = {}
 
 
 def _cache_key(
@@ -49,7 +51,17 @@ def _cache_key(
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def pin_answer(question: str, ans: Answer) -> None:
+    """Fija la respuesta de una pregunta por defecto (clave con tenant/país por defecto, sin
+    suelo/región) para servirla al instante. La usa el precálculo de arranque."""
+    s = get_settings()
+    _PINNED[_cache_key(question, s.default_tenant, s.country, None, None)] = ans
+
+
 def _cache_get(key: str, ttl: int) -> Answer | None:
+    pinned = _PINNED.get(key)
+    if pinned is not None:
+        return pinned
     item = _RESPONSE_CACHE.get(key)
     if item is not None and (time.time() - item[0]) < ttl:
         return item[1]
@@ -462,11 +474,16 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         reason += f" (citas: {'; '.join(citation_issues)})"
 
     if banned:
+        # Producto prohibido/restringido: la respuesta es la advertencia, directa y limpia. Se
+        # descarta el cuerpo del modelo (suele divagar) y el ruido de dosis/avisos (es irrelevante
+        # si no debe usarse).
         raw = (
-            "⛔ AVISO: tu consulta involucra un producto PROHIBIDO o RESTRINGIDO "
-            f"({banned[0]}). No lo apliques; consulta alternativas registradas y vigentes "
-            "ante el ICA con tu técnico.\n\n" + raw
+            f"⛔ No, no debes usar {banned[0]} en aguacate Hass de exportación.\n\n"
+            "Es un producto prohibido o restringido. Consulta con tu técnico alternativas "
+            "registradas y vigentes ante el ICA, y verifica el límite máximo de residuos (LMR) "
+            "del país de destino antes de cualquier aplicación."
         )
+        conflicts, warnings, citations, follow_ups = [], [], [], []
 
     ans = Answer(
         question=question,

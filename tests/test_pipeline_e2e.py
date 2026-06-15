@@ -152,6 +152,26 @@ def test_answer_regenera_si_cuerpo_vacio(monkeypatch) -> None:
     assert len(ans.text.strip()) > 20  # ya no sale vacía
 
 
+def test_pregunta_fijada_se_sirve_sin_recuperacion(monkeypatch) -> None:
+    from avorag.rag.schemas import Answer, Semaforo
+
+    monkeypatch.setattr(P, "_PINNED", {})  # aislar de otros tests
+
+    def _boom(*a, **k):
+        raise AssertionError("una respuesta fijada no debe recuperar ni generar")
+
+    monkeypatch.setattr(P, "hybrid_search", _boom)
+
+    pinned = Answer(question="¿pregunta fija?", text="Respuesta fija [1].", semaforo=Semaforo.VERDE)
+    P.pin_answer("¿Pregunta fija?", pinned)
+
+    ans = P.answer("¿Pregunta fija?")  # mayúsculas distintas: la clave normaliza con .lower()
+    assert ans.text == "Respuesta fija [1]."
+    events = list(P.answer_stream("¿Pregunta fija?"))
+    assert [k for k, _ in events] == ["final"]
+    assert events[0][1].text == "Respuesta fija [1]."
+
+
 def test_generation_problem_detecta_fallos() -> None:
     assert P._generation_problem("PREGUNTA DEL PRODUCTOR:\n¿algo?\n\nFRAGMENTOS:\n[1]") == "eco"
     assert P._generation_problem("[6] 根据计算，施用钾肥。") == "idioma"

@@ -40,6 +40,8 @@ class LocalRerank(RerankProvider):
     Usa GPU + fp16 si hay CUDA disponible (en CPU tarda ~12 s; en GPU ~20 ms)."""
 
     def __init__(self) -> None:
+        import threading
+
         import torch  # import diferido (pesado)
         from sentence_transformers import CrossEncoder
 
@@ -50,10 +52,13 @@ class LocalRerank(RerankProvider):
             )
         else:
             self._model = CrossEncoder(s.rerank_model)
+        # La inferencia en GPU no es thread-safe; serializa el precálculo de fondo con las peticiones.
+        self._lock = threading.Lock()
 
     def rerank(self, query: str, docs: list[str], top_k: int) -> list[tuple[int, float]]:
         if not docs:
             return []
-        scores = self._model.predict([(query, d) for d in docs])
+        with self._lock:
+            scores = self._model.predict([(query, d) for d in docs])
         ranked = sorted(enumerate(scores), key=lambda x: float(x[1]), reverse=True)
         return [(i, float(s)) for i, s in ranked[:top_k]]

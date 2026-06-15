@@ -40,9 +40,24 @@ def _warm_models() -> None:
         log.warning("model_warmup_failed", error=str(exc))
 
 
+def _prewarm_defaults() -> None:
+    """Sirve al instante las preguntas por defecto: carga del disco lo válido y recalcula en un
+    hilo de fondo lo que falte (sin bloquear el arranque)."""
+    import threading
+
+    from avorag.rag import prewarm
+
+    try:
+        prewarm.load_from_disk()
+        threading.Thread(target=prewarm.refresh, name="prewarm", daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("prewarm_setup_failed", error=str(exc))
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     _warm_models()
+    _prewarm_defaults()
     yield
 
 
