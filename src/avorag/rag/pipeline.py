@@ -14,7 +14,7 @@ from avorag.config import get_settings
 from avorag.db import QueryLog, get_session
 from avorag.logging import get_logger
 from avorag.providers import get_embedding_provider, get_llm_provider
-from avorag.rag import guardrails
+from avorag.rag import conversation, guardrails
 from avorag.rag.prompt import (
     ABSTENTION_MARKER,
     DISCLAIMER,
@@ -242,6 +242,18 @@ def answer(
     country = country or settings.country
     t0 = time.perf_counter()
     pinfo = _provider_info()
+
+    conv = conversation.classify_conversational(question)
+    if conv is not None:
+        return Answer(
+            question=question,
+            text=conversation.conversational_reply(question, conv),
+            semaforo=Semaforo.VERDE,
+            abstained=False,
+            reason="Mensaje conversacional (sin consulta técnica).",
+            latency_ms=int((time.perf_counter() - t0) * 1000),
+            provider_info=pinfo,
+        )
 
     ckey = _cache_key(question, tenant, country, soil_type, region)
     if settings.cache_enabled:
