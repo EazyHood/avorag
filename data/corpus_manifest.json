@@ -1,7 +1,79 @@
 {
   "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
-  "corpus_version": "2026-06-15.2",
+  "corpus_version": "2026-06-15.3",
   "documents": [
+    {
+      "filename": "agrosavia_insectos_acaros.pdf",
+      "fuente": "Agrosavia - Insectos y acaros del aguacate (BPA cap. VI, 2020)",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://editorial.agrosavia.co/index.php/publicaciones/catalog/download/162/150/1125-2?inline=1",
+      "download": "auto",
+      "note": "114 pp., 203K chars. Plagas a fondo (trips, acaros, monalonion, barrenadores) con monitoreo y umbrales. Llena el vacio de plagas (corpus visual previo era pobre en texto).",
+      "sha256": "0f9fd964d23692fe4f35c0d043f873d3dd9cca0304c956ad22f9a9076ef3dbe9"
+    },
+    {
+      "filename": "agrosavia_enfermedades.pdf",
+      "fuente": "Agrosavia - Enfermedades y desordenes abioticos del aguacate (BPA cap. VII, 2020)",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://editorial.agrosavia.co/index.php/publicaciones/catalog/download/162/151/1128-1?inline=1",
+      "download": "auto",
+      "note": "50 pp., 81K chars. Phytophthora, antracnosis, rona, lasiodiplodia: sintomas, condiciones y manejo.",
+      "sha256": "f721d4345ce5e78a70789aa52c6107c32292ee025c0913785748bc29ce3b3a5c"
+    },
+    {
+      "filename": "unad_mip_caldas.pdf",
+      "fuente": "UNAD - MIP de plagas y enfermedades en aguacate Hass (Caldas, 2020): productos, dosis, categoria toxicologica, carencia",
+      "autoridad": "academico",
+      "licencia": "academica-acceso-abierto",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.unad.edu.co/bitstream/handle/10596/38446/dosquebradas.pdf?sequence=3&isAllowed=y",
+      "download": "auto",
+      "note": "61 pp., 79K chars. Tabla producto|i.a.|categoria toxicologica|carencia|reentrada|dosis + bioinsumos (Trichoderma). Llena el vacio de insumos (46% abstencion).",
+      "sha256": "c3c18d5b0489c3365d04ec6d41edf1ebad1c9c04f16d83217635f5ebacf45bbe"
+    },
+    {
+      "filename": "agrosavia_fisiologia.pdf",
+      "fuente": "Agrosavia - Fisiologia del aguacate: floracion tipo A/B, dicogamia, polinizacion",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.agrosavia.co/server/api/core/bitstreams/4cfa8cc3-32b4-4574-bfe6-56308b74865c/content",
+      "download": "auto",
+      "note": "10 pp., 17K chars. Floracion tipo A/B, dicogamia sincronica, polinizacion. Llena el vacio de fisiologia.",
+      "sha256": "a2b262e1223269570c5caa97643603760d3e0dc7eca7e67d64f4b99c7beb6ac4"
+    },
+    {
+      "filename": "agrosavia_indices_madurez.pdf",
+      "fuente": "Agrosavia - Indices de madurez de cosecha del aguacate Hass (Antioquia, 2019): materia seca",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://editorial.agrosavia.co/index.php/publicaciones/catalog/download/73/60/684-1?inline=1",
+      "download": "auto",
+      "note": "16 pp., 15K chars. Indices de madurez/materia seca (13-29%) para cosecha y exportacion.",
+      "sha256": "0ef7bdb7b524b2cf76b371a14a995a2a7607a84c399db1cbca2c8435e64460c5"
+    },
+    {
+      "filename": "agrosavia_fertirriego_cauca.pdf",
+      "fuente": "Agrosavia - Practicas de fertilizacion y riego del aguacate Hass (Cauca, 2023)",
+      "autoridad": "academico",
+      "licencia": "CC-BY-NC",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://editorial.agrosavia.co/index.php/publicaciones/catalog/download/357/392/2177-1?inline=1",
+      "download": "auto",
+      "note": "196 pp., 229K chars. Analisis de suelo/foliar, NPK, micronutrientes, encalado, evapotranspiracion, lamina de riego, fertirriego.",
+      "sha256": "aee0db1748308a221c9472be4b433d331fa1333351007069ea336bad5b8a3da1"
+    },
     {
       "filename": "minagricultura_paquete_tecnologico_aguacate.pdf",
       "fuente": "MinAgricultura - Manual técnico del cultivo del aguacate (Paquete Tecnológico, 2009)",
