@@ -24,6 +24,8 @@ def test_doc_summary_skips_cover_and_captures_structure() -> None:
 
 def test_captions_survive_header_stripping() -> None:
     # 'Figura N.' se repite (mismo patrón normalizado) pero NO debe eliminarse como encabezado.
-    pages = [f"Figura {i}. Dano de trips en fruto\nTexto distinto de la pagina {i}." for i in range(8)]
+    pages = [
+        f"Figura {i}. Dano de trips en fruto\nTexto distinto de la pagina {i}." for i in range(8)
+    ]
     cleaned = strip_running_headers(pages)
     assert all("Figura" in c for c in cleaned)
