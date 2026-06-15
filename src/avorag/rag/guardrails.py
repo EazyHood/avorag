@@ -21,7 +21,9 @@ log = get_logger(__name__)
 
 # Unidades agronómicas típicas de dosis.
 _UNITS = r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3|mm)"
-_DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?" + _UNITS + r"\b", re.IGNORECASE)
+# (?!\w) en vez de \b: cierra la unidad sin exigir frontera de palabra, así también captura
+# unidades que terminan en no-letra (p.ej. la concentración "1.8%"), que \b dejaba escapar.
+_DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?" + _UNITS + r"(?!\w)", re.IGNORECASE)
 
 
 def _strip_accents(text: str) -> str:
@@ -36,7 +38,7 @@ def extract_dose_numbers(text: str) -> list[str]:
 
 
 # Normalización de unidades para comparar dosis EQUIVALENTES (5 kg/ha == 5000 g/ha).
-_DOSE_PAIR_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?(" + _UNITS + r")\b", re.IGNORECASE)
+_DOSE_PAIR_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?(" + _UNITS + r")(?!\w)", re.IGNORECASE)
 _UNIT_FACTORS: dict[str, tuple[str, float]] = {
     "%": ("pct", 1.0),
     "ppm": ("ppm", 1.0),

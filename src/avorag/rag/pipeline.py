@@ -312,7 +312,10 @@ def answer(
         if settings.dose_guardrail:
             doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
             phi_ok, phi_unsupported = guardrails.phi_grounded(raw, contexts_text)
-            banned = guardrails.banned_ingredients_in_answer(raw, country)
+            # La denylist mira la PREGUNTA y la respuesta: si el productor pregunta por un
+            # producto prohibido/restringido, el sistema debe advertirlo (ROJO) aunque el modelo
+            # no lo repita en su respuesta (hallazgo de la verificación en vivo).
+            banned = guardrails.banned_ingredients_in_answer(question + "\n" + raw, country)
             offlabel = guardrails.is_offlabel(raw, final)
             registro_required = guardrails.recommends_pesticide(raw)
             registro_ok = guardrails.ica_registro_ok(final)
@@ -374,6 +377,15 @@ def answer(
             reason += f" (carencia sin fuente: {', '.join(phi_unsupported)})"
         if not citation_ok and citation_issues:
             reason += f" (citas: {'; '.join(citation_issues)})"
+
+        # Ante un producto prohibido/restringido, antepone un AVISO explícito al cuerpo de la
+        # respuesta (no basta con el campo `reason`): el productor debe verlo de inmediato.
+        if banned:
+            raw = (
+                "⛔ AVISO: tu consulta involucra un producto PROHIBIDO o RESTRINGIDO "
+                f"({banned[0]}). No lo apliques; consulta alternativas registradas y vigentes "
+                "ante el ICA con tu técnico.\n\n" + raw
+            )
 
         ans = Answer(
             question=question,
