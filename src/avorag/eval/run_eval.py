@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,6 +22,37 @@ from avorag.eval.report_html import write_html_report
 from avorag.rag import answer
 
 console = Console()
+
+
+def _git_sha() -> str:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return out.stdout.strip() or "desconocido"
+    except Exception:
+        return "desconocido"
+
+
+def _corpus_version() -> str:
+    manifest = Path("data/corpus_manifest.json")
+    try:
+        return json.loads(manifest.read_text(encoding="utf-8")).get("corpus_version", "desconocido")
+    except Exception:
+        return "desconocido"
+
+
+def _build_run_meta(provider_info: dict | None, generated_at: str) -> dict:
+    """Procedencia de la corrida: para que cada cifra sea reproducible y comparable (#17)."""
+    return {
+        "git_sha": _git_sha(),
+        "corpus_version": _corpus_version(),
+        "generated_at": generated_at,
+        "provider_info": provider_info,
+    }
 
 
 def run_eval(
@@ -55,18 +87,28 @@ def run_eval(
 
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    provider_info = pairs[0][1].provider_info if pairs else None
+    run_meta = _build_run_meta(provider_info, stamp)
     out = report_dir / "last_report.json"
     out.write_text(
         json.dumps(
-            {"metrics": metrics.as_dict(), "passed": passed, "failures": failures},
+            {
+                "run_meta": run_meta,
+                "metrics": metrics.as_dict(),
+                "passed": passed,
+                "failures": failures,
+            },
             ensure_ascii=False,
             indent=2,
         ),
         encoding="utf-8",
     )
+    console.print(
+        f"[dim]Procedencia: git {run_meta['git_sha']} · corpus {run_meta['corpus_version']} · "
+        f"prompt {(provider_info or {}).get('prompt_version', '?')}[/dim]"
+    )
     # Dashboard HTML (artefacto de portafolio).
-    stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    provider_info = pairs[0][1].provider_info if pairs else None
     html_out = write_html_report(
         metrics,
         passed,

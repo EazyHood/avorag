@@ -65,6 +65,7 @@ def _cache_put(key: str, ans: Answer) -> None:
 
 def _provider_info() -> dict:
     from avorag.providers import judge_provider_label
+    from avorag.rag.prompt import PROMPT_VERSION
 
     s = get_settings()
     llm_model = {
@@ -77,6 +78,7 @@ def _provider_info() -> dict:
         "embedding": f"{s.embedding_provider}:{s.embedding_model}",
         "rerank": s.rerank_provider,
         "judge": judge_provider_label(),
+        "prompt_version": PROMPT_VERSION,
     }
 
 

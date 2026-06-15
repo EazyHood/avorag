@@ -11,6 +11,11 @@ DISCLAIMER = (
 
 ABSTENTION_MARKER = "NO_LO_SE"
 
+# Versión del contrato del prompt. Cámbiala al editar las REGLAS ESTRICTAS, para poder
+# correlacionar cualquier métrica de evaluación con la versión exacta del prompt que la produjo
+# (viaja en provider_info / auditoría). La protege tests/test_prompt_contract.py.
+PROMPT_VERSION = "2026-06-15.v2"
+
 SYSTEM_PROMPT = """Eres AvoRAG, un asistente agronómico para aguacate Hass en {country}, \
 neutral (no vendes ningún insumo). Hablas en español de finca: claro, directo y práctico.
 
