@@ -296,7 +296,7 @@
         <div id="chips" class="chips">
           <button class="chip" style="--i:0">Hola 👋</button>
           <button class="chip" style="--i:1">¿Cómo manejo los trips en aguacate Hass?</button>
-          <button class="chip" style="--i:2">¿Cuál es el plan de fertilización del Hass?</button>
+          <button class="chip" style="--i:2">¿Cuánto potasio aplicar en Hass durante el llenado del fruto?</button>
           <button class="chip" style="--i:3">¿Puedo usar clorpirifos para exportar a la UE?</button>
           <button class="chip" style="--i:4">¿Cómo siembro arroz?</button>
         </div>
@@ -385,6 +385,10 @@
                 live = pending.querySelector('.answer');
               }
               acc += data.t; live.textContent = acc; nearBottom();
+            } else if (data.type === 'reset') {
+              acc = ''; if (live) live.textContent = '';
+              const flag = pending.querySelector('.flag');
+              if (flag) flag.innerHTML = `<span class="dot"></span>Un momento…`;
             } else if (data.type === 'verifying') {
               if (live) live.classList.remove('streaming');
               const flag = pending.querySelector('.flag');

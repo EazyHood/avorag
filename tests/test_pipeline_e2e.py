@@ -28,9 +28,42 @@ def _chunk(content: str, **meta) -> ScoredChunk:
     return ScoredChunk(chunk=chunk, score=3.0)
 
 
-def _wire(monkeypatch, chunks) -> None:
+class _RecoveringLLM:
+    """Primera generación rota (chino o solo SEGUIMIENTO); al reintentar (prompt con 'AVISO')
+    devuelve una respuesta válida en español. Sirve para probar la detección + regeneración."""
+
+    name = "recovering"
+
+    def __init__(self, broken: str) -> None:
+        self._broken = broken
+        self.good = "Según la fuente, aplica un plan de manejo integrado [1].\nSEGUIMIENTO:\n- ¿Y el riego?"
+
+    def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
+        if "faithful" in system.lower() or "seguro" in system.lower():
+            return '{"faithful": true, "score": 0.9, "unsupported": []}'
+        return self.good if "AVISO" in system else self._broken
+
+    def stream(self, system, user, *, temperature=None, max_tokens=None):
+        for word in self.complete(system, user).split(" "):
+            yield word + " "
+
+
+class _AbstainingLLM:
+    """Se abstiene (NO_LO_SE) pero le pega una sección SEGUIMIENTO, como hace el modelo real."""
+
+    name = "abstain"
+
+    def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
+        return "NO_LO_SE\n\nSEGUIMIENTO:\n- ¿Cuál es tu tipo de suelo?\n- ¿Hiciste análisis de suelo?"
+
+    def stream(self, system, user, *, temperature=None, max_tokens=None):
+        for word in self.complete(system, user).split(" "):
+            yield word + " "
+
+
+def _wire(monkeypatch, chunks, llm=None) -> None:
     monkeypatch.setattr(P, "get_embedding_provider", lambda: FakeEmbedding())
-    monkeypatch.setattr(P, "get_llm_provider", lambda: FakeLLM())
+    monkeypatch.setattr(P, "get_llm_provider", lambda: llm or FakeLLM())
     monkeypatch.setattr(G, "get_judge_llm_provider", lambda: FakeLLM())
     monkeypatch.setattr(P, "hybrid_search", lambda *a, **k: chunks)
     monkeypatch.setattr(P, "rerank_chunks", lambda q, c, **k: c)
@@ -88,3 +121,50 @@ def test_answer_stream_conversational_solo_final(monkeypatch) -> None:
     assert [k for k, _ in events] == ["final"]
     assert events[0][1].semaforo.value == "verde"
     assert not events[0][1].abstained
+
+
+def test_answer_regenera_si_deriva_a_chino(monkeypatch) -> None:
+    chino = "[6] 根据计算，土壤中钾的含量为274.83 kg K/ha。建议施用钾肥。"
+    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass con potasio.")], llm=_RecoveringLLM(chino))
+    ans = P.answer("¿Cuál es el plan de fertilización del Hass?")
+    assert "钾" not in ans.text  # no chino en la respuesta final
+    assert ans.text.strip()  # no vacía
+    assert ans.semaforo.value != "rojo"  # la regeneración la salvó, no es un rechazo
+
+
+def test_answer_stream_resetea_y_recupera_ante_deriva(monkeypatch) -> None:
+    chino = "[6] 根据计算，土壤中钾的含量。建议施用钾肥以补充养分。"
+    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass.")], llm=_RecoveringLLM(chino))
+    events = list(P.answer_stream("¿Cuál es el plan de fertilización del Hass?"))
+    kinds = [k for k, _ in events]
+    assert "reset" in kinds  # detectó el chino y avisó al cliente que limpie
+    assert kinds[-1] == "final"
+    final = events[-1][1]
+    assert "钾" not in final.text and final.text.strip()
+    assert final.semaforo.value != "rojo"
+
+
+def test_answer_regenera_si_cuerpo_vacio(monkeypatch) -> None:
+    # El modelo solo emite la sección SEGUIMIENTO: -> cuerpo vacío -> debe regenerar.
+    solo_seguimiento = "SEGUIMIENTO:\n- ¿Cuál es tu tipo de suelo?\n- ¿Hiciste análisis de suelo?"
+    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass.")], llm=_RecoveringLLM(solo_seguimiento))
+    ans = P.answer("¿Cuál es el plan de fertilización del Hass?")
+    assert len(ans.text.strip()) > 20  # ya no sale vacía
+
+
+def test_answer_abstencion_con_seguimiento_pegado(monkeypatch) -> None:
+    # Bug real: NO_LO_SE + SEGUIMIENTO pegado dejaba la respuesta VACÍA. Ahora se abstiene bien.
+    _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())
+    ans = P.answer("¿Cuál es el plan de fertilización del Hass?")
+    assert ans.abstained
+    assert ans.text.strip() and "NO_LO_SE" not in ans.text and "SEGUIMIENTO" not in ans.text
+
+
+def test_answer_stream_abstencion_resetea_y_no_verifica(monkeypatch) -> None:
+    _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())
+    events = list(P.answer_stream("¿Cuál es el plan de fertilización del Hass?"))
+    kinds = [k for k, _ in events]
+    assert "reset" in kinds  # limpia el NO_LO_SE que se streameó
+    assert "verifying" not in kinds  # una abstención no pasa por los jueces
+    final = events[-1][1]
+    assert final.abstained and final.text.strip() and "NO_LO_SE" not in final.text

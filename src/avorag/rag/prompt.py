@@ -50,7 +50,8 @@ USER_PROMPT = """PREGUNTA DEL PRODUCTOR:
 FRAGMENTOS (numerados; úsalos como única fuente):
 {contexts}
 
-Responde citando los fragmentos con [n]. Si no hay información suficiente, responde solo {abstention}."""
+Responde EN ESPAÑOL, citando los fragmentos con [n]. Empieza por la respuesta (no por la línea \
+SEGUIMIENTO). Si no hay información suficiente, responde solo {abstention}."""
 
 
 def build_system_prompt(country: str) -> str:

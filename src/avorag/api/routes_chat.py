@@ -64,6 +64,8 @@ def ask_stream(
             ):
                 if kind == "delta":
                     yield f"data: {json.dumps({'type': 'delta', 't': payload})}\n\n"
+                elif kind == "reset":
+                    yield 'data: {"type": "reset"}\n\n'
                 elif kind == "verifying":
                     yield 'data: {"type": "verifying"}\n\n'
                 else:

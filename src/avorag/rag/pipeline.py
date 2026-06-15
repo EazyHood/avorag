@@ -165,6 +165,53 @@ def _split_followups(text: str) -> tuple[str, list[str]]:
     return body, follow[:3]
 
 
+_RETRY_SYSTEM_SUFFIX = (
+    "\n\nAVISO: tu intento anterior fue inválido (cambió de idioma o no respondió). "
+    "Ahora responde la PREGUNTA de forma directa y completa, en ESPAÑOL en cada palabra "
+    "(prohibido chino u otros alfabetos), citando los fragmentos con [n]. Escribe PRIMERO la "
+    "respuesta y solo al final la línea SEGUIMIENTO con 2 preguntas."
+)
+
+_FALLBACK_TEXT = (
+    "No pude redactar una respuesta clara para esta pregunta en este momento. Intenta "
+    "reformularla o consulta a tu técnico. Abajo tienes los fragmentos de fuente recuperados."
+)
+
+
+def _is_abstention(body: str) -> bool:
+    """True si el cuerpo (ya sin la sección SEGUIMIENTO) es una abstención NO_LO_SE. El modelo a
+    veces le pega preguntas de seguimiento a la abstención; aun así hay que tratarla como tal."""
+    if ABSTENTION_MARKER not in body:
+        return False
+    return len(body.replace(ABSTENTION_MARKER, "").strip()) <= 5
+
+
+def _generation_problem(body: str) -> str | None:
+    """Devuelve el motivo si la respuesta generada es inservible (idioma ajeno o cuerpo vacío)."""
+    if guardrails.contains_foreign_script(body):
+        return "idioma"
+    if len(body.strip()) < 20:
+        return "vacia"
+    return None
+
+
+def _raw_is_bad(raw: str) -> bool:
+    """True si la generación está rota (idioma ajeno o cuerpo vacío). Una abstención legítima
+    NO se considera rota: no hay que regenerarla, hay que mostrar el mensaje de abstención."""
+    body, _ = _split_followups(raw.strip())
+    if _is_abstention(body):
+        return False
+    return _generation_problem(body.replace(ABSTENTION_MARKER, "").strip()) is not None
+
+
+def _regenerate(gen: dict) -> str:
+    """Reintenta la generación con un prompt más firme; si vuelve a fallar, texto de reserva."""
+    raw = get_llm_provider().complete(
+        gen["system"] + _RETRY_SYSTEM_SUFFIX, gen["user"], temperature=0.35
+    )
+    return raw if not _raw_is_bad(raw) else _FALLBACK_TEXT
+
+
 def _audit_text(value: str, store_text: bool) -> str:
     """Texto en claro o su hash SHA-256 según la política de minimización."""
     if store_text:
@@ -325,8 +372,9 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     contexts_text = gen["contexts_text"]
     country = gen["country"]
     raw = raw.strip()
+    body, follow_ups = _split_followups(raw)
 
-    if ABSTENTION_MARKER in raw and len(raw) <= len(ABSTENTION_MARKER) + 5:
+    if _is_abstention(body):
         ans = _abstention(
             question,
             AbstentionType.OUT_OF_CONTENT,
@@ -340,8 +388,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         _persist(ans, tenant)
         return ans
 
-    raw = raw.replace(ABSTENTION_MARKER, "").strip()
-    raw, follow_ups = _split_followups(raw)
+    raw = body.replace(ABSTENTION_MARKER, "").strip()
 
     if settings.dose_guardrail:
         doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
@@ -479,10 +526,9 @@ def answer(
     if early is not None or gen is None:
         return early  # type: ignore[return-value]
 
-    llm = get_llm_provider()
-    raw = llm.complete(gen["system"], gen["user"])
-    if guardrails.contains_foreign_script(raw):
-        raw = llm.complete(gen["system"], gen["user"], temperature=0.0)
+    raw = get_llm_provider().complete(gen["system"], gen["user"])
+    if _raw_is_bad(raw):
+        raw = _regenerate(gen)
     ans = _finalize(question, raw, gen, pinfo=pinfo, t0=t0, tenant=tenant)
     if settings.cache_enabled:
         _cache_put(ckey, ans)
@@ -535,8 +581,25 @@ def answer_stream(
     for piece in get_llm_provider().stream(gen["system"], gen["user"]):
         parts.append(piece)
         yield "delta", piece
+    raw = "".join(parts)
+    body, _ = _split_followups(raw.strip())
+
+    if _is_abstention(body):
+        # El modelo se abstuvo (a veces con SEGUIMIENTO pegado): limpia el texto crudo y deja
+        # que _finalize muestre el mensaje de abstención. No hay que verificar ni regenerar.
+        yield "reset", None
+        ans = _finalize(question, raw, gen, pinfo=pinfo, t0=t0, tenant=tenant)
+        yield "final", ans
+        return
+
+    if _raw_is_bad(raw):
+        raw = _regenerate(gen)
+        new_body, _ = _split_followups(raw.replace(ABSTENTION_MARKER, "").strip())
+        yield "reset", None
+        yield "delta", (new_body if new_body.strip() else raw)
+
     yield "verifying", None
-    ans = _finalize(question, "".join(parts), gen, pinfo=pinfo, t0=t0, tenant=tenant)
+    ans = _finalize(question, raw, gen, pinfo=pinfo, t0=t0, tenant=tenant)
     if settings.cache_enabled:
         _cache_put(ckey, ans)
     yield "final", ans
