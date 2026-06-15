@@ -1,7 +1,19 @@
 {
   "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
-  "corpus_version": "2026-06-14",
+  "corpus_version": "2026-06-15",
   "documents": [
+    {
+      "filename": "icesi_guia_exportacion_hass.pdf",
+      "fuente": "ICESI - Guia de exportacion de aguacate Hass para pequenos y medianos productores (Colombia)",
+      "autoridad": "academico",
+      "licencia": "academica-acceso-abierto",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://repository.icesi.edu.co/bitstreams/a0a8b7d7-a5f4-4351-8527-b2807c049804/download",
+      "download": "auto",
+      "note": "Guia academica de exportacion (42 pp., texto extraible, 107 chunks). Cubre requisitos de exportacion a Europa/UE, fitosanitarios, plaguicidas/residuos, registro ICA, admisibilidad y trazabilidad. Aniadida 2026-06-15 para cubrir el vacio de preguntas de exportacion.",
+      "sha256": "4d3c7c9a91203fee864a0db9e17ad6b745b256b872cfd63fc218c4bae85ad203"
+    },
     {
       "filename": "ica_manejo_fitosanitario_hass.pdf",
       "fuente": "ICA - Manejo fitosanitario del aguacate Hass",

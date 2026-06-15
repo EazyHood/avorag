@@ -60,6 +60,13 @@ Corpus ampliado a **~1015 fragmentos / 9 documentos con texto**. Las citas ahora
 | `agrosavia_requerimientos_nutric.pdf` | Agrosavia — Requerimientos nutricionales del Hass | [bitstream](https://repository.agrosavia.co/bitstream/handle/20.500.12324/39489/Ver_Documento_39489.pdf) | CC BY-NC; fertilización |
 | `AlfonsoJose2008.pdf` | FHIA/MCA-Honduras — Manual técnico del cultivo del Hass (2008) | [avocadosource](http://www.avocadosource.com/books/AlfonsoJose2008.pdf) | **Honduras** (no ICA); útil para principios, no para insumos registrados CO |
 
+## Ampliación del corpus (2026-06-15): exportación a la UE/Europa
+Vacío detectado: las preguntas de **exportación a la UE** se abstenían (el corpus no cubría requisitos de destino). Fuente añadida (texto extraíble, 107 chunks):
+
+| Archivo | Fuente | URL | Notas |
+|---|---|---|---|
+| `icesi_guia_exportacion_hass.pdf` | ICESI — Guía de exportación de aguacate Hass para pequeños y medianos productores (Colombia) | [repositorio ICESI](https://repository.icesi.edu.co/bitstreams/a0a8b7d7-a5f4-4351-8527-b2807c049804/download) | Académico, acceso abierto. 42 pp. Cubre requisitos de exportación a Europa/UE, fitosanitarios, plaguicidas/residuos, registro ICA, admisibilidad y trazabilidad. El PDF oficial del ICA de requisitos fitosanitarios está **escaneado** (sin OCR) y es para CHINA → no ingerible directamente. |
+
 **Limitaciones honestas:**
 - **Resolución ICA 1507/2016** (plagas de control oficial en aguacate) NO se pudo ingerir: el
   PDF oficial es **escaneado (solo imagen, sin texto)** → requiere OCR. Pendiente.
