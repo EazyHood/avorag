@@ -18,7 +18,9 @@ from avorag.retrieval.types import ScoredChunk
 log = get_logger(__name__)
 
 # Unidades agronómicas de dosis.
-_UNITS = r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3|mm)"
+# OJO: NO incluir "mm" — son milímetros de lluvia (clima), no una dosis fitosanitaria; incluirlos
+# marcaba "2.000 mm de lluvia" como dosis no respaldada y volvía ROJO respuestas de suelo/clima.
+_UNITS = r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3)"
 # (?!\w) en lugar de \b: captura unidades que terminan en no-letra (p.ej. "1.8%").
 _DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?" + _UNITS + r"(?!\w)", re.IGNORECASE)
 
@@ -39,7 +41,6 @@ _DOSE_PAIR_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?(" + _UNITS + r")(?!\w)", re.IG
 _UNIT_FACTORS: dict[str, tuple[str, float]] = {
     "%": ("pct", 1.0),
     "ppm": ("ppm", 1.0),
-    "mm": ("mm", 1.0),
     "g": ("mass", 1.0),
     "gr": ("mass", 1.0),
     "kg": ("mass", 1000.0),

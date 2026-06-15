@@ -77,6 +77,15 @@ def test_recommends_pesticide() -> None:
     assert recommends_pesticide("Aplica 150 kg/ha de nitrogeno") is False  # fertilizante
 
 
+def test_lluvia_y_suelo_no_son_dosis() -> None:
+    # Falso positivo: "2.000 mm de lluvia" o pH no deben tratarse como dosis fitosanitaria.
+    txt = "El Hass requiere suelo bien drenado, pH 5,5 a 6,5 y 1.000 a 2.000 mm de lluvia al año."
+    ch = [mk("pH 5,5 a 6,5; 1.000 a 2.000 mm de lluvia", cultivo="hass")]
+    ok, unsupported = dose_product_grounded(txt, ch)
+    assert ok and not unsupported  # ya no marca "2.000" como dosis sin respaldo
+    assert not recommends_pesticide(txt)
+
+
 def test_dose_conflicts_across_sources() -> None:
     chunks = [mk("abamectina 2,5 cc/L"), mk("abamectina 10 cc/L")]
     conflicts = dose_conflicts(chunks)

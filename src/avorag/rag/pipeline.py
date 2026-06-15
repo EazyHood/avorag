@@ -431,10 +431,9 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         ans = _abstention(
             question,
             AbstentionType.OUT_OF_CONTENT,
-            text="No encontré esa información en mis fuentes verificadas, que se centran en el "
-            "manejo agronómico del aguacate Hass en Colombia (no en requisitos de importación o "
-            "normativa de otros países). Consúltalo con tu técnico, tu exportadora o la autoridad "
-            "competente antes de actuar.",
+            text="No encontré suficiente respaldo sobre eso en mis fuentes verificadas (centradas "
+            "en el cultivo del aguacate Hass). Prueba a reformular la pregunta de forma más "
+            "concreta o consúltalo con tu técnico agrónomo.",
             reason="El modelo se abstuvo (sin respaldo en el contexto).",
             pinfo=pinfo,
             t0=t0,
