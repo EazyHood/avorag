@@ -11,6 +11,10 @@ from avorag.providers.base import EmbeddingProvider, LLMProvider, RerankProvider
 @lru_cache
 def get_embedding_provider() -> EmbeddingProvider:
     p = get_settings().embedding_provider.lower()
+    if p == "fake":
+        from avorag.providers.fakes import FakeEmbedding
+
+        return FakeEmbedding()
     if p == "ollama":
         from avorag.providers.embeddings import OllamaEmbedding
 
@@ -29,6 +33,10 @@ def get_embedding_provider() -> EmbeddingProvider:
 @lru_cache
 def get_llm_provider() -> LLMProvider:
     p = get_settings().llm_provider.lower()
+    if p == "fake":
+        from avorag.providers.fakes import FakeLLM
+
+        return FakeLLM()
     if p == "ollama":
         from avorag.providers.llm import OllamaLLM
 
@@ -54,6 +62,10 @@ def get_judge_llm_provider() -> LLMProvider:
     s = get_settings()
     p = (s.judge_llm_provider or s.llm_provider).lower()
     model = s.judge_llm_model or None
+    if p == "fake":
+        from avorag.providers.fakes import FakeLLM
+
+        return FakeLLM()
     if p == "ollama":
         from avorag.providers.llm import OllamaLLM
 

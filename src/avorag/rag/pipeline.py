@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+from pathlib import Path
 
 from avorag.config import get_settings
 from avorag.db import QueryLog, get_session
@@ -63,6 +66,16 @@ def _cache_put(key: str, ans: Answer) -> None:
     _RESPONSE_CACHE[key] = (time.time(), ans)
 
 
+@lru_cache(maxsize=1)
+def _corpus_version() -> str:
+    """Versión del corpus (del manifiesto), para que cada respuesta sea trazable a sus datos."""
+    try:
+        p = Path(__file__).resolve().parents[3] / "data" / "corpus_manifest.json"
+        return str(json.loads(p.read_text(encoding="utf-8")).get("corpus_version", "desconocido"))
+    except Exception:
+        return "desconocido"
+
+
 def _provider_info() -> dict:
     from avorag.providers import judge_provider_label
     from avorag.rag.prompt import PROMPT_VERSION
@@ -79,6 +92,7 @@ def _provider_info() -> dict:
         "rerank": s.rerank_provider,
         "judge": judge_provider_label(),
         "prompt_version": PROMPT_VERSION,
+        "corpus_version": _corpus_version(),
     }
 
 
@@ -160,7 +174,15 @@ def _persist(session, ans: Answer, tenant: str) -> None:
                     faithfulness=ans.faithfulness,
                     citations=[c.model_dump() for c in ans.citations],
                     retrieved_chunk_ids=[ctx.chunk_id for ctx in ans.contexts],
-                    provider_info=ans.provider_info,
+                    corpus_version=ans.provider_info.get("corpus_version"),
+                    # La auditoría guarda también la JUSTIFICACIÓN (por qué ese semáforo): clave
+                    # para reconstruir incidentes y para due-diligence B2B.
+                    provider_info={
+                        **ans.provider_info,
+                        "reason": ans.reason,
+                        "conflict": ans.conflict,
+                        "warnings": ans.warnings,
+                    },
                     latency_ms=ans.latency_ms,
                 )
             )

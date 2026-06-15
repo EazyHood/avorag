@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from avorag.logging import configure_logging
 
@@ -152,6 +153,60 @@ def serve(
         port=port or s.api_port,
         reload=reload,
     )
+
+
+@app.command()
+def audit(
+    semaforo: str | None = typer.Option(None, "--semaforo", help="Filtra: verde|amarillo|rojo."),
+    tenant: str | None = typer.Option(None, "--tenant"),
+    since: str | None = typer.Option(None, "--since", help="Fecha ISO, p.ej. 2026-06-01."),
+    limit: int = typer.Option(50, "--limit"),
+    out: Path | None = typer.Option(None, "--out", help="Exporta a JSONL (audita en archivo)."),
+) -> None:
+    """Audita las consultas registradas (QueryLog) con filtros. Respeta audit_store_text:
+    si los textos están hasheados, exporta los hashes — reconstruye POR QUÉ se dio cada respuesta."""
+    import json as _json
+
+    from sqlalchemy import desc, select
+
+    from avorag.db import QueryLog, get_session
+
+    configure_logging()
+    with get_session(tenant=tenant) as session:
+        stmt = select(QueryLog).order_by(desc(QueryLog.created_at)).limit(limit)
+        if semaforo:
+            stmt = stmt.where(QueryLog.semaforo == semaforo)
+        if tenant:
+            stmt = stmt.where(QueryLog.tenant == tenant)
+        if since:
+            stmt = stmt.where(QueryLog.created_at >= since)
+        rows = list(session.scalars(stmt))
+
+    records = [
+        {
+            "id": str(r.id),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "tenant": r.tenant,
+            "semaforo": r.semaforo,
+            "abstained": r.abstained,
+            "question": r.question,
+            "reason": (r.provider_info or {}).get("reason"),
+            "corpus_version": r.corpus_version,
+            "latency_ms": r.latency_ms,
+        }
+        for r in rows
+    ]
+    if out:
+        out.write_text("\n".join(_json.dumps(rec, ensure_ascii=False) for rec in records), "utf-8")
+        console.print(f"[green]✓ {len(records)} registros exportados a[/green] {out}")
+    else:
+        table = Table(title=f"Auditoría ({len(rows)} consultas)")
+        for col in ("fecha", "semáforo", "lat(ms)", "pregunta"):
+            table.add_column(col)
+        for r in rows:
+            fecha = r.created_at.isoformat()[:16] if r.created_at else ""
+            table.add_row(fecha, r.semaforo, str(r.latency_ms), (r.question or "")[:60])
+        console.print(table)
 
 
 @app.command()
