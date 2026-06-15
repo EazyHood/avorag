@@ -186,10 +186,16 @@ def _is_abstention(body: str) -> bool:
     return len(body.replace(ABSTENTION_MARKER, "").strip()) <= 5
 
 
+_PROMPT_ECHO_RE = re.compile(r"PREGUNTA DEL PRODUCTOR|FRAGMENTOS \(numerados", re.IGNORECASE)
+
+
 def _generation_problem(body: str) -> str | None:
-    """Devuelve el motivo si la respuesta generada es inservible (idioma ajeno o cuerpo vacío)."""
+    """Devuelve el motivo si la respuesta generada es inservible: idioma ajeno, eco del prompt
+    (modelos pequeños a veces repiten la plantilla en vez de responder) o cuerpo vacío."""
     if guardrails.contains_foreign_script(body):
         return "idioma"
+    if _PROMPT_ECHO_RE.search(body):
+        return "eco"
     if len(body.strip()) < 20:
         return "vacia"
     return None

@@ -152,6 +152,13 @@ def test_answer_regenera_si_cuerpo_vacio(monkeypatch) -> None:
     assert len(ans.text.strip()) > 20  # ya no sale vacía
 
 
+def test_generation_problem_detecta_fallos() -> None:
+    assert P._generation_problem("PREGUNTA DEL PRODUCTOR:\n¿algo?\n\nFRAGMENTOS:\n[1]") == "eco"
+    assert P._generation_problem("[6] 根据计算，施用钾肥。") == "idioma"
+    assert P._generation_problem("ok") == "vacia"
+    assert P._generation_problem("Para los trips, haz monitoreo con trampas azules [1].") is None
+
+
 def test_answer_abstencion_con_seguimiento_pegado(monkeypatch) -> None:
     # Bug real: NO_LO_SE + SEGUIMIENTO pegado dejaba la respuesta VACÍA. Ahora se abstiene bien.
     _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())
