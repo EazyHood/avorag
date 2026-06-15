@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"  # ollama | anthropic | openai
     llm_model: str = "qwen2.5:7b-instruct"
     llm_temperature: float = 0.1
-    llm_max_tokens: int = 900
+    llm_max_tokens: int = 700  # respuestas concisas = generación más rápida (se ven igual con streaming)
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5-20251001"
     openai_api_key: str = ""

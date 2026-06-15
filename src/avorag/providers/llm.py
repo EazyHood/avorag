@@ -24,6 +24,12 @@ class OllamaLLM(LLMProvider):
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 
+    def _options(self, temperature, max_tokens) -> dict:
+        return {
+            "temperature": self._temperature if temperature is None else temperature,
+            "num_predict": self._max_tokens if max_tokens is None else max_tokens,
+        }
+
     @_RETRY
     def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
         resp = self._client.chat(
@@ -32,12 +38,23 @@ class OllamaLLM(LLMProvider):
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            options={
-                "temperature": self._temperature if temperature is None else temperature,
-                "num_predict": self._max_tokens if max_tokens is None else max_tokens,
-            },
+            options=self._options(temperature, max_tokens),
         )
         return resp.message.content or ""
+
+    def stream(self, system, user, *, temperature=None, max_tokens=None):
+        for chunk in self._client.chat(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            options=self._options(temperature, max_tokens),
+            stream=True,
+        ):
+            piece = chunk.message.content
+            if piece:
+                yield piece
 
 
 class AnthropicLLM(LLMProvider):

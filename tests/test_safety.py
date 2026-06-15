@@ -3,6 +3,7 @@
 from avorag.ingestion.metadata import extract_chunk_fields
 from avorag.rag.guardrails import (
     DoseSafety,
+    contains_foreign_script,
     decide_semaforo,
     has_actionable_recommendation,
     phi_grounded,
@@ -62,6 +63,20 @@ def test_semaforo_rojo_on_cat_i_ii_from_safety():
         safety=DoseSafety(safe=True, issues=[], cat_i_ii=True),
     )
     assert s == Semaforo.ROJO
+
+
+def test_contains_foreign_script():
+    assert contains_foreign_script("Aplique potasio 的钾肥 en llenado") is True
+    assert contains_foreign_script("施肥量") is True
+    assert contains_foreign_script("La fertilización con nitrógeno según la región [1].") is False
+    assert contains_foreign_script("Aplique 200 kg/ha de potasio.") is False
+
+
+def test_semaforo_rojo_on_language_drift():
+    # Aunque todo lo demás sea perfecto, si la generación se desvió de idioma -> rojo.
+    s, r = decide_semaforo(doses_ok=True, cat_tox={"N/A"}, faithfulness=0.95, language_ok=False)
+    assert s == Semaforo.ROJO
+    assert "idioma" in r.lower()
 
 
 def test_extract_categoria_toxicologica_from_text():

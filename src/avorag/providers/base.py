@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 
 
 class EmbeddingProvider(ABC):
@@ -35,3 +36,14 @@ class LLMProvider(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> str: ...
+
+    def stream(
+        self,
+        system: str,
+        user: str,
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> Iterator[str]:
+        """Genera por trozos. Por defecto emite la respuesta completa de una vez."""
+        yield self.complete(system, user, temperature=temperature, max_tokens=max_tokens)

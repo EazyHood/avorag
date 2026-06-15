@@ -59,3 +59,7 @@ class FakeLLM(LLMProvider):
         if "sitúa fragmentos" in s or "contexto" in s and "una sola frase" in s:
             return "Contexto: fragmento sobre manejo del aguacate Hass."
         return "Según la fuente, se recomienda el manejo integrado del cultivo [1]."
+
+    def stream(self, system, user, *, temperature=None, max_tokens=None):
+        for word in self.complete(system, user).split(" "):
+            yield word + " "

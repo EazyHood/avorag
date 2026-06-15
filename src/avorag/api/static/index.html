@@ -116,6 +116,8 @@
     .bot.v-verde{--accentbar:var(--verde)} .bot.v-amarillo{--accentbar:var(--amarillo)} .bot.v-rojo{--accentbar:var(--rojo)}
     .answer{white-space:pre-wrap; font-size:15.6px; color:var(--ink)}
     .answer strong,.answer b{color:var(--leaf-ink)}
+    .answer.streaming::after{content:'▋'; color:var(--leaf); margin-left:1px; animation:caret 1s steps(2) infinite}
+    @keyframes caret{0%,100%{opacity:1}50%{opacity:0}}
 
     /* ---- semáforo ---- */
     .flag{display:inline-flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600;
@@ -355,24 +357,52 @@
       input.value=''; send.disabled=true;
       const pending = el('msg bot v-amarillo', `<div class="thinking">${SPROUT}<span class="txt">Consultando fuentes oficiales</span></div>`);
       log.appendChild(pending);
-      window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+      const nearBottom = () => window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+      nearBottom();
       try {
         const soil = (document.getElementById('soil').value||'').trim();
         const region = (document.getElementById('region').value||'').trim();
-        const r = await fetch('/api/ask', {
+        const r = await fetch('/api/ask/stream', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ question:q, soil_type:soil||null, region:region||null })
         });
-        if (!r.ok) throw new Error('El servidor respondió ' + r.status);
-        const a = await r.json();
-        const node = renderAnswer(a);
-        pending.replaceWith(node);
+        if (!r.ok || !r.body) throw new Error('El servidor respondió ' + r.status);
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        let buf='', acc='', live=null, settled=false;
+        while (true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, {stream:true});
+          const chunks = buf.split('\n\n'); buf = chunks.pop();
+          for (const ch of chunks) {
+            const dl = ch.split('\n').find(l => l.startsWith('data:'));
+            if (!dl) continue;
+            const data = JSON.parse(dl.slice(5).trim());
+            if (data.type === 'delta') {
+              if (!live) {
+                pending.innerHTML = `<span class="flag v-amarillo"><span class="dot"></span>Redactando…</span><div class="answer streaming"></div>`;
+                live = pending.querySelector('.answer');
+              }
+              acc += data.t; live.textContent = acc; nearBottom();
+            } else if (data.type === 'verifying') {
+              if (live) live.classList.remove('streaming');
+              const flag = pending.querySelector('.flag');
+              if (flag) flag.innerHTML = `<span class="dot"></span>Verificando fuentes y seguridad…`;
+            } else if (data.type === 'final') {
+              pending.replaceWith(renderAnswer(data.answer)); settled = true;
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
+        if (!settled && acc) { /* el stream terminó sin 'final': deja el texto crudo */ }
       } catch (err) {
         pending.className = 'msg bot v-rojo';
         pending.innerHTML = `<span class="flag v-rojo"><span class="dot"></span>Error</span><div class="errbox">${esc(String(err.message||err))}</div>`;
       }
       send.disabled=false;
-      window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+      nearBottom();
     });
 
     function renderAnswer(a){

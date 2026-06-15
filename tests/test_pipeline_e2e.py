@@ -62,3 +62,29 @@ def test_answer_e2e_abstains_on_other_crop(monkeypatch) -> None:
     assert ans.abstained
     assert ans.abstention_type.value == "out_of_collection"
     assert ans.disclaimer.strip()
+
+
+def test_answer_stream_emite_delta_verifying_final(monkeypatch) -> None:
+    _wire(
+        monkeypatch,
+        [_chunk("Para el trips en aguacate Hass se recomienda monitoreo y manejo integrado.")],
+    )
+    events = list(P.answer_stream("¿Cómo manejo el trips en aguacate Hass?"))
+    kinds = [k for k, _ in events]
+    assert kinds.count("delta") >= 1
+    assert "verifying" in kinds
+    assert kinds[-1] == "final"
+    assert kinds.index("verifying") < kinds.index("final")
+    streamed = "".join(p for k, p in events if k == "delta")
+    final = events[-1][1]
+    assert streamed.strip() == final.text.strip()
+    assert "[1]" in final.text
+    assert final.provider_info.get("prompt_version")
+
+
+def test_answer_stream_conversational_solo_final(monkeypatch) -> None:
+    _wire(monkeypatch, [_chunk("irrelevante")])
+    events = list(P.answer_stream("Hola, buenas"))
+    assert [k for k, _ in events] == ["final"]
+    assert events[0][1].semaforo.value == "verde"
+    assert not events[0][1].abstained

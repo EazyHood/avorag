@@ -119,6 +119,18 @@ def has_actionable_recommendation(answer_text: str) -> bool:
     return bool(_ACTIONABLE_RE.search(answer_text))
 
 
+_FOREIGN_SCRIPT_RE = re.compile(
+    "[　-〿぀-ヿ㐀-䶿一-鿿가-힯"  # CJK, kana, hangul
+    "Ѐ-ӿ֐-׿؀-ۿ]"  # cirílico, hebreo, árabe
+)
+
+
+def contains_foreign_script(answer_text: str) -> bool:
+    """True si el texto incluye caracteres de alfabetos ajenos al español (CJK, hangul, cirílico,
+    hebreo, árabe). Detecta la deriva idiomática del LLM: la respuesta debe ir 100% en español."""
+    return bool(_FOREIGN_SCRIPT_RE.search(answer_text))
+
+
 @dataclass
 class DoseSafety:
     safe: bool
@@ -468,11 +480,18 @@ def decide_semaforo(
     registro_required: bool = False,
     citation_ok: bool = True,
     conflicts: list[str] | None = None,
+    language_ok: bool = True,
 ) -> tuple[Semaforo, str]:
-    """Combina las señales en un semáforo con razón. Prioridad: prohibido > off-label >
+    """Combina las señales en un semáforo con razón. Prioridad: idioma > prohibido > off-label >
     dosis > registro > PHI > cat I/II > asociación > cita > conflicto > fidelidad > citas."""
     banned = banned or []
     conflicts = conflicts or []
+    if not language_ok:
+        return (
+            Semaforo.ROJO,
+            "La generación se desvió a otro idioma; la respuesta no es confiable. "
+            "Vuelve a hacer la consulta.",
+        )
     if banned:
         return (
             Semaforo.ROJO,

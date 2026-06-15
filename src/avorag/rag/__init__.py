@@ -16,7 +16,7 @@ from avorag.rag.schemas import (
 )
 
 if TYPE_CHECKING:
-    from avorag.rag.pipeline import answer
+    from avorag.rag.pipeline import answer, answer_stream
 
 __all__ = [
     "AbstentionType",
@@ -25,12 +25,13 @@ __all__ = [
     "RetrievedContext",
     "Semaforo",
     "answer",
+    "answer_stream",
 ]
 
 
 def __getattr__(name: str) -> Any:
-    if name == "answer":
-        from avorag.rag.pipeline import answer
+    if name in ("answer", "answer_stream"):
+        from avorag.rag import pipeline
 
-        return answer
+        return getattr(pipeline, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
