@@ -172,6 +172,15 @@ def test_pregunta_fijada_se_sirve_sin_recuperacion(monkeypatch) -> None:
     assert events[0][1].text == "Respuesta fija [1]."
 
 
+def test_cat_tox_no_fuerza_rojo_si_no_hay_plaguicida(monkeypatch) -> None:
+    # Un fragmento con categoría toxicológica I/II NO debe volver ROJO una respuesta que NO
+    # recomienda ese plaguicida (biocontrol/manejo). Antes: cat I/II del chunk -> rojo falso.
+    chunk = _chunk("El trips se maneja con monitoreo y control biológico.", categoria_toxicologica="I")
+    _wire(monkeypatch, [chunk])
+    ans = P.answer("¿Cómo manejo los trips en aguacate Hass?")
+    assert ans.semaforo.value != "rojo"
+
+
 def test_generation_problem_detecta_fallos() -> None:
     assert P._generation_problem("PREGUNTA DEL PRODUCTOR:\n¿algo?\n\nFRAGMENTOS:\n[1]") == "eco"
     assert P._generation_problem("[6] 根据计算，施用钾肥。") == "idioma"
