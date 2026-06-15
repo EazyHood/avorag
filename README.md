@@ -34,6 +34,14 @@ aislamiento multi-tenant por RLS** están implementados pero deben **activarse d
 para la exposición pública (ver [`docs/DEUDA_TECNICA.md`](docs/DEUDA_TECNICA.md)).
 Caso de estudio: [Español](docs/CASO_DE_ESTUDIO.md) · [English](docs/CASE_STUDY.md).
 
+> **Probado, no solo afirmado:** la seguridad es un **contrato ejecutable** — invariantes del
+> semáforo verificadas sobre **>4000 combinaciones** (VERDE solo desde estado sano), un
+> **catálogo red-team versionado** ([`data/redteam/failure_modes.jsonl`](data/redteam/failure_modes.jsonl))
+> donde cada modo de fallo (dosis a producto equivocado, carencia inventada, prohibido, off-label…)
+> se prueba que termina en ROJO/abstención, y un **e2e del pipeline con proveedores fake** que
+> corre en CI sin Ollama ni BD. Toda cifra de evaluación lleva su procedencia (git sha +
+> corpus_version + prompt_version).
+
 > **Estado:** v0.1, prueba de concepto. Sin rodaje en producción ni validación con usuarios
 > reales; los números son de una evaluación interna. Arquitectura pensada para crecer a producto
 > (WhatsApp + HITL + multi-tenant) sin reescritura — ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

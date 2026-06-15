@@ -24,6 +24,7 @@
     .cites { margin-top:12px; border-top:1px dashed #2a3441; padding-top:10px; font-size:13px; }
     .cite { color:var(--muted); margin:4px 0; }
     .cite b { color:var(--text); }
+    .auth { display:inline-block; font-size:11px; color:#1d4ed8; background:#dbeafe; border-radius:6px; padding:0 6px; }
     .disclaimer { margin-top:10px; font-size:12px; color:var(--muted); }
     .warn { margin-top:8px; font-size:13px; color:#92400e; background:#fef3c7; border-radius:8px; padding:6px 10px; }
     .meta { margin-top:8px; font-size:11px; color:var(--muted); }
@@ -135,7 +136,9 @@
           let link = '';
           if (c.doi) link = ` · <a href="https://doi.org/${esc(c.doi)}" target="_blank" rel="noopener">doi:${esc(c.doi)}</a>`;
           else if (c.url) link = ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">ver fuente</a>`;
-          html += `<div class="cite">[${i+1}] <b>${esc(c.fuente)}</b>${pag}${link}${c.quote ? ' — “'+esc(c.quote)+'”' : ''}</div>`;
+          // Procedencia visible: autoridad de la fuente (la neutralidad se ve, no se promete).
+          const auth = c.nivel_autoridad ? ` <span class="auth">${esc(c.nivel_autoridad)}</span>` : '';
+          html += `<div class="cite">[${i+1}] <b>${esc(c.fuente)}</b>${pag}${auth}${link}${c.quote ? ' — “'+esc(c.quote)+'”' : ''}</div>`;
         });
         html += '</div>';
       }
