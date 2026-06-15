@@ -462,7 +462,10 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         citation_ok, citation_issues = True, []
         conflicts, warnings = [], []
 
-    actionable = settings.dose_guardrail and guardrails.has_actionable_recommendation(raw)
+    # El juez de seguridad, la categoría toxicológica y el registro ICA SOLO aplican si la respuesta
+    # recomienda un PLAGUICIDA QUÍMICO con dosis. Antes se disparaban con cualquier "aplicar" (incluido
+    # control biológico/cultural) o por la metadata de un fragmento recuperado -> falsos ROJOS.
+    chem_pesticide = settings.dose_guardrail and guardrails.recommends_pesticide(raw)
 
     faithfulness: float | None = None
     judge_failed = False
@@ -474,7 +477,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
             else None
         )
         fut_safety = (
-            ex.submit(guardrails.dose_safety_judge, raw, contexts_text) if actionable else None
+            ex.submit(guardrails.dose_safety_judge, raw, contexts_text) if chem_pesticide else None
         )
         if fut_faith is not None:
             faithfulness, _ = fut_faith.result()
@@ -484,7 +487,9 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
 
     language_ok = not guardrails.contains_foreign_script(raw)
     citations = _extract_citations(raw, final)
-    cat_tox = guardrails.cited_categoria_toxicologica(final)
+    # La categoría toxicológica solo penaliza si la respuesta recomienda un plaguicida químico,
+    # no por la metadata de un fragmento recuperado que no se está recomendando.
+    cat_tox = guardrails.cited_categoria_toxicologica(final) if chem_pesticide else set()
     semaforo, reason = guardrails.decide_semaforo(
         doses_ok=doses_ok,
         phi_ok=phi_ok,
@@ -493,11 +498,11 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         has_citations=bool(citations),
         judge_failed=judge_failed,
         safety=safety,
-        safety_required=actionable,
+        safety_required=chem_pesticide,
         banned=banned,
         offlabel=offlabel,
         registro_ok=registro_ok,
-        registro_required=registro_required and actionable,
+        registro_required=registro_required and chem_pesticide,
         citation_ok=citation_ok,
         conflicts=conflicts,
         language_ok=language_ok,
