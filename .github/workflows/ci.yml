@@ -8,6 +8,10 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
@@ -16,8 +20,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Sincronizar dependencias (Python 3.12)
-        run: uv sync --frozen
+      - name: Sincronizar dependencias (Python ${{ matrix.python-version }})
+        run: uv sync --python ${{ matrix.python-version }}
 
       - name: Ruff (lint + formato)
         run: |

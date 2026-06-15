@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from avorag.config import get_settings
@@ -50,10 +50,23 @@ def get_session_factory() -> sessionmaker[Session]:
 
 
 @contextmanager
-def get_session() -> Iterator[Session]:
-    """Context manager de sesión con commit/rollback automático."""
+def get_session(tenant: str | None = None) -> Iterator[Session]:
+    """Context manager de sesión con commit/rollback automático.
+
+    Si se pasa `tenant`, declara `app.current_tenant` (local a la transacción) para que la
+    Row-Level Security de PostgreSQL aísle las filas de ese tenant (migración 0003). Es inocuo
+    si RLS no está activada. Para otros motores (SQLite en tests) se omite.
+    """
     session = get_session_factory()()
     try:
+        if (
+            tenant is not None
+            and session.bind is not None
+            and session.bind.dialect.name == "postgresql"
+        ):
+            session.execute(
+                text("SELECT set_config('app.current_tenant', :t, true)"), {"t": tenant}
+            )
         yield session
         session.commit()
     except Exception:

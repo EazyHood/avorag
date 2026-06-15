@@ -89,6 +89,17 @@ class Settings(BaseSettings):
     # CORS: vacío = solo mismo origen (la UI se sirve desde la misma app). Para exponer
     # a otro frontend, define una lista JSON: CORS_ALLOW_ORIGINS='["https://tu.app"]'.
     cors_allow_origins: list[str] = []
+    # Autenticación por API key. Vacío = modo ABIERTO (solo desarrollo / mismo origen). En
+    # producción define un mapa JSON token->tenant: API_KEYS='{"clave-secreta":"finca-x"}'.
+    # En modo autenticado el tenant se deriva del token (NUNCA del body).
+    api_keys: dict[str, str] = {}
+    rate_limit_per_minute: int = 60  # 0 = sin límite; por API key o IP
+
+    # --- Auditoría / privacidad (Habeas Data) ---
+    audit_enabled: bool = True
+    # Si False, NO se guarda el texto en claro de pregunta/respuesta, solo su hash + metadatos
+    # (minimización de datos personales). Útil para cumplir Habeas Data en producción.
+    audit_store_text: bool = True
 
     # --- Caché de respuestas (latencia: preguntas repetidas responden al instante) ---
     cache_enabled: bool = True

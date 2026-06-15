@@ -3,7 +3,7 @@ name = "avorag"
 version = "0.1.0"
 description = "AvoRAG — asistente agronómico RAG en español, neutral y con citación a fuente, especializado en aguacate Hass."
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Jhonatan del Rio" }]
 
@@ -73,7 +73,7 @@ packages = ["src/avorag"]
 # ----------------------------- Herramientas -----------------------------
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -90,7 +90,7 @@ known-first-party = ["avorag"]
 "tests/*" = ["B008", "S101"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 disallow_untyped_defs = false

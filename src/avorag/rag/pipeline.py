@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from avorag.config import get_settings
 from avorag.db import QueryLog, get_session
@@ -129,22 +130,40 @@ def _split_followups(text: str) -> tuple[str, list[str]]:
     return body, follow[:3]
 
 
+def _audit_text(value: str, store_text: bool) -> str:
+    """Devuelve el texto en claro, o su hash si la política minimiza datos (Habeas Data)."""
+    if store_text:
+        return value
+    return f"<sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()[:16]}>"
+
+
 def _persist(session, ans: Answer, tenant: str) -> None:
-    session.add(
-        QueryLog(
-            tenant=tenant,
-            question=ans.question,
-            answer=ans.text,
-            semaforo=ans.semaforo.value,
-            abstained=ans.abstained,
-            abstention_type=ans.abstention_type.value,
-            faithfulness=ans.faithfulness,
-            citations=[c.model_dump() for c in ans.citations],
-            retrieved_chunk_ids=[ctx.chunk_id for ctx in ans.contexts],
-            provider_info=ans.provider_info,
-            latency_ms=ans.latency_ms,
-        )
-    )
+    """Escribe el registro de auditoría de forma TOLERANTE A FALLO: un error de escritura NO
+    debe tumbar una respuesta ya calculada (#34). Usa un SAVEPOINT para que el fallo no
+    contamine la transacción de lectura, y respeta audit_store_text (minimización de datos)."""
+    settings = get_settings()
+    if not settings.audit_enabled:
+        return
+    store_text = settings.audit_store_text
+    try:
+        with session.begin_nested():  # savepoint
+            session.add(
+                QueryLog(
+                    tenant=tenant,
+                    question=_audit_text(ans.question, store_text),
+                    answer=_audit_text(ans.text, store_text),
+                    semaforo=ans.semaforo.value,
+                    abstained=ans.abstained,
+                    abstention_type=ans.abstention_type.value,
+                    faithfulness=ans.faithfulness,
+                    citations=[c.model_dump() for c in ans.citations],
+                    retrieved_chunk_ids=[ctx.chunk_id for ctx in ans.contexts],
+                    provider_info=ans.provider_info,
+                    latency_ms=ans.latency_ms,
+                )
+            )
+    except Exception as exc:  # la auditoría nunca debe romper la respuesta al usuario
+        log.warning("audit_persist_failed", error=str(exc))
 
 
 def _abstention(
@@ -209,7 +228,7 @@ def answer(
     # La consulta de recuperación se enriquece con el contexto para traer fragmentos relevantes.
     retrieval_query = f"{question} {farm_context}".strip()
 
-    with get_session() as session:
+    with get_session(tenant=tenant) as session:
         # Pre-filtro de intención: cultivo ajeno → corta antes de gastar embeddings/LLM.
         intent = guardrails.classify_intent(question)
         if intent is not None:
@@ -311,13 +330,26 @@ def answer(
         # Juez de asociación producto–plaga–dosis–carencia: SOLO si la respuesta es accionable
         # (trae dosis/carencia/aplicación). Evita latencia en respuestas generales.
         actionable = settings.dose_guardrail and guardrails.has_actionable_recommendation(raw)
-        safety = guardrails.dose_safety_judge(raw, contexts_text) if actionable else None
 
+        # Los dos jueces LLM (fidelidad y seguridad de dosis) son I/O-bound: se lanzan en
+        # paralelo para no SUMAR sus latencias (#31).
         faithfulness: float | None = None
         judge_failed = False
-        if settings.faithfulness_judge:
-            faithfulness, _ = guardrails.faithfulness_judge(question, raw, contexts_text)
-            judge_failed = faithfulness is None
+        safety: guardrails.DoseSafety | None = None
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fut_faith = (
+                ex.submit(guardrails.faithfulness_judge, question, raw, contexts_text)
+                if settings.faithfulness_judge
+                else None
+            )
+            fut_safety = (
+                ex.submit(guardrails.dose_safety_judge, raw, contexts_text) if actionable else None
+            )
+            if fut_faith is not None:
+                faithfulness, _ = fut_faith.result()
+                judge_failed = faithfulness is None
+            if fut_safety is not None:
+                safety = fut_safety.result()
         citations = _extract_citations(raw, final)
         cat_tox = guardrails.cited_categoria_toxicologica(final)
         semaforo, reason = guardrails.decide_semaforo(
