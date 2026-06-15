@@ -17,6 +17,7 @@ documentadas en `docs/SOURCES.md` y en `data/corpus_manifest.json`.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -26,6 +27,36 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "data" / "corpus_manifest.json"
 CORPUS_DIR = ROOT / "data" / "corpus"
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(65536), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _verify(docs: list[dict]) -> int:
+    """Compara el sha256 de cada archivo presente con el del manifiesto (detecta drift)."""
+    print("Verificando integridad del corpus contra el manifiesto…\n")
+    mismatches = 0
+    for doc in docs:
+        dest = CORPUS_DIR / doc["filename"]
+        expected = doc.get("sha256")
+        if not dest.exists():
+            print(f"AUSENTE  {doc['filename']}")
+            continue
+        actual = _sha256(dest)
+        if expected is None:
+            print(f"SIN-HASH {doc['filename']}  (manifiesto sin sha256; actual {actual[:16]})")
+        elif actual == expected:
+            print(f"OK       {doc['filename']}")
+        else:
+            mismatches += 1
+            print(f"DRIFT    {doc['filename']}  esperado {expected[:16]} != actual {actual[:16]}")
+    print(f"\n{'OK: sin drift.' if mismatches == 0 else f'{mismatches} archivo(s) con DRIFT.'}")
+    return 1 if mismatches else 0
 
 
 def _download(url: str, dest: Path) -> tuple[bool, str]:
@@ -48,11 +79,19 @@ def main() -> int:
     parser.add_argument(
         "--force", action="store_true", help="Re-descarga aunque exista el archivo."
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Solo verifica el sha256 de los archivos presentes contra el manifiesto.",
+    )
     args = parser.parse_args()
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     docs = manifest["documents"]
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
+
+    if args.verify:
+        return _verify(docs)
 
     print(f"Corpus version: {manifest.get('corpus_version')}  ·  {len(docs)} documentos\n")
 

@@ -45,6 +45,9 @@ local = [
 ]
 # Reranker por API (alternativa al local)
 cohere = ["cohere>=5.13.0"]
+# OCR para PDF escaneados (p.ej. Resolución ICA 1507/2016). Requiere ADEMÁS el binario
+# `tesseract` instalado en el sistema (con el paquete de idioma español 'spa').
+ocr = ["pytesseract>=0.3.13", "pillow>=11.0.0"]
 # Evaluación avanzada (RAGAS). El runner propio funciona SIN esto.
 eval = ["ragas>=0.2.0", "datasets>=3.2.0"]
 

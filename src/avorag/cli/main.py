@@ -74,6 +74,9 @@ def ingest(
     tenant: str | None = typer.Option(None, "--tenant"),
     contextual: bool = typer.Option(True, "--contextual/--no-contextual"),
     force: bool = typer.Option(False, "--force", help="Re-ingerir aunque ya exista."),
+    ocr: bool = typer.Option(
+        False, "--ocr", help="OCR para PDF escaneados (requiere extra 'ocr' + tesseract)."
+    ),
 ) -> None:
     """Ingesta y vectoriza un documento del corpus."""
     from avorag.ingestion import DocumentMeta, ingest_document
@@ -90,7 +93,9 @@ def ingest(
         doi=doi,
     )
     with console.status(f"Ingiriendo {path.name}…"):
-        res = ingest_document(path, meta, tenant=tenant, contextual=contextual, force=force)
+        res = ingest_document(
+            path, meta, tenant=tenant, contextual=contextual, force=force, ocr=ocr
+        )
     if res.skipped:
         console.print(f"[yellow]Omitido:[/yellow] {res.reason}")
     else:

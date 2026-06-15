@@ -53,6 +53,7 @@ def ingest_document(
     tenant: str | None = None,
     contextual: bool = True,
     force: bool = False,
+    ocr: bool = False,
 ) -> IngestResult:
     settings = get_settings()
     tenant = tenant or settings.default_tenant
@@ -79,7 +80,7 @@ def ingest_document(
             )
 
     # 2) Trabajo pesado SIN sesión de BD: load → chunk → contextualizar → embeber.
-    pages = load_document(path)
+    pages = load_document(path, ocr=ocr)
     full_text = "\n".join(p.text for p in pages)
     doc_summary = build_doc_summary(full_text)
     embedder = get_embedding_provider()
