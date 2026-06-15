@@ -179,6 +179,51 @@ def test_generation_problem_detecta_fallos() -> None:
     assert P._generation_problem("Para los trips, haz monitoreo con trampas azules [1].") is None
 
 
+def test_is_abstention_solo_marcador_no_si_hay_respuesta() -> None:
+    # NO_LO_SE solo = abstención. NO_LO_SE + respuesta real = NO es abstención (el 3B antepone
+    # el marcador como tic; hay que conservar la respuesta, no descartarla).
+    assert P._is_abstention("NO_LO_SE")
+    assert P._is_abstention("NO_LO_SE.")
+    assert not P._is_abstention("NO_LO_SE\n\nPara el trips usa monitoreo con trampas azules [1].")
+    assert not P._is_abstention("Aplica monitoreo de trips con trampas azules [1].")
+
+
+def test_tic_no_lo_se_no_mata_la_respuesta(monkeypatch) -> None:
+    # El 3B antepone NO_LO_SE pero responde bien: el pipeline debe conservar la respuesta.
+    class _TicLLM:
+        name = "tic"
+
+        def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
+            if "faithful" in system.lower() or "seguro" in system.lower():
+                return '{"faithful": true, "score": 0.9, "unsupported": []}'
+            return "NO_LO_SE\n\nPara el trips, aplica manejo integrado con monitoreo [1]."
+
+        def stream(self, system, user, *, temperature=None, max_tokens=None):
+            for w in self.complete(system, user).split(" "):
+                yield w + " "
+
+    _wire(monkeypatch, [_chunk("El trips se maneja con monitoreo y control biológico.")], llm=_TicLLM())
+    ans = P.answer("¿Cómo manejo los trips en aguacate Hass?")
+    assert not ans.abstained
+    assert "manejo integrado" in ans.text and "NO_LO_SE" not in ans.text
+
+
+def test_strip_meta_quita_preambulos_y_colofones() -> None:
+    txt = (
+        "Para responder a esta solicitud, primero se necesita identificar qué se busca. "
+        "Sin embargo, basándome en los fragmentos, puedo decir lo siguiente. "
+        "El manejo del trips se hace con monitoreo y control biológico [1]. "
+        "Para obtener una respuesta más completa, se necesitaría revisar todos los fragmentos."
+    )
+    out = P._strip_meta(txt)
+    assert "Para responder a esta solicitud" not in out
+    assert "Para obtener una respuesta más completa" not in out
+    assert "monitoreo y control biológico [1]" in out
+    # No debe vaciar una respuesta que ya es directa.
+    directa = "El trips se controla con trampas azules y hongos entomopatógenos [2]."
+    assert P._strip_meta(directa) == directa
+
+
 def test_answer_abstencion_con_seguimiento_pegado(monkeypatch) -> None:
     # Bug real: NO_LO_SE + SEGUIMIENTO pegado dejaba la respuesta VACÍA. Ahora se abstiene bien.
     _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())

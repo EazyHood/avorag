@@ -200,11 +200,37 @@ _FALLBACK_TEXT = (
 
 
 def _is_abstention(body: str) -> bool:
-    """True si el cuerpo (ya sin la sección SEGUIMIENTO) es una abstención NO_LO_SE. El modelo a
-    veces le pega preguntas de seguimiento a la abstención; aun así hay que tratarla como tal."""
-    if ABSTENTION_MARKER not in body:
+    """True SOLO si el cuerpo es el marcador NO_LO_SE prácticamente solo. OJO: el 3B a veces
+    antepone NO_LO_SE como tic y luego da una respuesta válida; en ese caso NO es abstención —
+    el marcador se quita aparte y se conserva la respuesta. Solo abstiene si no hay nada más."""
+    b = body.strip()
+    if ABSTENTION_MARKER not in b:
         return False
-    return len(body.replace(ABSTENTION_MARKER, "").strip()) <= 5
+    return len(b.replace(ABSTENTION_MARKER, "").strip()) <= 5
+
+
+# Preámbulos/colofones de "meta-charla" que los modelos pequeños añaden en vez de ir al grano.
+_META_PATTERNS = [
+    re.compile(r"^\s*Para responder a (?:esta solicitud|esta pregunta|tu pregunta)[^.\n]*[.\n]\s*", re.IGNORECASE),
+    re.compile(r"^\s*Sin embargo,?\s*bas[áa]ndome[^.\n]*[.\n]\s*", re.IGNORECASE),
+    re.compile(r"^\s*Bas[áa]ndome en (?:el contenido de )?los fragmentos[^.\n]*[.\n]\s*", re.IGNORECASE),
+    re.compile(r"\s*Para (?:obtener|dar) una respuesta m[áa]s (?:completa|precisa)[^.]*\.?\s*$", re.IGNORECASE),
+    re.compile(r"\s*Estos son (?:solo )?algunos[^.]*\.?\s*$", re.IGNORECASE),
+]
+
+
+def _strip_meta(text: str) -> str:
+    """Quita preámbulos/colofones sobre la tarea o los fragmentos, sin vaciar la respuesta."""
+    out = text.strip()
+    for _ in range(4):
+        before = out
+        for pat in _META_PATTERNS:
+            cand = pat.sub("", out).strip()
+            if cand != out and len(cand) >= 30:
+                out = cand
+        if out == before:
+            break
+    return out or text.strip()
 
 
 _PROMPT_ECHO_RE = re.compile(r"PREGUNTA DEL PRODUCTOR|FRAGMENTOS \(numerados", re.IGNORECASE)
@@ -405,8 +431,10 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         ans = _abstention(
             question,
             AbstentionType.OUT_OF_CONTENT,
-            text="No encontré esa información en mis fuentes verificadas. "
-            "Consulta a tu técnico antes de actuar.",
+            text="No encontré esa información en mis fuentes verificadas, que se centran en el "
+            "manejo agronómico del aguacate Hass en Colombia (no en requisitos de importación o "
+            "normativa de otros países). Consúltalo con tu técnico, tu exportadora o la autoridad "
+            "competente antes de actuar.",
             reason="El modelo se abstuvo (sin respaldo en el contexto).",
             pinfo=pinfo,
             t0=t0,
@@ -415,7 +443,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         _persist(ans, tenant)
         return ans
 
-    raw = body.replace(ABSTENTION_MARKER, "").strip()
+    raw = _strip_meta(body.replace(ABSTENTION_MARKER, "").strip())
 
     if settings.dose_guardrail:
         doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)

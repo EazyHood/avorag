@@ -31,7 +31,7 @@ DEFAULT_QUESTIONS = [
 _STORE = Path(__file__).resolve().parents[3] / "data" / "cache" / "default_answers.json"
 
 # Súbelo al cambiar la lógica de guardarraíles/formato de respuesta, para invalidar la caché en disco.
-_LOGIC_VERSION = "3"
+_LOGIC_VERSION = "4"
 
 
 def _signature() -> str:
