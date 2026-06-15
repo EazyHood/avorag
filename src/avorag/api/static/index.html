@@ -25,6 +25,7 @@
     .cite { color:var(--muted); margin:4px 0; }
     .cite b { color:var(--text); }
     .disclaimer { margin-top:10px; font-size:12px; color:var(--muted); }
+    .warn { margin-top:8px; font-size:13px; color:#92400e; background:#fef3c7; border-radius:8px; padding:6px 10px; }
     .meta { margin-top:8px; font-size:11px; color:var(--muted); }
     form { position:fixed; bottom:0; left:0; right:0; background:var(--bg); border-top:1px solid #2a3441; padding:14px; }
     .row { max-width:820px; margin:0 auto; display:flex; gap:10px; }
@@ -121,6 +122,12 @@
       const sLabel = { verde:'✓ Respaldada', amarillo:'⚠ Cautela', rojo:'⛔ Requiere agrónomo' }[a.semaforo] || a.semaforo;
       let html = `<span class="semaforo ${sClass}">${sLabel}</span>`;
       html += `<div class="answer">${esc(a.text)}</div>`;
+      if (a.warnings && a.warnings.length) {
+        a.warnings.forEach(w => { html += `<div class="warn">⚠ ${esc(w)}</div>`; });
+      }
+      if (a.conflict && a.conflict.length) {
+        html += `<div class="warn">⚖ Las fuentes citadas discrepan: ${esc(a.conflict.join('; '))}. Revisa cuál aplica a tu caso.</div>`;
+      }
       if (a.citations && a.citations.length) {
         html += '<div class="cites"><b>Fuentes:</b>';
         a.citations.forEach((c, i) => {
@@ -141,7 +148,7 @@
         html += `<details class="ctx"><summary>Fragmentos recuperados (${a.contexts.length})</summary>${items}</details>`;
       }
       if (a.disclaimer) html += `<div class="disclaimer">${esc(a.disclaimer)}</div>`;
-      const f = (a.faithfulness != null) ? ` · fidelidad ${a.faithfulness.toFixed(2)}` : '';
+      const f = (a.faithfulness != null) ? ` · groundedness ${a.faithfulness.toFixed(2)}` : '';
       html += `<div class="meta">${a.latency_ms} ms${f}${a.reason ? ' · '+esc(a.reason) : ''}</div>`;
       if (a.follow_ups && a.follow_ups.length) {
         html += '<div class="follow"><span class="follow-lbl">Seguir explorando:</span>';

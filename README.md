@@ -3,36 +3,53 @@
 Asistente agronómico conversacional (RAG) en español de finca, **comercialmente neutral** y
 curado por un ingeniero agrónomo, especializado en **aguacate Hass de exportación**. Responde
 **citando la fuente oficial** (Agrosavia, ICA, Corpohass…), **se abstiene cuando no sabe** y
-**bloquea recomendaciones de dosis no rastreables a una etiqueta registrada**.
+**marca en rojo (semáforo) las dosis no respaldadas por una fuente citada** y —cuando el
+fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 
-## 📊 Resultados (línea base v1, n=16 · corpus oficial ICA/Agrosavia, ~1015 fragmentos)
+## 📊 Resultados (línea base v1 · n=16 · `RERANK_PROVIDER=local` · corpus_version 2026-06-14)
 
-| Fidelidad media | Citación | Abstención correcta (trampas) | Errores de dosis | Gate |
+| Groundedness¹ | Respuestas con cita² | Abstención correcta (trampas) | Dosis sin respaldo | Gate |
 |:--:|:--:|:--:|:--:|:--:|
 | **0.96** | **100%** | **100%** | **0** | **✓ PASA** |
 
-Probado **end-to-end en vivo**: Postgres + pgvector en la nube (Neon) + modelos locales en GPU
-(Ollama). El **dashboard reproducible** se genera en `eval/reports/report.html`. El golden set se
-amplió a **n=50** (con bloques de dosis, carencia/PHI y categoría toxicológica); n=16 es una
-muestra pequeña — ver la nota de validez estadística en el [caso de estudio](docs/CASO_DE_ESTUDIO.md).
-El corpus se reconstruye desde fuentes públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py)
-([manifiesto](data/corpus_manifest.json)).
+¹ **Groundedness** = cada afirmación está respaldada por el fragmento citado; juzgada por LLM.
+**NO** mide si la fuente es correcta o vigente, ni es exactitud agronómica. Cifra indicativa,
+sin validación humana ni segundo modelo. ² Mide **presencia** de cita, no que el fragmento
+sostenga la afirmación (eso lo mide `citation_support_rate`).
+
+> **Honestidad sobre las cifras:** son de la **v1 con n=16** (muestra pequeña; los porcentajes
+> llevan IC95 de Wilson en el reporte). El golden set se amplió a **n=50→64** (con dosis,
+> carencia/PHI, categoría toxicológica, mezclas, prohibidos y trampas adversarias). La
+> re-medición sobre n=64 con las nuevas métricas (correctness, citation_support) es el siguiente
+> hito. Para una afirmación comercial se necesitan **≥200** preguntas + segundo evaluador humano.
+> El corpus se reconstruye desde fuentes públicas con
+> [`scripts/build_corpus.py`](scripts/build_corpus.py) ([manifiesto](data/corpus_manifest.json)).
 
 ## 🎯 Qué demuestra
-RAG **de producción** (recuperación híbrida + reranking + evaluación con gate de CI), **criterio
-de producto** (guardarraíl de dosis, abstención honesta, semáforo de riesgo, auditoría de cada
-consulta, multi-tenant) y **dominio agronómico codificado** — el perfil híbrido agrónomo + IA que
-escasea en agtech. Caso de estudio: [Español](docs/CASO_DE_ESTUDIO.md) · [English](docs/CASE_STUDY.md).
+RAG con **prácticas de producción** (recuperación híbrida + reranking + evaluación con gate,
+guardarraíles, auditoría, observabilidad), **criterio de producto** (guardarraíl de dosis
+determinista, abstención honesta, semáforo de riesgo) y **dominio agronómico codificado** — el
+perfil híbrido agrónomo + IA que escasea en agtech. La **autenticación, el rate-limiting y el
+aislamiento multi-tenant por RLS** están implementados pero deben **activarse deliberadamente**
+para la exposición pública (ver [`docs/DEUDA_TECNICA.md`](docs/DEUDA_TECNICA.md)).
+Caso de estudio: [Español](docs/CASO_DE_ESTUDIO.md) · [English](docs/CASE_STUDY.md).
 
-> Arquitectura pensada para crecer a producto (WhatsApp + HITL + multi-tenant) **sin reescritura** —
-> ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/adr/`](docs/adr/).
+> **Estado:** v0.1, prueba de concepto. Sin rodaje en producción ni validación con usuarios
+> reales; los números son de una evaluación interna. Arquitectura pensada para crecer a producto
+> (WhatsApp + HITL + multi-tenant) sin reescritura — ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Requisitos
-- **Python 3.12** (lo gestiona `uv`; tu sistema puede tener otra versión).
+- **Python 3.11+** (lo gestiona `uv`; el dev usa 3.12 por las ruedas ML).
 - **[uv](https://docs.astral.sh/uv/)** (gestor de entorno y dependencias).
 - **Postgres 16 + pgvector** vía `DATABASE_URL` — usa **Neon/Supabase gratis** (sin Docker) o el
   `docker-compose.yml` incluido.
 - **[Ollama](https://ollama.com)** para el camino 100% local y gratis (embeddings + generación).
+
+> **Reranker (trade-off honesto):** el default de fábrica es `RERANK_PROVIDER=none` (rápido,
+> pero sin reordenar, las portadas ganan la recuperación). Las métricas publicadas se midieron con
+> `RERANK_PROVIDER=local` (cross-encoder en CPU: ~45 s/consulta la primera vez; en GPU con
+> `--extra local` es rápido). Cohere reordena rápido pero es de pago. Las preguntas repetidas
+> responden en <50 ms por la caché. No hay una opción "gratis + rápida + de máxima calidad": se elige.
 
 ## Arranque rápido (Ruta local, gratis)
 ```powershell

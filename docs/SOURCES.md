@@ -36,7 +36,8 @@ confirmar licencia de cada uno (Agrosavia suele ser CC BY-NC = *no comercial*).
 | `guia_plagas_hass.pdf` | Agrosavia — Guía reconocimiento y manejo de plagas Hass (guía **visual**, 6 MB) | académico | CC BY-NC (a verificar) | ❌ NC; ojo: info en figuras/imágenes (poco texto extraíble) |
 | `fertilizacion_hass.pdf` | Agrosavia — Criterios de fertilización del Hass | académico | CC BY-NC (a verificar) | ❌ NC = revisar antes de vender |
 
-**Lección de cobertura (2026-06-14):** con 5 docs / ~460 chunks, el sistema responde
+**Lección de cobertura (observación HISTÓRICA del 2026-06-14, NO la cifra vigente):** con 5
+docs / ~460 chunks, el sistema responde
 **preguntas específicas** con cita y fidelidad alta, pero **se abstiene** en consultas
 amplias de síntesis (p.ej. "trips y principales plagas"). Causa: (1) la guía de plagas es
 **visual** (su info está en figuras, no en texto), y (2) las páginas de portada/título
