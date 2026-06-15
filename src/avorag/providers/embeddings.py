@@ -11,7 +11,7 @@ _RETRY = retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, m
 
 
 class OllamaEmbedding(EmbeddingProvider):
-    """Embeddings vía Ollama local (por defecto). Requiere `ollama pull <modelo>`."""
+    """Embeddings vía Ollama local. Requiere `ollama pull <modelo>`."""
 
     def __init__(self) -> None:
         from ollama import Client
@@ -62,10 +62,10 @@ class OpenAIEmbedding(EmbeddingProvider):
 
 
 class LocalEmbedding(EmbeddingProvider):
-    """Embeddings self-hosted en GPU (sentence-transformers). Requiere `uv sync --extra local`."""
+    """Embeddings self-hosted vía sentence-transformers. Requiere `uv sync --extra local`."""
 
     def __init__(self) -> None:
-        from sentence_transformers import SentenceTransformer  # import perezoso (pesado)
+        from sentence_transformers import SentenceTransformer  # import diferido (pesado)
 
         s = get_settings()
         model_name = s.embedding_model if "/" in s.embedding_model else "BAAI/bge-m3"

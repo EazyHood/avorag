@@ -65,7 +65,7 @@ def test_semaforo_rojo_on_cat_i_ii_from_safety():
 
 
 def test_extract_categoria_toxicologica_from_text():
-    # Texto tipo registro/etiqueta ICA: la categoría se EXTRAE (no queda en N/A).
+    # Texto tipo etiqueta ICA: la categoría se extrae, no queda en N/A.
     f = extract_chunk_fields(
         "Producto X. Ingrediente activo: clorpirifos. Categoría Toxicológica II. Registro ICA No. 1234."
     )

@@ -1,11 +1,4 @@
-"""Tipos de recuperación independientes de la capa de infraestructura.
-
-`ScoredChunk` vive aquí (y no en `hybrid.py`) para que el DOMINIO puro —guardarraíles de
-seguridad, semáforo, pipeline de razonamiento— pueda tiparse contra él SIN arrastrar
-`avorag.db` (que al importarse construye un engine de Postgres). Romper ese acoplamiento
-permite testear la lógica de seguridad sin una base de datos y mantener una frontera clara
-entre dominio e infraestructura (regla sostenida por `tests/test_decoupling.py`).
-"""
+"""Tipos de recuperación desacoplados de la BD (permite testear el dominio sin Postgres)."""
 
 from __future__ import annotations
 
@@ -14,11 +7,7 @@ from typing import Any, Protocol
 
 
 class ChunkLike(Protocol):
-    """Contrato mínimo de un fragmento recuperado que consume el dominio.
-
-    Lo satisface estructuralmente el modelo ORM `avorag.db.Chunk`, pero el dominio solo
-    depende de esta forma, no del ORM concreto.
-    """
+    """Contrato mínimo de un fragmento recuperado. Lo satisface avorag.db.Chunk."""
 
     id: Any
     content: str

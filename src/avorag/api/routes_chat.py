@@ -14,13 +14,11 @@ router = APIRouter(prefix="/api", tags=["chat"])
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=2000)
-    # En modo autenticado el tenant se deriva del API key (no del body). El campo se conserva
-    # solo para el modo desarrollo (sin api_keys).
+    # En prod el tenant viene del API key, no del body.
     tenant: str | None = Field(None, min_length=1, max_length=64, pattern=r"^[a-z0-9_-]+$")
     country: str | None = Field(None, pattern=r"^[A-Z]{2}$")
-    # Contexto de la finca: afina la recomendación (sobre todo de fertilización).
-    soil_type: str | None = Field(None, max_length=64)  # p.ej. arenoso, arcilloso, franco
-    region: str | None = Field(None, max_length=80)  # p.ej. Quindío, Antioquia
+    soil_type: str | None = Field(None, max_length=64)  # arenoso, arcilloso, franco…
+    region: str | None = Field(None, max_length=80)
 
 
 @router.post("/ask", response_model=Answer)
@@ -29,7 +27,6 @@ def ask(
     auth_tenant: str = Depends(require_api_key),
     _rl: None = Depends(rate_limit),
 ) -> Answer:
-    # Con autenticación activa, el tenant viene del token; nunca se confía en el del body.
     effective_tenant = auth_tenant if get_settings().api_keys else (req.tenant or auth_tenant)
     return answer(
         req.question,

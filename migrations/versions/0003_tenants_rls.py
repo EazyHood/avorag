@@ -1,16 +1,7 @@
-"""Tabla de tenants + Row-Level Security (aislamiento multi-tenant real).
+"""Tabla de tenants + políticas RLS de PostgreSQL (aislamiento multi-tenant a nivel de BD).
 
-Cierra #32: hasta ahora el aislamiento era solo `WHERE tenant=?` a nivel de aplicación (un
-parámetro mal puesto cruzaba datos entre fincas). Esta migración añade una tabla `tenants` y
-políticas RLS de PostgreSQL: cada sesión declara su tenant con `SET LOCAL app.current_tenant`
-(lo hace `get_session(tenant=...)`) y la base de datos IMPIDE leer/escribir filas de otro.
-
-La política es PERMISIVA cuando el tenant no está fijado (compatibilidad con procesos como la
-ingesta/migraciones); para aislamiento ESTRICTO, quitar la cláusula `IS NULL`. RLS es propio de
-PostgreSQL: en otros motores la migración es un no-op.
-
-ADVERTENCIA OPERATIVA: aplicar esta migración activa RLS sobre las tablas existentes. Ejecutar
-de forma deliberada (`avorag db upgrade`) tras verificar que el código fija el tenant.
+Política permisiva cuando `app.current_tenant` no está fijado (compatible con ingesta/migraciones).
+ADVERTENCIA: activar en producción solo tras verificar que el código fija el tenant en cada sesión.
 
 Revision ID: 0003
 Revises: 0002

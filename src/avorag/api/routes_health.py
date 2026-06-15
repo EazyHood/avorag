@@ -26,6 +26,5 @@ def ready() -> dict:
             conn.execute(text("SELECT 1"))
         return {"status": "ready", "db": "ok"}
     except Exception as exc:
-        # No filtrar la traza/URL al cliente; registrar internamente.
         log.error("readiness_db_check_failed", error=str(exc))
         return {"status": "degraded", "db": "unavailable"}

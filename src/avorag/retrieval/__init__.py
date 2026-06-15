@@ -1,10 +1,4 @@
-"""Recuperación híbrida y reranking.
-
-`ScoredChunk` se reexporta de forma EAGER (no depende de la BD). Las funciones que sí
-tocan la BD/proveedores (`hybrid_search`, `reciprocal_rank_fusion`, `rerank_chunks`) se
-cargan de forma PEREZOSA vía `__getattr__`: así importar `avorag.retrieval.types` (o
-`ScoredChunk`) desde el dominio no arrastra `avorag.db`.
-"""
+"""Recuperación híbrida y reranking. Las funciones que tocan BD se cargan de forma perezosa."""
 
 from __future__ import annotations
 

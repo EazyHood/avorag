@@ -163,8 +163,7 @@ def audit(
     limit: int = typer.Option(50, "--limit"),
     out: Path | None = typer.Option(None, "--out", help="Exporta a JSONL (audita en archivo)."),
 ) -> None:
-    """Audita las consultas registradas (QueryLog) con filtros. Respeta audit_store_text:
-    si los textos están hasheados, exporta los hashes — reconstruye POR QUÉ se dio cada respuesta."""
+    """Audita las consultas registradas con filtros opcionales."""
     import json as _json
 
     from sqlalchemy import desc, select

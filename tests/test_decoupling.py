@@ -1,10 +1,7 @@
-"""Blindaje arquitectónico: el DOMINIO puro no debe arrastrar la capa de BD.
+"""Blindaje arquitectónico: el dominio puro no debe arrastrar la capa de BD.
 
-Importar los guardarraíles de seguridad (o los esquemas) NO debe construir un engine de
-Postgres ni importar `avorag.db.engine`. Esto mantiene la lógica de seguridad testeable sin
-base de datos y evita que un `import` accidental abra conexiones a producción. Si esta
-prueba se rompe, alguien volvió a acoplar infraestructura al dominio (ver Ola 1 de la
-auditoría / `src/avorag/retrieval/types.py`).
+Importar guardarraíles o esquemas NO debe construir un engine de Postgres ni importar
+`avorag.db.engine`. Si esta prueba se rompe, alguien volvió a acoplar infraestructura al dominio.
 """
 
 from __future__ import annotations
@@ -33,7 +30,6 @@ def _imported_modules(path: Path) -> set[str]:
 
 
 def test_domain_modules_do_not_import_db_statically() -> None:
-    # Contrato de capas: el dominio puro NO importa la capa de infraestructura.
     for rel in (
         "rag/guardrails.py",
         "rag/prompt.py",

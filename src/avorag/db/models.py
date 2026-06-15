@@ -74,12 +74,12 @@ class Chunk(Base):
     pagina: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     content: Mapped[str] = mapped_column(Text)
-    # Contexto antepuesto (Contextual Retrieval de Anthropic) — mejora recuperación.
+    # Contextual Retrieval (Anthropic) — mejora recuperación.
     context: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
 
-    # Búsqueda léxica BM25-like en español (columna generada + índice GIN en la migración).
+    # Columna generada para búsqueda léxica BM25-like; índice GIN en la migración.
     content_tsv: Mapped[str] = mapped_column(
         TSVECTOR,
         Computed(
@@ -88,7 +88,6 @@ class Chunk(Base):
         ),
     )
 
-    # Metadata rica para geofiltro y citación a fuente.
     meta: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -117,7 +116,7 @@ class QueryLog(Base):
     provider_info: Mapped[dict] = mapped_column(JSONB, default=dict)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Human-in-the-loop (se usa en la Ruta B; presente desde ya para no reescribir).
+    # Human-in-the-loop (Ruta B).
     reviewer_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     review_status: Mapped[str] = mapped_column(String(16), default="none")
 

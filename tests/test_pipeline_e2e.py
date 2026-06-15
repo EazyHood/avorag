@@ -1,8 +1,7 @@
-"""End-to-end del pipeline `answer()` con proveedores FAKE (amplifica la fortaleza #27).
+"""End-to-end del pipeline `answer()` con proveedores FAKE.
 
-Ejercita la orquestación COMPLETA —intención → recuperación → prompt → generación → jueces →
-guardarraíles → semáforo → cita— sin Ollama, sin claves y sin Postgres, monkeypatcheando solo
-las costuras de infraestructura (sesión de BD y búsqueda híbrida). Corre en el CI puro.
+Ejercita la orquestación completa —intención → recuperación → prompt → generación → jueces →
+guardarraíles → semáforo → cita— sin Ollama, sin claves y sin Postgres.
 """
 
 from __future__ import annotations
@@ -53,11 +52,11 @@ def test_answer_e2e_verde_con_cita(monkeypatch) -> None:
     assert len(ans.citations) == 1
     assert ans.citations[0].fuente.startswith("ICA")
     assert ans.citations[0].pagina == 12
-    assert ans.provider_info.get("prompt_version")  # procedencia presente
+    assert ans.provider_info.get("prompt_version")
 
 
 def test_answer_e2e_abstains_on_other_crop(monkeypatch) -> None:
-    # Pre-filtro de intención: cultivo ajeno → abstención antes de recuperar.
+    # Pre-filtro de intención: cultivo ajeno -> abstención antes de recuperar.
     _wire(monkeypatch, [_chunk("contenido irrelevante")])
     ans = P.answer("¿Cómo siembro arroz en zona inundable?")
     assert ans.abstained

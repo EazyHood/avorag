@@ -1,4 +1,4 @@
-"""Ola 5: métricas honestas — IC Wilson, soporte de cita, alias groundedness."""
+"""Métricas honestas — IC Wilson, soporte de cita, alias groundedness."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ def test_wilson_ci_small_sample_is_wide() -> None:
     # 4/4 no es "100% seguro": el IC inferior debe estar bastante por debajo de 1.0.
     low, high = wilson_ci(4, 4)
     assert high == 1.0
-    assert low < 0.6  # muestra pequeña -> mucha incertidumbre
-    # Muestra grande -> IC estrecho.
+    assert low < 0.6
     low2, high2 = wilson_ci(95, 100)
     assert high2 - low2 < 0.15
 

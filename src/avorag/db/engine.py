@@ -1,10 +1,4 @@
-"""Engine y sesiones de SQLAlchemy (síncrono, psycopg3).
-
-El engine se construye de forma PEREZOSA (`get_engine`, cacheado): importar este módulo no
-abre conexiones ni lee la BD. Así el dominio puede importarse sin tocar infraestructura, y
-los tests unitarios no necesitan una base de datos. Por compatibilidad, `engine` y
-`SessionLocal` siguen accesibles como atributos del módulo (se materializan al primer uso).
-"""
+"""Engine y sesiones de SQLAlchemy (síncrono, psycopg3). Construcción perezosa."""
 
 from __future__ import annotations
 
@@ -21,11 +15,9 @@ from avorag.config import get_settings
 
 @lru_cache(maxsize=1)
 def get_engine() -> Engine:
-    """Devuelve el engine (cacheado). Se construye en la primera llamada, no al importar."""
+    """Devuelve el engine (cacheado)."""
     settings = get_settings()
-    # Keepalives TCP: en Postgres gestionado serverless (Neon) el proxy corta conexiones que
-    # quedan ociosas. Los keepalives mantienen viva la conexión y detectan cortes pronto.
-    # Solo aplican a psycopg (Postgres); SQLite u otros backends los ignoran.
+    # Keepalives TCP para Postgres gestionado (Neon corta conexiones ociosas).
     connect_args: dict[str, Any] = {}
     if settings.database_url.startswith(("postgresql", "postgres")):
         connect_args = {
@@ -36,8 +28,8 @@ def get_engine() -> Engine:
         }
     return create_engine(
         settings.database_url,
-        pool_pre_ping=True,  # evita conexiones muertas (importante con Postgres gestionado)
-        pool_recycle=300,  # recicla conexiones de >5 min (Neon corta las viejas)
+        pool_pre_ping=True,
+        pool_recycle=300,  # Neon corta conexiones viejas
         connect_args=connect_args,
         future=True,
     )
@@ -45,7 +37,7 @@ def get_engine() -> Engine:
 
 @lru_cache(maxsize=1)
 def get_session_factory() -> sessionmaker[Session]:
-    """Devuelve la fábrica de sesiones (cacheada), ligada al engine perezoso."""
+    """Devuelve la fábrica de sesiones (cacheada)."""
     return sessionmaker(bind=get_engine(), expire_on_commit=False, class_=Session)
 
 
@@ -53,9 +45,8 @@ def get_session_factory() -> sessionmaker[Session]:
 def get_session(tenant: str | None = None) -> Iterator[Session]:
     """Context manager de sesión con commit/rollback automático.
 
-    Si se pasa `tenant`, declara `app.current_tenant` (local a la transacción) para que la
-    Row-Level Security de PostgreSQL aísle las filas de ese tenant (migración 0003). Es inocuo
-    si RLS no está activada. Para otros motores (SQLite en tests) se omite.
+    Si se pasa `tenant`, activa RLS en PostgreSQL vía `app.current_tenant`
+    (ignorado en SQLite).
     """
     session = get_session_factory()()
     try:
@@ -77,8 +68,7 @@ def get_session(tenant: str | None = None) -> Iterator[Session]:
 
 
 def __getattr__(name: str) -> Any:
-    # Compatibilidad: `engine` y `SessionLocal` se materializan perezosamente al accederlos,
-    # sin construir nada al importar el módulo.
+    # Compatibilidad hacia atrás: engine y SessionLocal se materializan al accederlos.
     if name == "engine":
         return get_engine()
     if name == "SessionLocal":

@@ -1,6 +1,4 @@
-"""Guardarraíles de seguridad: dosis rastreable, categoría toxicológica, juez de
-fidelidad, clasificación de intención y decisión de semáforo. El objetivo es
-minimizar errores de alta severidad (NO se garantiza cero — por eso existe el HITL)."""
+"""Guardarraíles de seguridad: dosis rastreable, categoría toxicológica, fidelidad y semáforo."""
 
 from __future__ import annotations
 
@@ -19,10 +17,9 @@ from avorag.retrieval.types import ScoredChunk
 
 log = get_logger(__name__)
 
-# Unidades agronómicas típicas de dosis.
+# Unidades agronómicas de dosis.
 _UNITS = r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3|mm)"
-# (?!\w) en vez de \b: cierra la unidad sin exigir frontera de palabra, así también captura
-# unidades que terminan en no-letra (p.ej. la concentración "1.8%"), que \b dejaba escapar.
+# (?!\w) en lugar de \b: captura unidades que terminan en no-letra (p.ej. "1.8%").
 _DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?" + _UNITS + r"(?!\w)", re.IGNORECASE)
 
 
@@ -37,7 +34,7 @@ def extract_dose_numbers(text: str) -> list[str]:
     return [m.group(1).replace(",", ".") for m in _DOSE_RE.finditer(text)]
 
 
-# Normalización de unidades para comparar dosis EQUIVALENTES (5 kg/ha == 5000 g/ha).
+# Normaliza unidades para comparar dosis equivalentes (5 kg/ha == 5000 g/ha).
 _DOSE_PAIR_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?(" + _UNITS + r")(?!\w)", re.IGNORECASE)
 _UNIT_FACTORS: dict[str, tuple[str, float]] = {
     "%": ("pct", 1.0),
@@ -71,9 +68,7 @@ def _canonical_doses(text: str) -> set[tuple[str, float]]:
 
 
 def doses_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str]]:
-    """Cada dosis de la respuesta debe estar respaldada por una dosis EQUIVALENTE en el
-    contexto (misma cantidad física aunque cambie la unidad: 5 kg/ha == 5000 g/ha). Un
-    número suelto en el contexto (p.ej. '100 hectáreas') no respalda una dosis."""
+    """Cada dosis de la respuesta debe estar respaldada por una dosis equivalente en el contexto."""
     ctx = _canonical_doses(contexts_text)
     unsupported: list[str] = []
     for m in _DOSE_PAIR_RE.finditer(answer_text):
@@ -85,7 +80,7 @@ def doses_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str
     return (len(unsupported) == 0, unsupported)
 
 
-# --- Periodo de carencia (PHI) y reingreso: igual de crítico que la dosis (LMR/rechazos) ---
+# Periodo de carencia (PHI) y reingreso — crítico para LMR/rechazos.
 _PHI_TERMS = r"(?:carencia|per[ií]odo de seguridad|periodo de seguridad|plazo de seguridad|reingreso|reentrada)"
 _PHI_RE = re.compile(
     rf"(?:{_PHI_TERMS}\D{{0,40}}?(\d+)\s*(d[ií]as?|horas?|h)\b)"
@@ -107,9 +102,7 @@ def _phi_values(text: str) -> set[tuple[str, float]]:
 
 
 def phi_grounded(answer_text: str, contexts_text: str) -> tuple[bool, list[str]]:
-    """El periodo de carencia/reingreso de la respuesta debe aparecer en el contexto.
-    Una carencia inventada (p.ej. '12 días') puede dejar residuos > LMR y provocar el
-    rechazo del contenedor en destino — el riesgo central del producto."""
+    """El periodo de carencia/reingreso de la respuesta debe aparecer en el contexto."""
     ctx = _phi_values(contexts_text)
     unsupported = [f"{int(v)} {u}" for (u, v) in _phi_values(answer_text) if (u, v) not in ctx]
     return (len(unsupported) == 0, unsupported)
@@ -122,8 +115,7 @@ _ACTIONABLE_RE = re.compile(
 
 
 def has_actionable_recommendation(answer_text: str) -> bool:
-    """¿La respuesta trae una dosis, una carencia o una indicación de aplicar un producto?
-    Solo entonces se invoca el juez de seguridad (evita latencia en respuestas generales)."""
+    """True si la respuesta contiene una dosis, carencia o indicación de aplicación."""
     return bool(_ACTIONABLE_RE.search(answer_text))
 
 
@@ -147,8 +139,7 @@ _SAFETY_SYSTEM = (
 
 
 def dose_safety_judge(answer: str, contexts_text: str) -> DoseSafety | None:
-    """Juez-LLM que verifica la ASOCIACIÓN producto–plaga–dosis–carencia (no solo el número).
-    Si falla, devuelve None → el pipeline lo trata como AMARILLO (no se pudo verificar)."""
+    """Verifica la asociación producto–plaga–dosis–carencia. None si el juez falla."""
     try:
         llm = get_judge_llm_provider()
         raw = llm.complete(
@@ -171,15 +162,11 @@ def dose_safety_judge(answer: str, contexts_text: str) -> DoseSafety | None:
 
 
 def cited_categoria_toxicologica(chunks: list[ScoredChunk]) -> set[str]:
-    """Categorías toxicológicas presentes en los fragmentos usados."""
+    """Categorías toxicológicas presentes en los fragmentos."""
     return {str(sc.chunk.meta.get("categoria_toxicologica", "N/A")).upper() for sc in chunks}
 
 
-# =============================================================================================
-# Verificación DETERMINISTA atada al fragmento de origen (no "el número existe en algún lugar").
-# Estas funciones operan sobre los chunks recuperados (con su meta), no sobre el texto plano
-# concatenado, para poder asociar cada dosis a SU producto/registro/carencia de la misma fuente.
-# =============================================================================================
+# Verificación determinista por fragmento de origen (asocia cada dosis a su producto/registro).
 
 
 def _chunk_content(sc: ScoredChunk) -> str:
@@ -207,10 +194,7 @@ def _chunk_actives(sc: ScoredChunk) -> set[str]:
 
 
 def dose_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[bool, list[str]]:
-    """Cada dosis de la respuesta debe co-ocurrir, EN UN MISMO fragmento, con el producto/
-    ingrediente activo al que la respuesta la asocia. Así una dosis válida de OTRO producto deja
-    de "respaldar" la afirmación (el fallo central del guardarraíl viejo). Si la respuesta no
-    nombra un i.a., cae a la verificación de dosis-en-fragmento (presencia equivalente)."""
+    """Cada dosis debe co-ocurrir en el mismo fragmento con el producto/i.a. que la respuesta le asocia."""
     answer_actives = active_ingredients_in(answer_text)
     unsupported: list[str] = []
     for m in _DOSE_PAIR_RE.finditer(answer_text):
@@ -231,8 +215,7 @@ def dose_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[
 
 
 def recommends_pesticide(answer_text: str) -> bool:
-    """La respuesta recomienda un PRODUCTO fitosanitario a dosis (no una dosis de fertilizante).
-    Solo entonces exigimos un registro ICA vigente."""
+    """True si la respuesta recomienda un fitosanitario a dosis (no fertilizante)."""
     return (
         bool(_DOSE_PAIR_RE.search(answer_text))
         and extract_active_ingredient(answer_text) is not None
@@ -240,8 +223,7 @@ def recommends_pesticide(answer_text: str) -> bool:
 
 
 def ica_registro_ok(chunks: list[ScoredChunk]) -> bool:
-    """¿Hay al menos un fragmento con registro ICA presente, NO caducado y de autoridad oficial?
-    Es lo que hace que una dosis sea "rastreable a una etiqueta REGISTRADA vigente"."""
+    """True si hay al menos un fragmento con registro ICA vigente de autoridad oficial."""
     for sc in chunks:
         meta = _chunk_meta(sc)
         if (
@@ -257,8 +239,7 @@ _DOSE_CITE_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?" + _UNITS + r")\D{0,40}?\[(\d+)
 
 
 def citation_supports_claim(answer_text: str, chunks: list[ScoredChunk]) -> tuple[bool, list[str]]:
-    """Verifica que la cifra citada esté EN el fragmento citado: para cada 'dosis … [n]',
-    el chunk n debe contener esa dosis. Detecta también citas huérfanas [n] fuera de rango."""
+    """Cada 'dosis … [n]' debe aparecer en el chunk n; detecta también citas fuera de rango."""
     issues: list[str] = []
     for m in _DOSE_CITE_RE.finditer(answer_text):
         dose_txt = m.group(1).strip()
@@ -272,7 +253,6 @@ def citation_supports_claim(answer_text: str, chunks: list[ScoredChunk]) -> tupl
         n = int(m.group(1))
         if not (1 <= n <= len(chunks)):
             issues.append(f"cita [{n}] fuera de rango")
-    # Deduplica preservando orden.
     uniq: list[str] = []
     for i in issues:
         if i not in uniq:
@@ -281,9 +261,7 @@ def citation_supports_claim(answer_text: str, chunks: list[ScoredChunk]) -> tupl
 
 
 def dose_conflicts(chunks: list[ScoredChunk]) -> list[str]:
-    """Detecta fuentes en CONFLICTO: un mismo ingrediente activo con dosis sustancialmente
-    distintas (ratio > 1.5) en ≥2 fragmentos. El agrónomo debe ver la discrepancia, no una
-    síntesis silenciosa."""
+    """Detecta dosis sustancialmente distintas (ratio > 1.5) para un mismo i.a. en ≥2 fragmentos."""
     by_active: dict[str, dict[str, set[float]]] = {}
     for sc in chunks:
         doses = _canonical_doses(_chunk_content(sc))
@@ -300,8 +278,7 @@ def dose_conflicts(chunks: list[ScoredChunk]) -> list[str]:
 
 
 def is_offlabel(answer_text: str, chunks: list[ScoredChunk]) -> bool:
-    """True si la dosis recomendada SOLO se respalda en fragmentos de OTRO cultivo (uso off-label).
-    El corpus actual es 100% Hass, así que es un backstop a futuro (cuando entren fuentes mixtas)."""
+    """True si la dosis recomendada solo se respalda en fragmentos de otro cultivo."""
     if not recommends_pesticide(answer_text):
         return False
     supporting = [
@@ -317,15 +294,14 @@ def _banned_index() -> dict[str, dict]:
     path = Path(__file__).resolve().parents[3] / "data" / "prohibidos_co.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:  # pragma: no cover - la ausencia del archivo no debe romper
+    except Exception as exc:  # pragma: no cover
         log.warning("banned_list_load_failed", error=str(exc))
         return {}
     return {str(it["ingrediente_activo"]).lower(): it for it in data.get("ingredientes", [])}
 
 
 def banned_ingredients_in_answer(answer_text: str, country: str = "CO") -> list[str]:
-    """Ingredientes activos prohibidos/restringidos mencionados en la respuesta (red de
-    seguridad; el estado vigente lo define el ICA). Si aparece alguno → ROJO."""
+    """Ingredientes activos prohibidos o restringidos mencionados en la respuesta."""
     low = _strip_accents(answer_text)
     hits: list[str] = []
     for ia, item in _banned_index().items():
@@ -335,9 +311,7 @@ def banned_ingredients_in_answer(answer_text: str, country: str = "CO") -> list[
 
 
 def stale_data_warnings(chunks: list[ScoredChunk]) -> list[str]:
-    """Avisos cuando un fragmento de REGISTRO/dosis trae una fecha del dato antigua (p.ej. el
-    registro PQUA a mar-2022): citar una dosis/registro de hace años con apariencia oficial es
-    riesgo regulatorio (#20). No bloquea, pero el aviso viaja con la respuesta."""
+    """Avisa cuando un fragmento de registro/dosis trae fecha antigua. No bloquea."""
     warnings: list[str] = []
     for sc in chunks:
         meta = _chunk_meta(sc)
@@ -349,7 +323,7 @@ def stale_data_warnings(chunks: list[ScoredChunk]) -> list[str]:
     return warnings[:2]
 
 
-# --- Clasificación de intención (etiqueta la abstención; backstop del retrieval/LLM) ---
+# Clasificación de intención.
 _HASS_TERMS = {"aguacate", "hass", "palta", "palto"}
 _OTHER_CROPS = {
     "tomate",
@@ -431,8 +405,7 @@ def has_agronomic_signal(question: str) -> bool:
 
 
 def classify_intent(question: str) -> AbstentionType | None:
-    """Pre-clasificación barata. OUT_OF_COLLECTION corta antes de recuperar (cultivo ajeno).
-    Devuelve None si se debe proceder con la recuperación normal."""
+    """Pre-clasificación sin embedding. None si se puede continuar con la recuperación."""
     if is_other_crop(question):
         return AbstentionType.OUT_OF_COLLECTION
     return None
@@ -449,9 +422,7 @@ _JUDGE_SYSTEM = (
 def faithfulness_judge(
     question: str, answer: str, contexts_text: str
 ) -> tuple[float | None, list[str]]:
-    """LLM-as-judge de fidelidad. Devuelve (score 0..1, no-respaldadas).
-    Si el juez FALLA, devuelve (None, []) — el pipeline lo trata como AMARILLO,
-    NUNCA como fidelidad perfecta (fail-safe, no fail-open)."""
+    """LLM-as-judge de fidelidad. (None, []) si falla — el pipeline lo trata como AMARILLO."""
     try:
         llm = get_judge_llm_provider()
         raw = llm.complete(
@@ -498,13 +469,8 @@ def decide_semaforo(
     citation_ok: bool = True,
     conflicts: list[str] | None = None,
 ) -> tuple[Semaforo, str]:
-    """Combina las señales en un semáforo con su razón.
-
-    Orden de prioridad (de más a menos grave): prohibido/restringido > off-label >
-    dosis-no-rastreable > dosis-sin-registro-vigente > carencia(PHI) > categoría I/II >
-    asociación insegura > asociación no verificable > cita que no respalda > conflicto de
-    fuentes > fidelidad > sin-citas. Rojo > amarillo > verde.
-    """
+    """Combina las señales en un semáforo con razón. Prioridad: prohibido > off-label >
+    dosis > registro > PHI > cat I/II > asociación > cita > conflicto > fidelidad > citas."""
     banned = banned or []
     conflicts = conflicts or []
     if banned:
@@ -536,10 +502,7 @@ def decide_semaforo(
             "Periodo de carencia no rastreable a una fuente: riesgo de superar el LMR y rechazo "
             "en destino. Requiere validación de un agrónomo.",
         )
-    # Categoría toxicológica I (extrema) o el juez confirma que el producto RECOMENDADO es I/II
-    # → ROJO. La categoría II "coarse" (a nivel de fragmento de registro, que lista muchos
-    # productos) se trata como AMARILLO más abajo, para no marcar en rojo toda respuesta que
-    # cite el registro (fatiga de alarma); el juez sí distingue el producto recomendado.
+    # Cat II coarse (fragmento de registro) → AMARILLO; juez distingue el producto recomendado.
     if "I" in cat_tox or (safety is not None and safety.cat_i_ii):
         return (
             Semaforo.ROJO,

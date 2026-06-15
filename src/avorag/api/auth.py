@@ -1,9 +1,7 @@
-"""Autenticación por API key y rate-limiting de la API.
+"""Autenticación por API key y rate-limiting.
 
-Cierra #33: la ruta de consulta se vendía como 'de producción' sin control de acceso ni
-límite de uso. En modo desarrollo (sin `api_keys`) sigue abierta; en producción exige una
-key válida y deriva el tenant del token (no del body, ver #32). El rate-limiter es en memoria
-(por proceso); para multi-worker se sustituye por Redis.
+En modo dev (sin `api_keys`) la API queda abierta; en prod exige key válida y deriva el
+tenant del token. Rate-limiter en memoria; sustituir por Redis en multi-worker.
 """
 
 from __future__ import annotations
@@ -17,12 +15,11 @@ from avorag.config import get_settings
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> str:
-    """Devuelve el tenant asociado al API key. Sin `api_keys` configuradas (dev), deja pasar
-    como el tenant por defecto. Con `api_keys`, exige una key válida."""
+    """Valida el API key y devuelve el tenant asociado."""
     settings = get_settings()
     keys = settings.api_keys
     if not keys:
-        return settings.default_tenant  # modo abierto: solo desarrollo / mismo origen
+        return settings.default_tenant  # modo dev: sin autenticación
     if not x_api_key or x_api_key not in keys:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -31,8 +28,7 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> str:
     return keys[x_api_key]
 
 
-# Marcas de tiempo de las últimas peticiones por clave (ventana deslizante de 60 s).
-_HITS: dict[str, deque[float]] = defaultdict(deque)
+_HITS: dict[str, deque[float]] = defaultdict(deque)  # ventana deslizante de 60 s
 
 
 def _bucket_key(request: Request, x_api_key: str | None) -> str:

@@ -7,7 +7,7 @@ from avorag.providers.base import RerankProvider
 
 
 class NoRerank(RerankProvider):
-    """Sin reranking: conserva el orden de la fusión (RRF). Default del MVP."""
+    """Sin reranking; conserva el orden de la fusión RRF."""
 
     def rerank(self, query: str, docs: list[str], top_k: int) -> list[tuple[int, float]]:
         return [(i, 1.0 / (i + 1)) for i in range(len(docs))][:top_k]
@@ -35,14 +35,10 @@ class CohereRerank(RerankProvider):
 
 
 class LocalRerank(RerankProvider):
-    """Cross-encoder self-hosted vía sentence-transformers (compatible con transformers 5).
-
-    Requiere `uv sync --extra local`. Auto-detecta GPU; en CPU corre igual de fiable
-    (para reordenar pocos candidatos basta CPU, sin pelear con versiones de CUDA).
-    """
+    """Cross-encoder self-hosted vía sentence-transformers. Requiere `uv sync --extra local`."""
 
     def __init__(self) -> None:
-        from sentence_transformers import CrossEncoder  # import perezoso (pesado)
+        from sentence_transformers import CrossEncoder  # import diferido (pesado)
 
         s = get_settings()
         self._model = CrossEncoder(s.rerank_model)

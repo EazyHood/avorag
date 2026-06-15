@@ -1,12 +1,7 @@
-"""Suite red-team de modos de fallo (amplifica las fortalezas #1 y #36).
+"""Suite red-team: catálogo versionado de modos de fallo con cobertura 100%.
 
-Cataloga, de forma VERSIONADA, cada modo de fallo que el sistema dice atacar, y prueba
-end-to-end (por los guardarraíles deterministas, sin LLM) que CADA uno termina en el semáforo
-esperado con la razón esperada. Si alguien rompe una rama de `decide_semaforo`, su modo cae.
-
-`data/redteam/failure_modes.jsonl` es el catálogo; `_CANONICAL_MODES` lista los modos que el
-sistema afirma cubrir y el test exige que TODOS tengan ≥1 fila (failure_mode_coverage = 100%).
-El modo 'juez_caido' se cubre exhaustivamente en `test_failsafe_invariants.py`.
+`data/redteam/failure_modes.jsonl` es el catálogo; `_CANONICAL_MODES` exige que TODOS
+tengan ≥1 fila. El modo 'juez_caido' se cubre en `test_failsafe_invariants.py`.
 """
 
 from __future__ import annotations
@@ -50,7 +45,7 @@ def _chunks(rows: list[dict]) -> list[ScoredChunk]:
 
 
 def _evaluate_deterministic(question: str, answer: str, chunks: list[ScoredChunk]):
-    """Replica el subconjunto DETERMINISTA del guardarraíl del pipeline (sin jueces LLM)."""
+    """Subconjunto determinista del guardarraíl del pipeline (sin jueces LLM)."""
     ctx = "\n".join(g._chunk_content(c) for c in chunks)
     doses_ok, _ = g.dose_product_grounded(answer, chunks)
     phi_ok, _ = g.phi_grounded(answer, ctx)
@@ -70,7 +65,7 @@ def _evaluate_deterministic(question: str, answer: str, chunks: list[ScoredChunk
         has_citations=True,
         judge_failed=False,
         safety=None,
-        safety_required=False,  # determinista: el juez LLM se prueba aparte
+        safety_required=False,  # el juez LLM se prueba aparte
         banned=banned,
         offlabel=offlabel,
         registro_ok=registro_ok,

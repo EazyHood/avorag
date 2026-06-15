@@ -11,7 +11,7 @@ _RETRY = retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, m
 
 
 class OllamaLLM(LLMProvider):
-    """Generación con un modelo local de Ollama (gratis)."""
+    """Generación con Ollama local."""
 
     name = "ollama"
 
@@ -41,7 +41,7 @@ class OllamaLLM(LLMProvider):
 
 
 class AnthropicLLM(LLMProvider):
-    """Generación con Claude (para el demo de venta / producción)."""
+    """Generación con Claude (Anthropic)."""
 
     name = "anthropic"
 

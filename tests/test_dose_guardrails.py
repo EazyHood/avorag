@@ -1,8 +1,4 @@
-"""Ola 3: guardarraíles DETERMINISTAS de dosis atados al fragmento de origen.
-
-Incluye el test que el fallo original NO detectaba: una dosis correcta pegada al producto
-EQUIVOCADO debe quedar sin respaldo (ROJO), no en verde.
-"""
+"""Guardarraíles deterministas de dosis atados al fragmento de origen."""
 
 from __future__ import annotations
 
@@ -28,8 +24,8 @@ def mk(content: str, **meta) -> ScoredChunk:
 
 
 def test_dose_with_wrong_product_is_unsupported() -> None:
-    # La respuesta asocia 2,5 cc/L a abamectina, pero el ÚNICO fragmento con esa dosis es de
-    # clorpirifos -> la dosis NO está respaldada para el producto correcto (el fallo #11).
+    # La respuesta asocia 2,5 cc/L a abamectina, pero el único fragmento con esa dosis es de
+    # clorpirifos -> dosis no respaldada para el producto correcto.
     answer = "Aplica abamectina a una dosis de 2,5 cc/L."
     chunks = [mk("Lorsban (clorpirifos) se usa a 2,5 cc/L en otros cultivos.")]
     ok, unsupported = dose_product_grounded(answer, chunks)
@@ -78,7 +74,7 @@ def test_banned_ingredient_flagged() -> None:
 
 def test_recommends_pesticide() -> None:
     assert recommends_pesticide("Aplica abamectina 2,5 cc/L") is True
-    assert recommends_pesticide("Aplica 150 kg/ha de nitrogeno") is False  # fertilizante, no i.a.
+    assert recommends_pesticide("Aplica 150 kg/ha de nitrogeno") is False  # fertilizante
 
 
 def test_dose_conflicts_across_sources() -> None:
@@ -102,12 +98,11 @@ def test_semaforo_new_branches() -> None:
     assert decide_semaforo(**base, registro_required=True, registro_ok=False)[0] == Semaforo.ROJO
     assert decide_semaforo(**base, citation_ok=False)[0] == Semaforo.AMARILLO
     assert decide_semaforo(**base, conflicts=["abamectina: 2,5 vs 10"])[0] == Semaforo.AMARILLO
-    # Sin banderas problemáticas -> verde.
     assert decide_semaforo(**base)[0] == Semaforo.VERDE
 
 
 def test_semaforo_cat_i_rojo_cat_ii_amarillo() -> None:
-    # Cat I (extrema) -> ROJO; cat II "coarse" del fragmento -> AMARILLO (no fatiga de alarma).
+    # Cat I (extrema) -> ROJO; cat II del fragmento -> AMARILLO.
     assert decide_semaforo(doses_ok=True, cat_tox={"I"}, faithfulness=0.9)[0] == Semaforo.ROJO
     assert decide_semaforo(doses_ok=True, cat_tox={"II"}, faithfulness=0.9)[0] == Semaforo.AMARILLO
     assert decide_semaforo(doses_ok=True, cat_tox={"III"}, faithfulness=0.9)[0] == Semaforo.VERDE

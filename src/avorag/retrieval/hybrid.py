@@ -1,8 +1,4 @@
-"""Recuperación híbrida: denso (pgvector) + léxico (Postgres FTS español) → RRF.
-
-La búsqueda híbrida es indispensable en este dominio: lo denso captura el
-significado, y lo léxico acierta en SKUs, números de registro ICA y dosis exactas.
-"""
+"""Recuperación híbrida: denso (pgvector) + léxico (Postgres FTS español) → RRF."""
 
 from __future__ import annotations
 
@@ -51,7 +47,6 @@ def lexical_search(
     try:
         return [str(cid) for cid in session.scalars(stmt)]
     except Exception as exc:
-        # Una query léxica malformada no debe tumbar la búsqueda: caemos al lado denso.
         session.rollback()
         log.warning("lexical_search_failed", error=str(exc))
         return []
@@ -66,8 +61,7 @@ def reciprocal_rank_fusion(ranked_lists: list[list[str]], *, k: int) -> list[tup
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 
-# Desempate por autoridad de la fuente: ante relevancia similar, prima el regulador oficial
-# sobre el gremio y lo académico (clave en preguntas regulatorias / de registro).
+# Regulador oficial > gremio > académico > interno.
 _AUTHORITY_WEIGHT = {
     "oficial-regulador": 1.0,
     "gremio": 0.95,
@@ -119,6 +113,5 @@ def hybrid_search(
                 lexical_rank=lexical_rank.get(cid),
             )
         )
-    # Reordena tras ponderar por autoridad (RRF ya venía ordenado, el peso puede alterar el orden).
     out.sort(key=lambda sc: sc.score, reverse=True)
     return out

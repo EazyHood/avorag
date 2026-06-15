@@ -1,9 +1,4 @@
-"""Chunking recursivo orientado a documentos técnicos en español.
-
-Estrategia (ver docs/adr/0003): partir por separadores semánticos (párrafo →
-línea → oración → palabra) hasta acercarse a un tamaño objetivo, con solape.
-El tamaño se expresa en tokens aproximados (~4 caracteres/token).
-"""
+"""Chunking recursivo por separadores semánticos, con solape. Tamaño en tokens (~4 chars/token)."""
 
 from __future__ import annotations
 
@@ -61,11 +56,7 @@ def _is_separator_row(line: str) -> bool:
 
 
 def _segment_blocks(text: str) -> list[tuple[str, str]]:
-    """Separa el texto en bloques de prosa y bloques de tabla Markdown (líneas con '|').
-
-    Mantener las tablas en su propio bloque evita que el splitter por longitud parta una FILA
-    (y separe el producto de su dosis/carencia) — el riesgo central del guardarraíl de dosis.
-    """
+    """Separa el texto en bloques de prosa y bloques de tabla Markdown (líneas con '|')."""
     segments: list[tuple[str, str]] = []
     cur_kind: str | None = None
     cur: list[str] = []
@@ -82,8 +73,7 @@ def _segment_blocks(text: str) -> list[tuple[str, str]]:
 
 
 def _split_table(block: str, max_chars: int) -> list[str]:
-    """Trocea una tabla Markdown por FILAS (nunca dentro de una fila) re-anteponiendo el
-    encabezado a cada sub-chunk, para que cada fragmento conserve el significado de columnas."""
+    """Trocea una tabla Markdown por filas, re-anteponiendo el encabezado a cada sub-chunk."""
     lines = [ln for ln in block.splitlines() if ln.strip()]
     if not lines:
         return []

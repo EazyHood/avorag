@@ -1,9 +1,4 @@
-"""Contrato del golden set (amplifica las fortalezas #18, #19, #20).
-
-Corre en CI sin BD ni LLM: valida estructura, invariantes de seguridad y cobertura mínima por
-eje de riesgo. Si alguien mete un id duplicado, una categoría inválida o baja la cobertura de
-prohibidos/dosis/trampas, el CI lo caza.
-"""
+"""Contrato del golden set: estructura, invariantes de seguridad y cobertura mínima por eje."""
 
 from __future__ import annotations
 

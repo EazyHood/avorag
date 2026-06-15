@@ -46,7 +46,7 @@ def _corpus_version() -> str:
 
 
 def _build_run_meta(provider_info: dict | None, generated_at: str) -> dict:
-    """Procedencia de la corrida: para que cada cifra sea reproducible y comparable (#17)."""
+    """Metadatos de procedencia para reproducibilidad."""
     return {
         "git_sha": _git_sha(),
         "corpus_version": _corpus_version(),
@@ -78,12 +78,8 @@ def run_eval(
 
     if sweep:
         sw = threshold_sweep(pairs)
-        console.print("\n[bold]Barrido de umbral de evidencia (#28):[/bold]")
+        console.print("\n[bold]Barrido de umbral de evidencia:[/bold]")
         console.print(sw)
-        console.print(
-            "[dim]Fija min_rerank_score (o min_rrf_score si rerank=none) cerca del umbral "
-            "recomendado para abstenerte ante evidencia débil sin sobre-abstener.[/dim]"
-        )
 
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -108,7 +104,6 @@ def run_eval(
         f"[dim]Procedencia: git {run_meta['git_sha']} · corpus {run_meta['corpus_version']} · "
         f"prompt {(provider_info or {}).get('prompt_version', '?')}[/dim]"
     )
-    # Dashboard HTML (artefacto de portafolio).
     html_out = write_html_report(
         metrics,
         passed,

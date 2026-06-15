@@ -32,11 +32,10 @@ class IngestResult:
 
 @dataclass
 class _ChunkSpec:
-    """Chunk ya procesado (texto + contexto + metadatos), pendiente solo de persistir.
+    """Chunk procesado (texto + contexto + metadatos) listo para persistir.
 
-    Se construye SIN sesión de BD: así el trabajo lento (LLM de contextualización +
-    embeddings) no mantiene una conexión abierta y ociosa, que es lo que hacía que un
-    Postgres gestionado (Neon) cortara la conexión SSL en corpus grandes.
+    Se construye sin sesión de BD para no mantener la conexión abierta durante
+    el trabajo lento de contextualización y embeddings.
     """
 
     ordinal: int
@@ -63,8 +62,7 @@ def ingest_document(
 
     digest = sha256_file(path)
 
-    # 1) Comprobación de duplicado en una sesión CORTA, que se cierra antes del trabajo
-    #    pesado. No se mantiene la conexión durante los minutos de llamadas al LLM.
+    # Sesión corta solo para la comprobación de duplicado.
     with get_session() as session:
         existing = session.scalar(
             select(Document).where(Document.sha256 == digest, Document.tenant == tenant)
@@ -79,7 +77,6 @@ def ingest_document(
                 reason="documento ya ingerido (mismo sha256); usa --force para re-ingerir",
             )
 
-    # 2) Trabajo pesado SIN sesión de BD: load → chunk → contextualizar → embeber.
     pages = load_document(path, ocr=ocr)
     full_text = "\n".join(p.text for p in pages)
     doc_summary = build_doc_summary(full_text)
@@ -125,10 +122,8 @@ def ingest_document(
             )
             texts_to_embed.append(((ctx + "\n") if ctx else "") + tc.text)
 
-    vectors = embedder.embed_documents(texts_to_embed)  # lento; sin conexión a BD abierta
+    vectors = embedder.embed_documents(texts_to_embed)
 
-    # 3) Persistencia en una sesión CORTA (solo escrituras rápidas). El borrado del
-    #    documento previo (force) va aquí, en la misma transacción que la nueva inserción.
     with get_session() as session:
         if force:
             stale = session.scalar(
@@ -154,7 +149,7 @@ def ingest_document(
             doi=meta.doi,
         )
         session.add(document)
-        session.flush()  # asigna document.id
+        session.flush()
 
         for spec, vec in zip(specs, vectors, strict=True):
             session.add(

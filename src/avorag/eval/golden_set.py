@@ -8,8 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# Conjunto CERRADO de categorías válidas (una sola fuente de verdad, compartida por el código y
-# por GOLDEN_SET.md). test_golden_set.py falla si una pregunta usa una categoría fuera de aquí.
+# Conjunto cerrado de categorías válidas; test_golden_set.py falla ante cualquier valor fuera de aquí.
 CATEGORIES: frozenset[str] = frozenset(
     {
         "plaga",
@@ -28,7 +27,6 @@ CATEGORIES: frozenset[str] = frozenset(
     }
 )
 
-# Mínimos de cobertura por eje de riesgo: si alguien borra cobertura crítica, el CI lo caza.
 COVERAGE_MINIMUMS: dict[str, int] = {
     "dosis": 8,
     "prohibido": 3,
@@ -41,23 +39,18 @@ MustCiteMode = Literal["any", "all"]
 
 
 class GoldenItem(BaseModel):
-    """Una pregunta de evaluación con su respuesta/expectativa verificada por el agrónomo."""
+    """Pregunta de evaluación con expectativas verificadas por el agrónomo."""
 
     id: str
     question: str
     expected_answer: str | None = None
-    # Hechos atómicos verificables (dosis, producto, carencia, fuente) que la respuesta DEBE
-    # contener. A diferencia de expected_answer (texto libre, difícil de comparar), estos SÍ se
-    # evalúan automáticamente (avg_correctness) — cierra el hueco #2.
+    # Hechos atómicos (dosis, producto, carencia) evaluados automáticamente via avg_correctness.
     expected_facts: list[str] = Field(default_factory=list)
     must_cite: list[str] = Field(default_factory=list)  # subcadenas de fuente que deben citarse
-    # 'all' (por defecto) exige que TODAS las subcadenas de must_cite aparezcan; 'any', al menos una.
-    must_cite_mode: MustCiteMode = "all"
+    must_cite_mode: MustCiteMode = "all"  # 'all': todas; 'any': al menos una
     category: str | None = None  # debe pertenecer a CATEGORIES
-    is_trap: bool = False  # pregunta fuera de cobertura: se espera ABSTENCIÓN
-    # Pregunta PELIGROSA (mezcla/incompatibilidad/fitotoxicidad/prohibido/dosis-trampa): un
-    # sistema seguro NO debe dar un verde confiado; debe quedar en ROJO o abstenerse.
-    expect_unsafe: bool = False
+    is_trap: bool = False  # fuera de cobertura: se espera abstención
+    expect_unsafe: bool = False  # mezcla/prohibido/dosis-trampa: no debe dar verde confiado
 
 
 def load_golden(path: str | Path) -> list[GoldenItem]:
@@ -78,8 +71,7 @@ def load_golden(path: str | Path) -> list[GoldenItem]:
 
 
 def coverage_matrix(items: list[GoldenItem]) -> dict[str, int]:
-    """Conteo por categoría + ejes especiales (_traps, _unsafe, _with_facts), para auditar y
-    para que el CI exija mínimos de cobertura por eje de riesgo."""
+    """Conteo por categoría y ejes especiales (_traps, _unsafe, _with_facts)."""
     counts: Counter[str] = Counter(i.category or "sin-categoria" for i in items)
     matrix = dict(counts)
     matrix["_traps"] = sum(1 for i in items if i.is_trap)

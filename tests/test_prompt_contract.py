@@ -1,7 +1,7 @@
-"""Contrato del prompt evidence-first (amplifica la fortaleza #3).
+"""Contrato del prompt evidence-first: 4 reglas críticas congeladas por intención.
 
-Congela las 4 reglas críticas por INTENCIÓN (no por frase exacta): si alguien elimina una de
-ellas en una edición, el test falla. Versiona el prompt para correlacionar métricas con su versión.
+Si alguien elimina una de ellas, el test falla. También versiona el prompt para correlacionar
+métricas con su versión.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ def test_evidence_first_rules_present() -> None:
     assert re.search(r"(únicamente|unicamente|solo).{0,40}fragmento", p) or "no uses" in p
     # 2) Citar con [n].
     assert "[" in SYSTEM_PROMPT and re.search(r"\[\s*n\s*\]|\[3\]|corchetes", p)
-    # 3) Nunca inventar dosis (remitir a la etiqueta registrada).
+    # 3) Nunca inventar dosis.
     assert "dosis" in p and ("nunca inventes" in p or "no inventes" in p or "etiqueta" in p)
     # 4) Abstención exacta con el marcador.
     assert "{abstention}" in SYSTEM_PROMPT or "abstention" in p

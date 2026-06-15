@@ -54,11 +54,7 @@ def get_llm_provider() -> LLMProvider:
 
 @lru_cache
 def get_judge_llm_provider() -> LLMProvider:
-    """Proveedor LLM para los JUECES (fidelidad/seguridad/corrección).
-
-    Si `judge_llm_provider` está vacío, usa el MISMO que genera (autoevaluación correlacionada;
-    cifra indicativa). Si se define uno distinto, da una segunda opinión independiente.
-    """
+    """LLM para jueces. Sin judge_llm_provider configurado cae en autoevaluación (cifra indicativa)."""
     s = get_settings()
     p = (s.judge_llm_provider or s.llm_provider).lower()
     model = s.judge_llm_model or None
@@ -82,7 +78,7 @@ def get_judge_llm_provider() -> LLMProvider:
 
 
 def judge_provider_label() -> str:
-    """Etiqueta del juez para provider_info (transparencia: ¿se autoevalúa?)."""
+    """Etiqueta del juez para provider_info, indicando si es autoevaluación."""
     s = get_settings()
     p = s.judge_llm_provider or s.llm_provider
     m = s.judge_llm_model or {

@@ -1,4 +1,4 @@
-"""Ola 8: autenticación por API key, rate-limiting y minimización de datos en auditoría."""
+"""Autenticación por API key, rate-limiting y minimización de datos en auditoría."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _req(host: str = "1.2.3.4") -> SimpleNamespace:
 
 
 def test_dev_mode_allows_default_tenant() -> None:
-    # Sin api_keys configuradas -> modo abierto, devuelve el tenant por defecto.
+    # Sin api_keys configuradas -> modo abierto.
     assert auth.require_api_key(None) == "demo"
 
 
@@ -48,7 +48,7 @@ def test_rate_limit_disabled_when_zero(monkeypatch) -> None:
     monkeypatch.setattr(auth, "get_settings", lambda: Settings(rate_limit_per_minute=0))
     auth._reset_rate_limit()
     for _ in range(100):
-        auth.rate_limit(_req(), x_api_key="k")  # nunca debe bloquear
+        auth.rate_limit(_req(), x_api_key="k")
 
 
 def test_audit_text_hashes_when_minimized() -> None:
@@ -58,9 +58,8 @@ def test_audit_text_hashes_when_minimized() -> None:
 
 
 def test_prod_env_requires_auth() -> None:
-    # En producción, una config sin API_KEYS no debe instanciarse (auth obligatoria).
+    # En producción, config sin API_KEYS no debe instanciarse.
     with pytest.raises(ValidationError):
         Settings(avorag_env="prod", api_keys={})
-    # Con API_KEYS sí.
     s = Settings(avorag_env="prod", api_keys={"k": "t"})
     assert s.avorag_env == "prod"

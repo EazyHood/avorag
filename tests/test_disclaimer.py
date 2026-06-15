@@ -1,8 +1,4 @@
-"""El disclaimer viaja SIEMPRE (amplifica la fortaleza #8).
-
-Posicionamiento legal/ético: cada respuesta es apoyo a la decisión, no decisión. Las ramas de
-abstención de `answer()` deben llevar el disclaimer; el camino normal lo fija en el Answer.
-"""
+"""El disclaimer viaja en todas las respuestas, incluidas las ramas de abstención."""
 
 from __future__ import annotations
 

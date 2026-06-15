@@ -1,14 +1,6 @@
-"""Invariantes fail-safe del semáforo (amplifica la fortaleza #4).
+"""Invariantes fail-safe del semáforo — enumeración exhaustiva de combinaciones de señales.
 
-En vez de probar `decide_semaforo` en puntos sueltos, ENUMERA exhaustivamente todas las
-combinaciones de sus señales y verifica invariantes DURAS de seguridad:
-
-- VERDE es alcanzable SOLO desde el estado totalmente sano (ninguna señal de riesgo).
-- Cualquier condición ROJO (prohibido / off-label / dosis no rastreable / sin registro /
-  carencia sin fuente / categoría I / asociación insegura) ⇒ ROJO, siempre.
-- Nunca VERDE si el juez cayó, si faltó verificar la seguridad, o si no hay citas.
-
-Si alguien refactoriza el árbol de decisión y abre un "VERDE indebido", este test lo caza.
+Si alguien refactoriza el árbol de decisión y abre un VERDE indebido, este test lo caza.
 No usa LLM ni BD: es lógica pura.
 """
 
@@ -82,10 +74,10 @@ def test_failsafe_invariants_exhaustive() -> None:
                 cat_tox=cat_tox,
                 safety=safety,
             )
-            # (1) Toda condición ROJO ⇒ ROJO.
+            # Toda condición ROJO => ROJO.
             if red:
                 assert semaforo == Semaforo.ROJO, (flags, cat_tox, safety, banned)
-            # (2) VERDE ⇔ estado totalmente sano.
+            # VERDE <=> estado totalmente sano.
             healthy = (
                 not red
                 and not (flags["safety_required"] and safety is None)
@@ -97,7 +89,7 @@ def test_failsafe_invariants_exhaustive() -> None:
                 and flags["has_citations"]
             )
             assert (semaforo == Semaforo.VERDE) == healthy, (flags, cat_tox, safety, faith)
-            # (3) Nunca VERDE con juez caído / verificación faltante / sin citas.
+            # Nunca VERDE con juez caído, verificación faltante o sin citas.
             if (
                 flags["judge_failed"]
                 or (flags["safety_required"] and safety is None)

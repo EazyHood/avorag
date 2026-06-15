@@ -136,7 +136,6 @@ def main() -> int:
         print("\nPara ingerir lo presente: vuelve a ejecutar con --ingest")
         return 0
 
-    # --- Ingesta ---
     from avorag.ingestion import DocumentMeta, ingest_document
     from avorag.logging import configure_logging
 

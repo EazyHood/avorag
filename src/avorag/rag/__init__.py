@@ -1,8 +1,6 @@
 """Núcleo RAG: prompt, guardarraíles y orquestación.
 
-Los esquemas (sin dependencia de BD) se reexportan EAGER. `answer()` —que arrastra el
-pipeline completo y, con él, `avorag.db`— se carga PEREZOSAMENTE para que importar los
-guardarraíles o los esquemas no construya un engine de Postgres.
+Esquemas reexportados eager; `answer()` se carga lazy para no arrastrar avorag.db al importar.
 """
 
 from __future__ import annotations

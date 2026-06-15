@@ -1,9 +1,4 @@
-"""Gobernanza del corpus (amplifica la fortaleza #34).
-
-El "foso" es la curación: aquí se codifica que el manifiesto del corpus está BIEN GOBERNADO
-(cada fuente con autoridad válida, licencia declarada, país de 2 letras y hash). Corre en CI
-sin BD: si alguien añade una fuente sin licencia o con autoridad inventada, el CI lo caza.
-"""
+"""Gobernanza del corpus: el manifiesto debe estar bien formado (autoridad, licencia, país, hash)."""
 
 from __future__ import annotations
 
@@ -36,7 +31,7 @@ def test_manifest_is_well_formed() -> None:
 def test_manifest_hashes_present_and_valid() -> None:
     for d in _docs():
         sha = d.get("sha256")
-        # Si hay hash, debe ser sha256 hex válido (permite null para fuentes aún no descargadas).
+        # Permite null para fuentes aún no descargadas.
         if sha is not None:
             assert _SHA256_RE.match(sha), f"{d['filename']}: sha256 mal formado"
 

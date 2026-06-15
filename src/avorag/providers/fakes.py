@@ -1,11 +1,4 @@
-"""Proveedores FAKE deterministas (amplifica la fortaleza #27).
-
-Permiten ejecutar el pipeline `answer()` y los jueces SIN Ollama ni claves de API: habilitan
-tests end-to-end de la orquestación en CI (sin GPU/red) y un modo demo offline. Se seleccionan
-con LLM_PROVIDER=fake / EMBEDDING_PROVIDER=fake. No son inteligentes: producen salidas fijas y
-reproducibles, suficientes para ejercitar el flujo (intención → recuperación → prompt → juez →
-guardarraíl → semáforo).
-"""
+"""Proveedores fake deterministas para CI offline (LLM_PROVIDER=fake / EMBEDDING_PROVIDER=fake)."""
 
 from __future__ import annotations
 
@@ -16,7 +9,7 @@ from avorag.providers.base import EmbeddingProvider, LLMProvider, RerankProvider
 
 
 class FakeEmbedding(EmbeddingProvider):
-    """Vectores deterministas derivados del hash del texto (misma entrada → mismo vector)."""
+    """Vectores deterministas por SHA-256 del texto."""
 
     name = "fake"
 
@@ -25,7 +18,6 @@ class FakeEmbedding(EmbeddingProvider):
 
     def _vec(self, text: str) -> list[float]:
         h = hashlib.sha256(text.encode("utf-8")).digest()
-        # Repite el hash hasta cubrir dim; valores en [0,1). Determinista y barato.
         return [h[i % len(h)] / 255.0 for i in range(self.dim)]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -36,7 +28,7 @@ class FakeEmbedding(EmbeddingProvider):
 
 
 class FakeRerank(RerankProvider):
-    """No reordena: conserva el orden de entrada con score 1/(i+1)."""
+    """Conserva el orden de entrada con score 1/(i+1)."""
 
     name = "fake"
 
@@ -45,8 +37,7 @@ class FakeRerank(RerankProvider):
 
 
 class FakeLLM(LLMProvider):
-    """LLM determinista. Detecta por el prompt de sistema si actúa como JUEZ (devuelve JSON) o
-    como GENERADOR (devuelve una respuesta corta con una cita [1])."""
+    """LLM determinista: devuelve JSON de juez o respuesta corta citada según el system prompt."""
 
     name = "fake"
 
@@ -59,13 +50,12 @@ class FakeLLM(LLMProvider):
         max_tokens: int | None = None,
     ) -> str:
         s = system.lower()
-        if "faithful" in s:  # juez de fidelidad
+        if "faithful" in s:
             return '{"faithful": true, "score": 0.9, "unsupported": []}'
-        if "seguro" in s or "categoria_i_ii" in s:  # juez de seguridad de dosis
+        if "seguro" in s or "categoria_i_ii" in s:
             return '{"seguro": true, "problemas": [], "categoria_I_II": false}'
-        if "hechos esperados" in s or "faltantes" in s:  # juez de corrección
+        if "hechos esperados" in s or "faltantes" in s:
             return '{"score": 0.8, "faltantes": [], "contradichos": []}'
-        if "sitúa fragmentos" in s or "contexto" in s and "una sola frase" in s:  # contextual
+        if "sitúa fragmentos" in s or "contexto" in s and "una sola frase" in s:
             return "Contexto: fragmento sobre manejo del aguacate Hass."
-        # Generación: respuesta breve y citada (apta para el guardarraíl de citación).
         return "Según la fuente, se recomienda el manejo integrado del cultivo [1]."

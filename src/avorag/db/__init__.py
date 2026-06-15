@@ -1,9 +1,4 @@
-"""Capa de base de datos.
-
-Se exportan las FUNCIONES perezosas (`get_engine`, `get_session_factory`, `get_session`):
-importar `avorag.db` no construye el engine. `engine` y `SessionLocal` siguen disponibles por
-compatibilidad, materializados al primer acceso vía `__getattr__`.
-"""
+"""Capa de base de datos (construcción perezosa del engine)."""
 
 from __future__ import annotations
 

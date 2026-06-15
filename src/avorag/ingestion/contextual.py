@@ -1,9 +1,4 @@
-"""Contextual Retrieval (Anthropic): antepone a cada chunk un contexto breve
-generado por el LLM que lo sitúa dentro del documento. Mejora la recuperación.
-
-Se ejecuta en ingesta (no en consulta), así que su costo es único. Con Ollama
-local es gratis. Se puede desactivar pasando `enabled=False`.
-"""
+"""Contextual Retrieval: antepone a cada chunk una frase de contexto generada en ingesta."""
 
 from __future__ import annotations
 
@@ -14,7 +9,6 @@ from avorag.providers import get_llm_provider
 
 log = get_logger(__name__)
 
-# Líneas tipo índice/tabla de contenidos: muchos puntos guía o terminan en nº de página.
 _INDEX_LINE_RE = re.compile(r"\.{4,}|\s\d{1,3}\s*$")
 
 _SYSTEM = (
@@ -45,16 +39,12 @@ def _looks_like_heading(line: str) -> bool:
 
 
 def build_doc_summary(full_text: str, max_chars: int = 3000) -> str:
-    """Resumen-ancla del documento para Contextual Retrieval.
+    """Resumen-ancla del documento: títulos detectados + inicio + muestra del medio.
 
-    Mejora sobre 'primeros N caracteres' (#26): en un PDF largo eso es la portada/índice. Aquí
-    se descartan las líneas tipo índice, se listan los TÍTULOS de sección detectados, y se
-    muestrea inicio + medio del cuerpo real — así el contexto que se antepone a cada chunk se
-    ancla al CONTENIDO, no a la carátula.
+    Evita anclar al índice/portada en PDFs largos.
     """
     lines = [ln.strip() for ln in full_text.splitlines() if ln.strip()]
     content_lines = [ln for ln in lines if not _INDEX_LINE_RE.search(ln)] or lines
-    # Títulos de sección, deduplicados preservando orden.
     uniq_headings: list[str] = []
     for ln in content_lines:
         if _looks_like_heading(ln) and ln not in uniq_headings:
@@ -85,6 +75,6 @@ def contextualize_chunk(chunk: str, doc_summary: str, fuente: str) -> str:
             max_tokens=120,
         )
         return ctx.strip()
-    except Exception as exc:  # nunca romper la ingesta por el contexto
+    except Exception as exc:  # no romper la ingesta por el contexto
         log.warning("contextual_retrieval_failed", error=str(exc))
         return ""

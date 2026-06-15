@@ -33,10 +33,7 @@ from avorag.retrieval import ScoredChunk, hybrid_search, rerank_chunks
 log = get_logger(__name__)
 _CITE_RE = re.compile(r"\[(\d+)\]")
 
-# --- Caché de respuestas en memoria (latencia) -----------------------------------
-# Las preguntas repetidas (caso WhatsApp/FAQ de campo) responden al instante en vez de
-# repetir embed + búsqueda híbrida + reranker (CPU) + LLM. TTL y on/off en config.
-# Es por-proceso (no compartida entre workers); para multi-worker usar Redis más adelante.
+# Caché en memoria por proceso. Multi-worker requeriría Redis.
 _RESPONSE_CACHE: dict[str, tuple[float, Answer]] = {}
 _CACHE_MAX = 256
 
@@ -68,7 +65,7 @@ def _cache_put(key: str, ans: Answer) -> None:
 
 @lru_cache(maxsize=1)
 def _corpus_version() -> str:
-    """Versión del corpus (del manifiesto), para que cada respuesta sea trazable a sus datos."""
+    """Versión del corpus desde el manifiesto."""
     try:
         p = Path(__file__).resolve().parents[3] / "data" / "corpus_manifest.json"
         return str(json.loads(p.read_text(encoding="utf-8")).get("corpus_version", "desconocido"))
@@ -139,8 +136,7 @@ _FIRST_DOSE_RE = re.compile(
 
 
 def _targeted_quote(content: str) -> str:
-    """Quote que PRUEBA la afirmación: si el fragmento trae una dosis, centra la cita en ella
-    (±radio); si no, cae al inicio del fragmento. Así la cita muestra la cifra, no la portada."""
+    """Cita centrada en la primera dosis del fragmento; si no hay dosis, usa el inicio."""
     m = _FIRST_DOSE_RE.search(content)
     if m:
         start = max(0, m.start() - _QUOTE_RADIUS)
@@ -170,16 +166,14 @@ def _split_followups(text: str) -> tuple[str, list[str]]:
 
 
 def _audit_text(value: str, store_text: bool) -> str:
-    """Devuelve el texto en claro, o su hash si la política minimiza datos (Habeas Data)."""
+    """Texto en claro o su hash SHA-256 según la política de minimización."""
     if store_text:
         return value
     return f"<sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()[:16]}>"
 
 
 def _persist(session, ans: Answer, tenant: str) -> None:
-    """Escribe el registro de auditoría de forma TOLERANTE A FALLO: un error de escritura NO
-    debe tumbar una respuesta ya calculada (#34). Usa un SAVEPOINT para que el fallo no
-    contamine la transacción de lectura, y respeta audit_store_text (minimización de datos)."""
+    """Escribe el registro de auditoría. Tolerante a fallo: un error no cancela la respuesta."""
     settings = get_settings()
     if not settings.audit_enabled:
         return
@@ -198,8 +192,6 @@ def _persist(session, ans: Answer, tenant: str) -> None:
                     citations=[c.model_dump() for c in ans.citations],
                     retrieved_chunk_ids=[ctx.chunk_id for ctx in ans.contexts],
                     corpus_version=ans.provider_info.get("corpus_version"),
-                    # La auditoría guarda también la JUSTIFICACIÓN (por qué ese semáforo): clave
-                    # para reconstruir incidentes y para due-diligence B2B.
                     provider_info={
                         **ans.provider_info,
                         "reason": ans.reason,
@@ -209,7 +201,7 @@ def _persist(session, ans: Answer, tenant: str) -> None:
                     latency_ms=ans.latency_ms,
                 )
             )
-    except Exception as exc:  # la auditoría nunca debe romper la respuesta al usuario
+    except Exception as exc:
         log.warning("audit_persist_failed", error=str(exc))
 
 
@@ -251,8 +243,6 @@ def answer(
     t0 = time.perf_counter()
     pinfo = _provider_info()
 
-    # Caché: si esta misma pregunta (mismo tenant/país/suelo/región) ya se respondió y sigue
-    # fresca, se devuelve al instante. Reemite la latencia real (≈0 ms) y marca "(cacheada)".
     ckey = _cache_key(question, tenant, country, soil_type, region)
     if settings.cache_enabled:
         cached = _cache_get(ckey, settings.cache_ttl_seconds)
@@ -264,19 +254,15 @@ def answer(
                 }
             )
 
-    # Contexto de la finca: el suelo y la región cambian la recomendación (sobre todo
-    # de fertilización: en arenoso el N se lixivia más; en arcilloso cuidar el drenaje).
     fc_parts: list[str] = []
     if soil_type:
         fc_parts.append(f"suelo {soil_type}")
     if region:
         fc_parts.append(f"región {region}")
     farm_context = ", ".join(fc_parts)
-    # La consulta de recuperación se enriquece con el contexto para traer fragmentos relevantes.
     retrieval_query = f"{question} {farm_context}".strip()
 
     with get_session(tenant=tenant) as session:
-        # Pre-filtro de intención: cultivo ajeno → corta antes de gastar embeddings/LLM.
         intent = guardrails.classify_intent(question)
         if intent is not None:
             ans = _abstention(
@@ -297,10 +283,7 @@ def answer(
         )
         final = rerank_chunks(retrieval_query, candidates)
 
-        # Señal de evidencia y umbral según el reranker: con reranker activo, el score del
-        # cross-encoder/Cohere es discriminante (negativo = irrelevante); con 'none' usamos el
-        # score RRF del candidato mejor rankeado (señal débil; ver config). La abstención ocurre
-        # AQUÍ, antes de gastar el LLM de generación.
+        # Con reranker activo el score es discriminante; con 'none' se usa el RRF del mejor candidato.
         if settings.rerank_provider.lower() == "none":
             evidence_score = candidates[0].score if candidates else float("-inf")
             evidence_threshold = settings.min_rrf_score
@@ -309,7 +292,6 @@ def answer(
             evidence_threshold = settings.min_rerank_score
         pinfo["evidence_score"] = round(float(evidence_score), 5) if final else None
 
-        # Sin evidencia suficiente → abstención honesta, etiquetada según el dominio.
         if not final or (evidence_score < evidence_threshold):
             atype = (
                 AbstentionType.OUT_OF_CONTENT
@@ -335,7 +317,6 @@ def answer(
         contexts = _build_contexts(final)
         contexts_text = "\n\n".join(c.content for c in contexts)
 
-        # El modelo declaró no saber.
         if ABSTENTION_MARKER in raw and len(raw) <= len(ABSTENTION_MARKER) + 5:
             ans = _abstention(
                 question,
@@ -350,18 +331,13 @@ def answer(
             _persist(session, ans, tenant)
             return ans
 
-        # Si el modelo dejó el marcador de abstención suelto en una respuesta larga, lo quitamos.
         raw = raw.replace(ABSTENTION_MARKER, "").strip()
-        # Separa las preguntas de seguimiento del cuerpo de la respuesta.
         raw, follow_ups = _split_followups(raw)
 
-        # Guardarraíles deterministas (atados al fragmento de origen, no al texto plano).
         if settings.dose_guardrail:
             doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
             phi_ok, phi_unsupported = guardrails.phi_grounded(raw, contexts_text)
-            # La denylist mira la PREGUNTA y la respuesta: si el productor pregunta por un
-            # producto prohibido/restringido, el sistema debe advertirlo (ROJO) aunque el modelo
-            # no lo repita en su respuesta (hallazgo de la verificación en vivo).
+            # La denylist mira tanto la pregunta como la respuesta.
             banned = guardrails.banned_ingredients_in_answer(question + "\n" + raw, country)
             offlabel = guardrails.is_offlabel(raw, final)
             registro_required = guardrails.recommends_pesticide(raw)
@@ -377,12 +353,9 @@ def answer(
             citation_ok, citation_issues = True, []
             conflicts, warnings = [], []
 
-        # Juez de asociación producto–plaga–dosis–carencia: SOLO si la respuesta es accionable
-        # (trae dosis/carencia/aplicación). Evita latencia en respuestas generales.
         actionable = settings.dose_guardrail and guardrails.has_actionable_recommendation(raw)
 
-        # Los dos jueces LLM (fidelidad y seguridad de dosis) son I/O-bound: se lanzan en
-        # paralelo para no SUMAR sus latencias (#31).
+        # Los dos jueces LLM son I/O-bound: se lanzan en paralelo.
         faithfulness: float | None = None
         judge_failed = False
         safety: guardrails.DoseSafety | None = None
@@ -425,8 +398,6 @@ def answer(
         if not citation_ok and citation_issues:
             reason += f" (citas: {'; '.join(citation_issues)})"
 
-        # Ante un producto prohibido/restringido, antepone un AVISO explícito al cuerpo de la
-        # respuesta (no basta con el campo `reason`): el productor debe verlo de inmediato.
         if banned:
             raw = (
                 "⛔ AVISO: tu consulta involucra un producto PROHIBIDO o RESTRINGIDO "

@@ -1,15 +1,8 @@
-"""Conocimiento de dominio agronómico, libre de infraestructura.
-
-Vive en la raíz del paquete (sin dependencias de BD ni proveedores) para que lo compartan
-tanto la INGESTA (`ingestion.metadata`) como el DOMINIO de seguridad (`rag.guardrails`) sin
-acoplarlos entre sí ni a `avorag.db` (ver `tests/test_decoupling.py`).
-"""
+"""Conocimiento de dominio agronómico, sin dependencias de infraestructura."""
 
 from __future__ import annotations
 
-# Ingredientes activos conocidos en aguacate (no exhaustivo; amplía con el registro PQUA).
-# Sirve para detectar el i.a. en texto libre y para asociar dosis↔producto de forma
-# determinista. Incluye insecticidas, acaricidas, fungicidas y biológicos comunes.
+# i.a. registrados en aguacate (no exhaustivo; ampliar con PQUA).
 ACTIVE_INGREDIENTS: tuple[str, ...] = (
     "abamectina",
     "spinetoram",

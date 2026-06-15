@@ -14,12 +14,7 @@ NivelAutoridad = Literal["oficial-regulador", "gremio", "academico", "interno-cl
 
 
 class DoseRow(BaseModel):
-    """Una fila estructurada de dosis (producto–plaga–dosis–carencia–registro–categoría).
-
-    Extraída de las tablas de registro/etiqueta en la ingesta. Es la unidad que permite la
-    verificación DETERMINISTA del guardarraíl: que la dosis correcta vaya con el producto y la
-    plaga correctos, no que "el número exista en algún lugar del contexto".
-    """
+    """Fila de dosis estructurada extraída de tablas de registro/etiqueta."""
 
     producto: str | None = None
     ingrediente_activo: str | None = None
@@ -75,7 +70,6 @@ class DocumentMeta(BaseModel):
     doi: str | None = None  # DOI cuando la fuente lo tenga
 
 
-# --- Extracción de metadatos reales del texto del fragmento (revive el semáforo Cat I/II) ---
 _CATTOX_RE = re.compile(
     r"(?:categor[ií]a\s+toxicol[oó]gica|cat\.?\s*tox\.?)\s*:?\s*(IV|III|II|I)\b", re.IGNORECASE
 )
@@ -198,16 +192,12 @@ def _is_separator_row(line: str) -> bool:
 
 
 def extract_dose_rows(text: str) -> list[DoseRow]:
-    """Parsea las tablas Markdown del fragmento ('### Tablas') a filas estructuradas.
-
-    Usa el encabezado para mapear columnas, así cada fila ata producto/i.a. con su dosis,
-    plaga, carencia, registro y categoría. Si no hay tabla reconocible, devuelve []."""
+    """Parsea tablas Markdown del fragmento a filas DoseRow; [] si no hay tabla reconocible."""
     md_lines = [ln for ln in text.splitlines() if ln.strip().startswith("|")]
     if len(md_lines) < 2:
         return []
     header = _split_md_row(md_lines[0])
     keymap = {i: _classify_header(h) for i, h in enumerate(header)}
-    # Solo tratamos como tabla de dosis si tiene una columna de dosis o de producto/i.a.
     if not any(v in ("dosis", "producto", "ingrediente_activo") for v in keymap.values()):
         return []
     rows: list[DoseRow] = []
@@ -243,7 +233,6 @@ def _build_dose_row(rec: dict[str, str], cells: list[str]) -> DoseRow | None:
     producto = rec.get("producto")
     plaga = rec.get("plaga")
     carencia = rec.get("carencia")
-    # Necesitamos al menos una señal accionable (dosis o producto/i.a.) para guardar la fila.
     if not (dosis_match or producto or ia):
         return None
     return DoseRow(
@@ -257,11 +246,8 @@ def _build_dose_row(rec: dict[str, str], cells: list[str]) -> DoseRow | None:
     )
 
 
-# Registro PQUA del ICA: formato COLUMNAR (un registro por bloque de líneas; los valores van
-# en líneas sueltas). La categoría toxicológica es un numeral romano en su propia línea y el nº
-# de registro un número de 3-5 dígitos. No hay tabla Markdown, así que se capturan por patrón
-# de línea — pero SOLO en chunks que parecen un registro de producto (traen ingrediente activo
-# o contexto de registro), para no tomar números/numerales sueltos de prosa.
+# Registro PQUA del ICA: formato columnar, sin tabla Markdown. Se captura por patrón de línea
+# solo cuando el chunk parece un registro de producto (evita falsos positivos en prosa).
 _REGISTRY_CONTEXT_RE = re.compile(
     r"cat\.?\s*toxic|categor[ií]a\s+toxicol|registros?\s+nacionales|\bpqua\b|ingrediente\s+activo",
     re.IGNORECASE,
@@ -271,9 +257,7 @@ _STANDALONE_REG_RE = re.compile(r"(?m)^\s*(\d{3,5})\s*$")
 
 
 def extract_chunk_fields(text: str) -> dict:
-    """Extrae del texto del fragmento la categoría toxicológica (la más severa), el registro
-    ICA, el tema, la plaga objetivo, el producto/ingrediente activo y las filas de dosis
-    estructuradas. Sin esto, el semáforo Cat I/II y la verificación determinista no se activan."""
+    """Extrae categoría toxicológica, registro ICA, tema, plaga, producto y filas de dosis."""
     low = text.lower()
     dose_rows = extract_dose_rows(text)
     ia = extract_active_ingredient(text) or next(
@@ -283,7 +267,7 @@ def extract_chunk_fields(text: str) -> dict:
 
     cats = [m.group(1).upper() for m in _CATTOX_RE.finditer(text)]
     cats += [r.categoria_toxicologica for r in dose_rows if r.categoria_toxicologica]
-    if is_registry:  # formato columnar del registro PQUA
+    if is_registry:  # formato columnar PQUA
         cats += [m.group(1).upper() for m in _STANDALONE_CAT_RE.finditer(text)]
     categoria = min(cats, key=lambda c: _SEVERITY.get(c, 9)) if cats else "N/A"
 

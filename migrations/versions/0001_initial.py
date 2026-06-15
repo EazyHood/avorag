@@ -19,19 +19,13 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    # 1) La extensión debe existir antes de crear columnas `vector`.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    # 2) Crea todas las tablas (incluye la columna generada content_tsv).
     Base.metadata.create_all(bind=bind, checkfirst=True)
-    # 3) Índices especializados.
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_chunks_embedding_hnsw "
         "ON chunks USING hnsw (embedding vector_cosine_ops)"
     )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_chunks_content_tsv "
-        "ON chunks USING gin (content_tsv)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_chunks_content_tsv ON chunks USING gin (content_tsv)")
 
 
 def downgrade() -> None:

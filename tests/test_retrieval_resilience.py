@@ -1,8 +1,4 @@
-"""Resiliencia de la recuperación (amplifica las fortalezas #11 y #16).
-
-Si el reranker o la búsqueda léxica fallan, la consulta NO se cae: degrada al orden RRF / al
-canal denso. Congela esa tolerancia con pruebas.
-"""
+"""Resiliencia de la recuperación: degradación sin caída cuando falla reranker o búsqueda léxica."""
 
 from __future__ import annotations
 
@@ -28,7 +24,7 @@ def test_rerank_degrades_to_rrf_on_failure(monkeypatch) -> None:
     monkeypatch.setattr(R, "get_rerank_provider", lambda: _RaisingRerank())
     candidates = [_cand("a", 3.0), _cand("b", 2.0), _cand("c", 1.0)]
     out = R.rerank_chunks("consulta", candidates, final_k=2)
-    # Degradó al orden RRF (los 2 primeros candidatos), sin propagar la excepción.
+    # Degradó al orden RRF sin propagar la excepción.
     assert [c.chunk.content for c in out] == ["a", "b"]
 
 

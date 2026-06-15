@@ -1,8 +1,4 @@
-"""Genera un dashboard HTML autocontenido a partir de las métricas de evaluación.
-
-El HTML es el artefacto de portafolio: se abre en el navegador, se captura, y muestra
-TUS números (fidelidad, citación, abstención, dosis-seguras) de forma presentable.
-"""
+"""Dashboard HTML autocontenido generado a partir de las métricas de evaluación."""
 
 from __future__ import annotations
 
@@ -33,7 +29,7 @@ def render_html(
     generated_at: str = "",
     provider_info: dict | None = None,
 ) -> str:
-    """Devuelve el HTML completo del reporte (autocontenido, sin dependencias externas)."""
+    """HTML completo del reporte, autocontenido."""
     gate_cls = "pass" if passed else "fail"
     gate_txt = "✓ GATE: PASA" if passed else "✗ GATE: FALLA"
     fail_list = "".join(f"<li>{f}</li>" for f in failures) if failures else "<li>sin fallos</li>"

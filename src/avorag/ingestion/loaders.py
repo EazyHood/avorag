@@ -49,7 +49,6 @@ def _norm_line(line: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"\d+", "#", line)).strip()
 
 
-# Pies de figura/foto/tabla: información valiosa para identificar plaga/enfermedad (#21).
 _CAPTION_RE = re.compile(
     r"^\s*(figura|foto|fotograf[ií]a|tabla|gr[áa]fica|imagen)\s*\d", re.IGNORECASE
 )
@@ -62,14 +61,7 @@ def _is_caption(line: str) -> bool:
 def strip_running_headers(
     page_texts: list[str], *, min_pages: int = 4, ratio: float = 0.4
 ) -> list[str]:
-    """Elimina encabezados/pies de página repetidos (basura que contamina la recuperación).
-
-    Una línea cuya forma normalizada aparece en ≥ `ratio` de las páginas (y al menos
-    `min_pages`) se considera encabezado/pie y se quita de todas las páginas. EXCEPCIÓN: los
-    pies de figura/foto/tabla ('Figura 1.', 'Foto 2.'…) se conservan aunque se repitan, porque
-    al normalizar el dígito coinciden y, en una guía visual, son la única info textual de la
-    imagen (clave para identificar plaga/enfermedad).
-    """
+    """Elimina encabezados/pies repetidos. Los pies de figura se conservan aunque se repitan."""
     if len(page_texts) < min_pages:
         return page_texts
     counts: Counter[str] = Counter()
@@ -112,13 +104,7 @@ def _ocr_page(page) -> str:
 
 
 def load_pdf(path: Path, *, ocr: bool = False) -> list[LoadedPage]:
-    """Extrae texto por página (quitando encabezados/pies repetidos) y las tablas como Markdown.
-
-    Las tablas de dosis son críticas para el guardarraíl: se anexan en formato Markdown
-    para preservar su estructura (no como texto plano que rompe filas/columnas). Con `ocr=True`,
-    las páginas sin texto extraíble (PDF escaneado) se pasan por OCR — habilita documentos como
-    la Resolución ICA 1507/2016 (#22).
-    """
+    """Extrae texto y tablas (Markdown) por página. Con ocr=True procesa páginas sin texto."""
     import fitz  # PyMuPDF
 
     raw: list[tuple[int, str, str]] = []

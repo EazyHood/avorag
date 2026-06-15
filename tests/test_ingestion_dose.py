@@ -1,9 +1,4 @@
-"""Ola 2: extracción estructurada de dosis y chunking consciente de tablas.
-
-Estos tests blindan la causa-raíz del guardarraíl inseguro (#11-16): que la asociación
-producto–plaga–dosis–carencia–registro exista como DATO estructurado por fragmento, y que el
-troceado no parta una fila de la tabla ni separe el producto de su dosis.
-"""
+"""Extracción estructurada de dosis y chunking consciente de tablas."""
 
 from __future__ import annotations
 
@@ -50,7 +45,7 @@ def test_extract_active_ingredient() -> None:
 
 
 def test_chunking_does_not_split_table_rows() -> None:
-    # Tabla larga forzada a trocearse (target pequeño): ninguna fila debe partirse y el
+    # Tabla forzada a trocearse (target pequeño): ninguna fila debe partirse y el
     # encabezado debe repetirse en cada sub-chunk.
     rows = "\n".join(
         f"| {i} | Prod{i} | abamectina | Aguacate | Trips | {i},5 cc/L | II | 7 dias |"
@@ -61,11 +56,9 @@ def test_chunking_does_not_split_table_rows() -> None:
         + rows
     )
     chunks = chunk_text(tabla, target_tokens=80)
-    assert len(chunks) > 1  # se troceó
+    assert len(chunks) > 1
     for c in chunks:
-        # Cada sub-chunk conserva el encabezado (significado de columnas).
         assert "Ingrediente activo" in c.text
-        # Cada línea de datos está completa (termina en '|', no cortada a mitad).
         for line in c.text.splitlines():
             if line.strip().startswith("|") and "Prod" in line:
                 assert line.strip().endswith("|"), f"fila partida: {line!r}"

@@ -27,7 +27,6 @@ class Citation(BaseModel):
     fecha_publicacion: str | None = None
     url: str | None = None
     doi: str | None = None
-    # Procedencia visible: la neutralidad comercial se VE, no se promete (autoridad + licencia).
     nivel_autoridad: str | None = None
     licencia_uso: str | None = None
     quote: str | None = None
