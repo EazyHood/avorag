@@ -490,9 +490,12 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     # La categoría toxicológica solo penaliza si la respuesta recomienda un plaguicida químico,
     # no por la metadata de un fragmento recuperado que no se está recomendando.
     cat_tox = guardrails.cited_categoria_toxicologica(final) if chem_pesticide else set()
+    # La trazabilidad dosis-producto y la carencia (PHI) solo fuerzan ROJO si la respuesta
+    # recomienda un plaguicida químico; las dosis de fertilizante/riego/nutrición (kg de N,
+    # litros de agua, niveles foliares, % de saturación) NO son dosis fitosanitarias.
     semaforo, reason = guardrails.decide_semaforo(
-        doses_ok=doses_ok,
-        phi_ok=phi_ok,
+        doses_ok=(doses_ok or not chem_pesticide),
+        phi_ok=(phi_ok or not chem_pesticide),
         cat_tox=cat_tox,
         faithfulness=faithfulness,
         has_citations=bool(citations),
@@ -507,9 +510,9 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         conflicts=conflicts,
         language_ok=language_ok,
     )
-    if not doses_ok:
+    if chem_pesticide and not doses_ok:
         reason += f" (dosis sin producto/fuente: {', '.join(unsupported)})"
-    if not phi_ok:
+    if chem_pesticide and not phi_ok:
         reason += f" (carencia sin fuente: {', '.join(phi_unsupported)})"
     if not citation_ok and citation_issues:
         reason += f" (citas: {'; '.join(citation_issues)})"

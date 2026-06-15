@@ -1,7 +1,19 @@
 {
   "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
-  "corpus_version": "2026-06-15",
+  "corpus_version": "2026-06-15.2",
   "documents": [
+    {
+      "filename": "minagricultura_paquete_tecnologico_aguacate.pdf",
+      "fuente": "MinAgricultura - Manual técnico del cultivo del aguacate (Paquete Tecnológico, 2009)",
+      "autoridad": "oficial-regulador",
+      "licencia": "publica-MinAgricultura",
+      "pais": "CO",
+      "doi": null,
+      "url": "https://sioc.minagricultura.gov.co/Aguacate/Normatividad/Paquete%20Tecnologico%20Aguacate.pdf",
+      "download": "auto",
+      "note": "Manual técnico oficial (31 pp., texto extraíble). Cubre vacíos de fisiología (floración, cuaje), propagación/vivero/injerto, riego, densidad y cosecha/poscosecha detectados en la simulación de 500 preguntas.",
+      "sha256": "92336140b9603326c82975be5b12f624cdfb7789deb03af6defa891ea5a9c722"
+    },
     {
       "filename": "icesi_guia_exportacion_hass.pdf",
       "fuente": "ICESI - Guia de exportacion de aguacate Hass para pequenos y medianos productores (Colombia)",
