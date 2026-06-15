@@ -6,24 +6,15 @@ significado, y lo léxico acierta en SKUs, números de registro ICA y dosis exac
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from avorag.config import get_settings
 from avorag.db import Chunk
 from avorag.logging import get_logger
+from avorag.retrieval.types import ScoredChunk
 
 log = get_logger(__name__)
-
-
-@dataclass
-class ScoredChunk:
-    chunk: Chunk
-    score: float
-    dense_rank: int | None = None
-    lexical_rank: int | None = None
 
 
 def _base_filters(tenant: str, country: str | None):

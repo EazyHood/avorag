@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from avorag.logging import get_logger
 from avorag.providers import get_llm_provider
 from avorag.rag.schemas import AbstentionType, Semaforo
-from avorag.retrieval import ScoredChunk
+from avorag.retrieval.types import ScoredChunk
 
 log = get_logger(__name__)
 

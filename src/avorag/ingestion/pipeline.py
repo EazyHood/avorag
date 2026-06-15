@@ -30,6 +30,22 @@ class IngestResult:
     contextual_failures: int = 0
 
 
+@dataclass
+class _ChunkSpec:
+    """Chunk ya procesado (texto + contexto + metadatos), pendiente solo de persistir.
+
+    Se construye SIN sesión de BD: así el trabajo lento (LLM de contextualización +
+    embeddings) no mantiene una conexión abierta y ociosa, que es lo que hacía que un
+    Postgres gestionado (Neon) cortara la conexión SSL en corpus grandes.
+    """
+
+    ordinal: int
+    page: int | None
+    content: str
+    context: str | None
+    meta: dict
+
+
 def ingest_document(
     path: str | Path,
     meta: DocumentMeta,
@@ -46,6 +62,8 @@ def ingest_document(
 
     digest = sha256_file(path)
 
+    # 1) Comprobación de duplicado en una sesión CORTA, que se cierra antes del trabajo
+    #    pesado. No se mantiene la conexión durante los minutos de llamadas al LLM.
     with get_session() as session:
         existing = session.scalar(
             select(Document).where(Document.sha256 == digest, Document.tenant == tenant)
@@ -59,13 +77,65 @@ def ingest_document(
                 skipped=True,
                 reason="documento ya ingerido (mismo sha256); usa --force para re-ingerir",
             )
-        if existing and force:
-            session.delete(existing)
-            session.flush()
 
-        pages = load_document(path)
-        full_text = "\n".join(p.text for p in pages)
-        doc_summary = build_doc_summary(full_text)
+    # 2) Trabajo pesado SIN sesión de BD: load → chunk → contextualizar → embeber.
+    pages = load_document(path)
+    full_text = "\n".join(p.text for p in pages)
+    doc_summary = build_doc_summary(full_text)
+    embedder = get_embedding_provider()
+
+    ordinal = 0
+    contextual_failures = 0
+    specs: list[_ChunkSpec] = []
+    texts_to_embed: list[str] = []
+    for page in pages:
+        for tc in chunk_text(page.text, page=page.page_number, start_ordinal=ordinal):
+            ordinal = tc.ordinal + 1
+            ctx = contextualize_chunk(tc.text, doc_summary, meta.fuente) if contextual else ""
+            if contextual and not ctx:
+                contextual_failures += 1
+            fields = extract_chunk_fields(tc.text)
+            cmeta = ChunkMetadata(
+                pais=meta.pais,
+                cultivo=meta.cultivo,
+                fuente=meta.fuente,
+                pagina=tc.page,
+                fecha_publicacion=meta.fecha_publicacion,
+                nivel_autoridad=meta.nivel_autoridad,
+                licencia_uso=meta.licencia,
+                url=meta.url,
+                doi=meta.doi,
+                categoria_toxicologica=fields["categoria_toxicologica"],
+                registro_ica=fields["registro_ica"],
+                tema=fields["tema"],
+                plaga_objetivo=fields["plaga_objetivo"],
+                producto=fields["producto"],
+                ingrediente_activo=fields["ingrediente_activo"],
+                dosis_estructurada=fields["dosis_estructurada"],
+            )
+            specs.append(
+                _ChunkSpec(
+                    ordinal=tc.ordinal,
+                    page=tc.page,
+                    content=tc.text,
+                    context=ctx or None,
+                    meta=cmeta.as_dict(),
+                )
+            )
+            texts_to_embed.append(((ctx + "\n") if ctx else "") + tc.text)
+
+    vectors = embedder.embed_documents(texts_to_embed)  # lento; sin conexión a BD abierta
+
+    # 3) Persistencia en una sesión CORTA (solo escrituras rápidas). El borrado del
+    #    documento previo (force) va aquí, en la misma transacción que la nueva inserción.
+    with get_session() as session:
+        if force:
+            stale = session.scalar(
+                select(Document).where(Document.sha256 == digest, Document.tenant == tenant)
+            )
+            if stale is not None:
+                session.delete(stale)
+                session.flush()
 
         document = Document(
             tenant=tenant,
@@ -85,65 +155,33 @@ def ingest_document(
         session.add(document)
         session.flush()  # asigna document.id
 
-        embedder = get_embedding_provider()
-
-        ordinal = 0
-        contextual_failures = 0
-        all_chunks: list[Chunk] = []
-        texts_to_embed: list[str] = []
-        for page in pages:
-            for tc in chunk_text(page.text, page=page.page_number, start_ordinal=ordinal):
-                ordinal = tc.ordinal + 1
-                ctx = contextualize_chunk(tc.text, doc_summary, meta.fuente) if contextual else ""
-                if contextual and not ctx:
-                    contextual_failures += 1
-                fields = extract_chunk_fields(tc.text)
-                cmeta = ChunkMetadata(
-                    pais=meta.pais,
-                    cultivo=meta.cultivo,
-                    fuente=meta.fuente,
-                    pagina=tc.page,
-                    fecha_publicacion=meta.fecha_publicacion,
-                    nivel_autoridad=meta.nivel_autoridad,
-                    licencia_uso=meta.licencia,
-                    url=meta.url,
-                    doi=meta.doi,
-                    categoria_toxicologica=fields["categoria_toxicologica"],
-                    registro_ica=fields["registro_ica"],
-                    tema=fields["tema"],
-                    plaga_objetivo=fields["plaga_objetivo"],
-                )
-                chunk = Chunk(
+        for spec, vec in zip(specs, vectors, strict=True):
+            session.add(
+                Chunk(
                     document_id=document.id,
                     tenant=tenant,
-                    ordinal=tc.ordinal,
-                    pagina=tc.page,
-                    content=tc.text,
-                    context=ctx or None,
-                    meta=cmeta.as_dict(),
-                    embedding=[0.0] * embedder.dim,  # placeholder; se llena abajo
+                    ordinal=spec.ordinal,
+                    pagina=spec.page,
+                    content=spec.content,
+                    context=spec.context,
+                    meta=spec.meta,
+                    embedding=vec,
                 )
-                all_chunks.append(chunk)
-                texts_to_embed.append(((ctx + "\n") if ctx else "") + tc.text)
+            )
+        document_id = str(document.id)
 
-        # Embeber en lote.
-        vectors = embedder.embed_documents(texts_to_embed)
-        for chunk, vec in zip(all_chunks, vectors, strict=True):
-            chunk.embedding = vec
-            session.add(chunk)
-
-        log.info(
-            "ingest_done",
-            fuente=meta.fuente,
-            document_id=str(document.id),
-            n_chunks=len(all_chunks),
-            contextual=contextual,
-            contextual_failures=contextual_failures,
-        )
-        return IngestResult(
-            document_id=str(document.id),
-            fuente=meta.fuente,
-            n_chunks=len(all_chunks),
-            skipped=False,
-            contextual_failures=contextual_failures,
-        )
+    log.info(
+        "ingest_done",
+        fuente=meta.fuente,
+        document_id=document_id,
+        n_chunks=len(specs),
+        contextual=contextual,
+        contextual_failures=contextual_failures,
+    )
+    return IngestResult(
+        document_id=document_id,
+        fuente=meta.fuente,
+        n_chunks=len(specs),
+        skipped=False,
+        contextual_failures=contextual_failures,
+    )
