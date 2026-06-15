@@ -534,7 +534,11 @@ def decide_semaforo(
             "Periodo de carencia no rastreable a una fuente: riesgo de superar el LMR y rechazo "
             "en destino. Requiere validación de un agrónomo.",
         )
-    if {"I", "II"} & cat_tox or (safety is not None and safety.cat_i_ii):
+    # Categoría toxicológica I (extrema) o el juez confirma que el producto RECOMENDADO es I/II
+    # → ROJO. La categoría II "coarse" (a nivel de fragmento de registro, que lista muchos
+    # productos) se trata como AMARILLO más abajo, para no marcar en rojo toda respuesta que
+    # cite el registro (fatiga de alarma); el juez sí distingue el producto recomendado.
+    if "I" in cat_tox or (safety is not None and safety.cat_i_ii):
         return (
             Semaforo.ROJO,
             "Producto de categoría toxicológica I/II: requiere receta firmada por profesional.",
@@ -549,6 +553,12 @@ def decide_semaforo(
         return (
             Semaforo.AMARILLO,
             "No se pudo verificar la asociación dosis–producto–plaga (juez no disponible): revisar.",
+        )
+    if "II" in cat_tox:
+        return (
+            Semaforo.AMARILLO,
+            "La evidencia citada incluye productos de categoría toxicológica II: verifica que el "
+            "recomendado no lo sea y manéjalo con precaución (EPP, receta).",
         )
     if not citation_ok:
         return (

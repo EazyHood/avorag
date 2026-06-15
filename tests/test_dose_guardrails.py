@@ -104,3 +104,10 @@ def test_semaforo_new_branches() -> None:
     assert decide_semaforo(**base, conflicts=["abamectina: 2,5 vs 10"])[0] == Semaforo.AMARILLO
     # Sin banderas problemáticas -> verde.
     assert decide_semaforo(**base)[0] == Semaforo.VERDE
+
+
+def test_semaforo_cat_i_rojo_cat_ii_amarillo() -> None:
+    # Cat I (extrema) -> ROJO; cat II "coarse" del fragmento -> AMARILLO (no fatiga de alarma).
+    assert decide_semaforo(doses_ok=True, cat_tox={"I"}, faithfulness=0.9)[0] == Semaforo.ROJO
+    assert decide_semaforo(doses_ok=True, cat_tox={"II"}, faithfulness=0.9)[0] == Semaforo.AMARILLO
+    assert decide_semaforo(doses_ok=True, cat_tox={"III"}, faithfulness=0.9)[0] == Semaforo.VERDE

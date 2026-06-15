@@ -257,25 +257,46 @@ def _build_dose_row(rec: dict[str, str], cells: list[str]) -> DoseRow | None:
     )
 
 
+# Registro PQUA del ICA: formato COLUMNAR (un registro por bloque de líneas; los valores van
+# en líneas sueltas). La categoría toxicológica es un numeral romano en su propia línea y el nº
+# de registro un número de 3-5 dígitos. No hay tabla Markdown, así que se capturan por patrón
+# de línea — pero SOLO en chunks que parecen un registro de producto (traen ingrediente activo
+# o contexto de registro), para no tomar números/numerales sueltos de prosa.
+_REGISTRY_CONTEXT_RE = re.compile(
+    r"cat\.?\s*toxic|categor[ií]a\s+toxicol|registros?\s+nacionales|\bpqua\b|ingrediente\s+activo",
+    re.IGNORECASE,
+)
+_STANDALONE_CAT_RE = re.compile(r"(?m)^\s*(IV|III|II|I)\s*$")
+_STANDALONE_REG_RE = re.compile(r"(?m)^\s*(\d{3,5})\s*$")
+
+
 def extract_chunk_fields(text: str) -> dict:
     """Extrae del texto del fragmento la categoría toxicológica (la más severa), el registro
     ICA, el tema, la plaga objetivo, el producto/ingrediente activo y las filas de dosis
     estructuradas. Sin esto, el semáforo Cat I/II y la verificación determinista no se activan."""
     low = text.lower()
-    cats = [m.group(1).upper() for m in _CATTOX_RE.finditer(text)]
     dose_rows = extract_dose_rows(text)
-    # La categoría más severa: del texto libre o de las filas estructuradas.
+    ia = extract_active_ingredient(text) or next(
+        (r.ingrediente_activo for r in dose_rows if r.ingrediente_activo), None
+    )
+    is_registry = ia is not None or bool(_REGISTRY_CONTEXT_RE.search(text))
+
+    cats = [m.group(1).upper() for m in _CATTOX_RE.finditer(text)]
     cats += [r.categoria_toxicologica for r in dose_rows if r.categoria_toxicologica]
+    if is_registry:  # formato columnar del registro PQUA
+        cats += [m.group(1).upper() for m in _STANDALONE_CAT_RE.finditer(text)]
     categoria = min(cats, key=lambda c: _SEVERITY.get(c, 9)) if cats else "N/A"
+
     reg = _REGICA_RE.search(text)
     registro = reg.group(1) if reg else None
     if not registro:
         registro = next((r.registro_ica for r in dose_rows if r.registro_ica), None)
+    if not registro and is_registry:
+        m_reg = _STANDALONE_REG_RE.search(text)
+        registro = m_reg.group(1) if m_reg else None
+
     tema = next((name for name, kws in _TEMA_KEYWORDS if any(k in low for k in kws)), None)
     plaga = next((p for p in _PESTS if p in low), None)
-    ia = extract_active_ingredient(text) or next(
-        (r.ingrediente_activo for r in dose_rows if r.ingrediente_activo), None
-    )
     producto = next((r.producto for r in dose_rows if r.producto), None)
     return {
         "categoria_toxicologica": categoria,
