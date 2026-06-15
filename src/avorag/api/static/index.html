@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..650;1,9..144,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3c5 0 9 5 9 12s-4 14-9 14-9-7-9-14 4-12 9-12z' fill='%233E7C4F'/%3E%3Ccircle cx='16' cy='21' r='5' fill='%239A6A45'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3C11 3 8 9 8 16s4 13 8 13 8-6 8-13S21 3 16 3z' fill='%23234f2c'/%3E%3Cpath d='M16 6C12 6 10 11 10 16.5S13 26 16 26s6-4.5 6-9.5S20 6 16 6z' fill='%23cfe093'/%3E%3Ccircle cx='16' cy='18' r='5.2' fill='%239A6A45'/%3E%3C/svg%3E">
   <style>
     :root{
       --paper:#F4F0E6; --paper-2:#FCFAF3; --card:#FCFBF4;
@@ -67,9 +67,9 @@
       background:rgba(244,240,230,.72); backdrop-filter:blur(14px) saturate(1.2);
       -webkit-backdrop-filter:blur(14px) saturate(1.2); border-bottom:1px solid var(--line-2);}
     .brand{display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit}
-    .logo{width:42px; height:42px; flex:none; filter:drop-shadow(0 4px 8px rgba(42,92,57,.25))}
-    .logo .pit{transform-origin:16px 20px; animation:breathe 5s ease-in-out infinite}
-    @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(.93)}}
+    .logo{width:40px; height:40px; flex:none; filter:drop-shadow(0 5px 9px rgba(30,69,39,.30))}
+    .shine{transform-origin:center; animation:shine 4.5s ease-in-out infinite}
+    @keyframes shine{0%,100%{opacity:.30}50%{opacity:.6}}
     .brand-name{font-family:var(--serif); font-weight:600; font-size:22px; letter-spacing:-.01em; line-height:1}
     .brand-name b{color:var(--leaf-deep)}
     .brand-sub{font-size:11.5px; color:var(--ink-2); letter-spacing:.02em; margin-top:2px}
@@ -84,7 +84,8 @@
 
     /* ---- hero / estado vacío ---- */
     .hero{text-align:center; padding:54px 18px 22px; animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
-    .hero .mark{width:84px;height:84px;margin:0 auto 18px;display:block;filter:drop-shadow(0 14px 24px rgba(42,92,57,.28))}
+    .hero .mark{width:108px;height:108px;margin:0 auto 20px;display:block;filter:drop-shadow(0 18px 30px rgba(30,69,39,.30));animation:floaty 6s ease-in-out infinite}
+    @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-9px) rotate(1.5deg)}}
     .hero h1{font-family:var(--serif); font-weight:580; font-size:clamp(32px,5.4vw,52px); line-height:1.04;
       letter-spacing:-.02em; margin:0 0 14px; color:var(--leaf-ink)}
     .hero h1 em{font-style:italic; color:var(--leaf); position:relative}
@@ -229,6 +230,20 @@
   </style>
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="avoSkin" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#3F7248"/><stop offset="55%" stop-color="#2C5A37"/><stop offset="100%" stop-color="#193C24"/>
+    </linearGradient>
+    <radialGradient id="avoFlesh" cx="46%" cy="40%" r="68%">
+      <stop offset="0%" stop-color="#F3F3D4"/><stop offset="42%" stop-color="#E4ECB8"/><stop offset="78%" stop-color="#C9DD93"/><stop offset="100%" stop-color="#AEC976"/>
+    </radialGradient>
+    <radialGradient id="avoSeed" cx="36%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#E3C49A"/><stop offset="40%" stop-color="#A97A45"/><stop offset="100%" stop-color="#56331A"/>
+    </radialGradient>
+    <linearGradient id="avoLeaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6CB45F"/><stop offset="100%" stop-color="#2E6B3A"/>
+    </linearGradient>
+  </defs></svg>
   <div class="bg-mesh"></div>
   <div class="leaves" aria-hidden="true">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C7 6 4 11 6 18c0 0 .4 2 2 4 0-6 2-10 8-14 0 0-2 5-5 8 0 0 6-2 8-8-3 0-6-4-7-6z"/></svg>
@@ -240,12 +255,14 @@
 
   <header class="topbar">
     <a class="brand" href="/">
-      <svg class="logo" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M24 5c7.5 0 13 7 13 18s-6 21-13 21S11 34 11 23 16.5 5 24 5z" fill="#3E7C4F"/>
-        <path d="M24 5c7.5 0 13 7 13 18s-6 21-13 21" stroke="#2A5C39" stroke-width="1.4" opacity=".5"/>
-        <circle class="pit" cx="24" cy="29" r="7.5" fill="#9A6A45"/>
-        <circle cx="24" cy="29" r="7.5" stroke="#7A5236" stroke-width="1" opacity=".4" fill="none"/>
-        <path d="M24 5c0-2 1.5-3.5 3.5-3.5C26.5 3 26 5 24 6z" fill="#2A5C39"/>
+      <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 13 C49 6 52 1.5 60.5 2 C60 10 55 14 50.5 14.5 Z" fill="url(#avoLeaf)"/>
+        <path d="M52 9.5 C54 7 56.5 5 59 4" stroke="#234f2c" stroke-width="1.1" stroke-linecap="round" opacity=".5" fill="none"/>
+        <path d="M50 10 C33.5 10 25.5 31 25.5 54 C25.5 79 37 95.5 50 95.5 C63 95.5 74.5 79 74.5 54 C74.5 31 66.5 10 50 10 Z" fill="url(#avoSkin)"/>
+        <path d="M50 17 C37 17 32 37 32 55.5 C32 77 41 88 50 88 C59 88 68 77 68 55.5 C68 37 63 17 50 17 Z" fill="url(#avoFlesh)"/>
+        <ellipse cx="50" cy="74" rx="13" ry="3" fill="#9FB76E" opacity=".5"/>
+        <circle cx="50" cy="59.5" r="16.5" fill="url(#avoSeed)"/>
+        <ellipse class="shine" cx="44" cy="53" rx="5.6" ry="3.9" fill="#fff" opacity=".32"/>
       </svg>
       <span>
         <div class="brand-name">Avo<b>RAG</b></div>
@@ -258,10 +275,14 @@
   <main>
     <div id="log">
       <section class="hero" id="hero">
-        <svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <path d="M24 5c7.5 0 13 7 13 18s-6 21-13 21S11 34 11 23 16.5 5 24 5z" fill="#3E7C4F"/>
-          <circle class="pit" cx="24" cy="29" r="7.5" fill="#9A6A45"/>
-          <path d="M24 5c0-2 1.5-3.5 3.5-3.5C26.5 3 26 5 24 6z" fill="#2A5C39"/>
+        <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M50 13 C49 6 52 1.5 60.5 2 C60 10 55 14 50.5 14.5 Z" fill="url(#avoLeaf)"/>
+          <path d="M52 9.5 C54 7 56.5 5 59 4" stroke="#234f2c" stroke-width="1.1" stroke-linecap="round" opacity=".5" fill="none"/>
+          <path d="M50 10 C33.5 10 25.5 31 25.5 54 C25.5 79 37 95.5 50 95.5 C63 95.5 74.5 79 74.5 54 C74.5 31 66.5 10 50 10 Z" fill="url(#avoSkin)"/>
+          <path d="M50 17 C37 17 32 37 32 55.5 C32 77 41 88 50 88 C59 88 68 77 68 55.5 C68 37 63 17 50 17 Z" fill="url(#avoFlesh)"/>
+          <ellipse cx="50" cy="74" rx="13" ry="3" fill="#9FB76E" opacity=".5"/>
+          <circle cx="50" cy="59.5" r="16.5" fill="url(#avoSeed)"/>
+          <ellipse class="shine" cx="44" cy="53" rx="5.6" ry="3.9" fill="#fff" opacity=".32"/>
         </svg>
         <h1>Tu agrónomo de confianza,<br><em>siempre con la fuente a la mano</em></h1>
         <p>Pregunta sobre plagas, enfermedades, fertilización o dosis del aguacate Hass. Cada respuesta cita su fuente oficial — y te avisa cuando algo necesita a un profesional.</p>
