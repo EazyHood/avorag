@@ -35,13 +35,21 @@ class CohereRerank(RerankProvider):
 
 
 class LocalRerank(RerankProvider):
-    """Cross-encoder self-hosted vía sentence-transformers. Requiere `uv sync --extra local`."""
+    """Cross-encoder self-hosted vía sentence-transformers. Requiere `uv sync --extra local`.
+
+    Usa GPU + fp16 si hay CUDA disponible (en CPU tarda ~12 s; en GPU ~20 ms)."""
 
     def __init__(self) -> None:
-        from sentence_transformers import CrossEncoder  # import diferido (pesado)
+        import torch  # import diferido (pesado)
+        from sentence_transformers import CrossEncoder
 
         s = get_settings()
-        self._model = CrossEncoder(s.rerank_model)
+        if torch.cuda.is_available():
+            self._model = CrossEncoder(
+                s.rerank_model, device="cuda", model_kwargs={"torch_dtype": torch.float16}
+            )
+        else:
+            self._model = CrossEncoder(s.rerank_model)
 
     def rerank(self, query: str, docs: list[str], top_k: int) -> list[tuple[int, float]]:
         if not docs:

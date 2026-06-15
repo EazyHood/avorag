@@ -54,9 +54,19 @@ Caso de estudio: [Español](docs/CASO_DE_ESTUDIO.md) · [English](docs/CASE_STUD
 
 > **Reranker (trade-off honesto):** el default de fábrica es `RERANK_PROVIDER=none` (rápido,
 > pero sin reordenar, las portadas ganan la recuperación). Las métricas publicadas se midieron con
-> `RERANK_PROVIDER=local` (cross-encoder en CPU: ~45 s/consulta la primera vez; en GPU con
-> `--extra local` es rápido). Cohere reordena rápido pero es de pago. Las preguntas repetidas
-> responden en <50 ms por la caché. No hay una opción "gratis + rápida + de máxima calidad": se elige.
+> `RERANK_PROVIDER=local` (cross-encoder). En **CPU** tarda ~12 s; en **GPU baja a ~0,02 s** (usa
+> `fp16` automáticamente). Cohere reordena rápido pero es de pago. Las preguntas repetidas y los
+> saludos responden al instante (caché / capa conversacional).
+
+### Aceleración por GPU (NVIDIA)
+El reranker local usa GPU si hay CUDA. Por defecto `torch` se instala en su versión CPU; para
+acelerar (p.ej. RTX 40/50 — Blackwell `sm_120` necesita CUDA 12.8):
+```powershell
+uv pip install torch --index-url https://download.pytorch.org/whl/cu128   # ajusta cu121/cu124 según tu GPU
+uv run python -c "import torch; print(torch.cuda.is_available())"          # debe imprimir True
+```
+La generación y los embeddings ya corren en GPU vía Ollama. Con esto, una consulta técnica baja
+de ~35 s a unos pocos segundos.
 
 ## Arranque rápido (Ruta local, gratis)
 ```powershell
