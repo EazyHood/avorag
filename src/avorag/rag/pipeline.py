@@ -274,13 +274,25 @@ def answer(
         # Separa las preguntas de seguimiento del cuerpo de la respuesta.
         raw, follow_ups = _split_followups(raw)
 
-        # Guardarraíles.
-        doses_ok, unsupported = (
-            guardrails.doses_grounded(raw, contexts_text) if settings.dose_guardrail else (True, [])
-        )
-        phi_ok, phi_unsupported = (
-            guardrails.phi_grounded(raw, contexts_text) if settings.dose_guardrail else (True, [])
-        )
+        # Guardarraíles deterministas (atados al fragmento de origen, no al texto plano).
+        if settings.dose_guardrail:
+            doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
+            phi_ok, phi_unsupported = guardrails.phi_grounded(raw, contexts_text)
+            banned = guardrails.banned_ingredients_in_answer(raw, country)
+            offlabel = guardrails.is_offlabel(raw, final)
+            registro_required = guardrails.recommends_pesticide(raw)
+            registro_ok = guardrails.ica_registro_ok(final)
+            citation_ok, citation_issues = guardrails.citation_supports_claim(raw, final)
+            conflicts = guardrails.dose_conflicts(final)
+            warnings = guardrails.stale_data_warnings(final)
+        else:
+            doses_ok, unsupported = True, []
+            phi_ok, phi_unsupported = True, []
+            banned, offlabel = [], False
+            registro_required, registro_ok = False, True
+            citation_ok, citation_issues = True, []
+            conflicts, warnings = [], []
+
         # Juez de asociación producto–plaga–dosis–carencia: SOLO si la respuesta es accionable
         # (trae dosis/carencia/aplicación). Evita latencia en respuestas generales.
         actionable = settings.dose_guardrail and guardrails.has_actionable_recommendation(raw)
@@ -302,11 +314,19 @@ def answer(
             judge_failed=judge_failed,
             safety=safety,
             safety_required=actionable,
+            banned=banned,
+            offlabel=offlabel,
+            registro_ok=registro_ok,
+            registro_required=registro_required and actionable,
+            citation_ok=citation_ok,
+            conflicts=conflicts,
         )
         if not doses_ok:
-            reason += f" (dosis sin fuente: {', '.join(unsupported)})"
+            reason += f" (dosis sin producto/fuente: {', '.join(unsupported)})"
         if not phi_ok:
             reason += f" (carencia sin fuente: {', '.join(phi_unsupported)})"
+        if not citation_ok and citation_issues:
+            reason += f" (citas: {'; '.join(citation_issues)})"
 
         ans = Answer(
             question=question,
@@ -318,6 +338,8 @@ def answer(
             citations=citations,
             contexts=contexts,
             follow_ups=follow_ups,
+            conflict=conflicts,
+            warnings=warnings,
             disclaimer=DISCLAIMER,
             latency_ms=int((time.perf_counter() - t0) * 1000),
             provider_info=pinfo,

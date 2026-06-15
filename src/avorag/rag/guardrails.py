@@ -8,7 +8,10 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
+from avorag.agro_terms import active_ingredients_in, extract_active_ingredient
 from avorag.logging import get_logger
 from avorag.providers import get_llm_provider
 from avorag.rag.schemas import AbstentionType, Semaforo
@@ -170,6 +173,180 @@ def cited_categoria_toxicologica(chunks: list[ScoredChunk]) -> set[str]:
     return {str(sc.chunk.meta.get("categoria_toxicologica", "N/A")).upper() for sc in chunks}
 
 
+# =============================================================================================
+# Verificación DETERMINISTA atada al fragmento de origen (no "el número existe en algún lugar").
+# Estas funciones operan sobre los chunks recuperados (con su meta), no sobre el texto plano
+# concatenado, para poder asociar cada dosis a SU producto/registro/carencia de la misma fuente.
+# =============================================================================================
+
+
+def _chunk_content(sc: ScoredChunk) -> str:
+    return getattr(sc.chunk, "content", "") or ""
+
+
+def _chunk_meta(sc: ScoredChunk) -> dict:
+    return getattr(sc.chunk, "meta", {}) or {}
+
+
+def _chunk_actives(sc: ScoredChunk) -> set[str]:
+    """Ingredientes activos y productos asociados a un fragmento (texto + filas estructuradas)."""
+    actives = active_ingredients_in(_chunk_content(sc))
+    meta = _chunk_meta(sc)
+    for key in ("ingrediente_activo", "producto"):
+        v = meta.get(key)
+        if v:
+            actives.add(str(v).lower())
+    for row in meta.get("dosis_estructurada") or []:
+        for key in ("ingrediente_activo", "producto"):
+            v = row.get(key)
+            if v:
+                actives.add(str(v).lower())
+    return actives
+
+
+def dose_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[bool, list[str]]:
+    """Cada dosis de la respuesta debe co-ocurrir, EN UN MISMO fragmento, con el producto/
+    ingrediente activo al que la respuesta la asocia. Así una dosis válida de OTRO producto deja
+    de "respaldar" la afirmación (el fallo central del guardarraíl viejo). Si la respuesta no
+    nombra un i.a., cae a la verificación de dosis-en-fragmento (presencia equivalente)."""
+    answer_actives = active_ingredients_in(answer_text)
+    unsupported: list[str] = []
+    for m in _DOSE_PAIR_RE.finditer(answer_text):
+        value = float(m.group(1).replace(",", "."))
+        unit = re.sub(r"\s+", "", m.group(2).lower())
+        dim, factor = _UNIT_FACTORS.get(unit, (unit, 1.0))
+        target = (dim, round(value * factor, 6))
+        supported = False
+        for sc in chunks:
+            if target in _canonical_doses(_chunk_content(sc)) and (
+                not answer_actives or (answer_actives & _chunk_actives(sc))
+            ):
+                supported = True
+                break
+        if not supported:
+            unsupported.append(m.group(1).replace(",", "."))
+    return (len(unsupported) == 0, unsupported)
+
+
+def recommends_pesticide(answer_text: str) -> bool:
+    """La respuesta recomienda un PRODUCTO fitosanitario a dosis (no una dosis de fertilizante).
+    Solo entonces exigimos un registro ICA vigente."""
+    return (
+        bool(_DOSE_PAIR_RE.search(answer_text))
+        and extract_active_ingredient(answer_text) is not None
+    )
+
+
+def ica_registro_ok(chunks: list[ScoredChunk]) -> bool:
+    """¿Hay al menos un fragmento con registro ICA presente, NO caducado y de autoridad oficial?
+    Es lo que hace que una dosis sea "rastreable a una etiqueta REGISTRADA vigente"."""
+    for sc in chunks:
+        meta = _chunk_meta(sc)
+        if (
+            meta.get("registro_ica")
+            and str(meta.get("vigencia", "por-verificar")) != "caducado"
+            and str(meta.get("nivel_autoridad", "")) == "oficial-regulador"
+        ):
+            return True
+    return False
+
+
+_DOSE_CITE_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?" + _UNITS + r")\D{0,40}?\[(\d+)\]", re.IGNORECASE)
+
+
+def citation_supports_claim(answer_text: str, chunks: list[ScoredChunk]) -> tuple[bool, list[str]]:
+    """Verifica que la cifra citada esté EN el fragmento citado: para cada 'dosis … [n]',
+    el chunk n debe contener esa dosis. Detecta también citas huérfanas [n] fuera de rango."""
+    issues: list[str] = []
+    for m in _DOSE_CITE_RE.finditer(answer_text):
+        dose_txt = m.group(1).strip()
+        n = int(m.group(2))
+        if not (1 <= n <= len(chunks)):
+            issues.append(f"cita [{n}] inexistente")
+            continue
+        if not (_canonical_doses(dose_txt) & _canonical_doses(_chunk_content(chunks[n - 1]))):
+            issues.append(f"[{n}] no contiene «{dose_txt}»")
+    for m in re.finditer(r"\[(\d+)\]", answer_text):
+        n = int(m.group(1))
+        if not (1 <= n <= len(chunks)):
+            issues.append(f"cita [{n}] fuera de rango")
+    # Deduplica preservando orden.
+    uniq: list[str] = []
+    for i in issues:
+        if i not in uniq:
+            uniq.append(i)
+    return (len(uniq) == 0, uniq[:4])
+
+
+def dose_conflicts(chunks: list[ScoredChunk]) -> list[str]:
+    """Detecta fuentes en CONFLICTO: un mismo ingrediente activo con dosis sustancialmente
+    distintas (ratio > 1.5) en ≥2 fragmentos. El agrónomo debe ver la discrepancia, no una
+    síntesis silenciosa."""
+    by_active: dict[str, dict[str, set[float]]] = {}
+    for sc in chunks:
+        doses = _canonical_doses(_chunk_content(sc))
+        for active in _chunk_actives(sc):
+            for dim, val in doses:
+                by_active.setdefault(active, {}).setdefault(dim, set()).add(val)
+    conflicts: list[str] = []
+    for active, bydim in by_active.items():
+        for _dim, vals in bydim.items():
+            if len(vals) >= 2 and max(vals) / max(min(vals), 1e-9) > 1.5:
+                pretty = ", ".join(str(round(v, 3)) for v in sorted(vals))
+                conflicts.append(f"{active}: dosis discrepantes ({pretty})")
+    return conflicts[:3]
+
+
+def is_offlabel(answer_text: str, chunks: list[ScoredChunk]) -> bool:
+    """True si la dosis recomendada SOLO se respalda en fragmentos de OTRO cultivo (uso off-label).
+    El corpus actual es 100% Hass, así que es un backstop a futuro (cuando entren fuentes mixtas)."""
+    if not recommends_pesticide(answer_text):
+        return False
+    supporting = [
+        sc for sc in chunks if _canonical_doses(_chunk_content(sc)) & _canonical_doses(answer_text)
+    ]
+    if not supporting:
+        return False
+    return all(str(_chunk_meta(sc).get("cultivo", "hass")).lower() != "hass" for sc in supporting)
+
+
+@lru_cache(maxsize=1)
+def _banned_index() -> dict[str, dict]:
+    path = Path(__file__).resolve().parents[3] / "data" / "prohibidos_co.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # pragma: no cover - la ausencia del archivo no debe romper
+        log.warning("banned_list_load_failed", error=str(exc))
+        return {}
+    return {str(it["ingrediente_activo"]).lower(): it for it in data.get("ingredientes", [])}
+
+
+def banned_ingredients_in_answer(answer_text: str, country: str = "CO") -> list[str]:
+    """Ingredientes activos prohibidos/restringidos mencionados en la respuesta (red de
+    seguridad; el estado vigente lo define el ICA). Si aparece alguno → ROJO."""
+    low = _strip_accents(answer_text)
+    hits: list[str] = []
+    for ia, item in _banned_index().items():
+        if _strip_accents(ia) in low:
+            hits.append(f"{ia} ({item.get('estado', 'restringido')}: {item.get('motivo', '')})")
+    return hits[:3]
+
+
+def stale_data_warnings(chunks: list[ScoredChunk]) -> list[str]:
+    """Avisos cuando un fragmento de REGISTRO/dosis trae una fecha del dato antigua (p.ej. el
+    registro PQUA a mar-2022): citar una dosis/registro de hace años con apariencia oficial es
+    riesgo regulatorio (#20). No bloquea, pero el aviso viaja con la respuesta."""
+    warnings: list[str] = []
+    for sc in chunks:
+        meta = _chunk_meta(sc)
+        fecha = meta.get("fecha_dato") or meta.get("fecha_publicacion")
+        if meta.get("registro_ica") and fecha:
+            msg = f"Dato de registro fechado «{fecha}»: verifica la vigencia actual en SimplifICA (ICA)."
+            if msg not in warnings:
+                warnings.append(msg)
+    return warnings[:2]
+
+
 # --- Clasificación de intención (etiqueta la abstención; backstop del retrieval/LLM) ---
 _HASS_TERMS = {"aguacate", "hass", "palta", "palto"}
 _OTHER_CROPS = {
@@ -312,12 +489,44 @@ def decide_semaforo(
     safety: DoseSafety | None = None,
     safety_required: bool = False,
     faithfulness_threshold: float = 0.6,
+    banned: list[str] | None = None,
+    offlabel: bool = False,
+    registro_ok: bool = True,
+    registro_required: bool = False,
+    citation_ok: bool = True,
+    conflicts: list[str] | None = None,
 ) -> tuple[Semaforo, str]:
-    """Combina las señales en un semáforo con su razón. Orden: rojo > amarillo > verde."""
+    """Combina las señales en un semáforo con su razón.
+
+    Orden de prioridad (de más a menos grave): prohibido/restringido > off-label >
+    dosis-no-rastreable > dosis-sin-registro-vigente > carencia(PHI) > categoría I/II >
+    asociación insegura > asociación no verificable > cita que no respalda > conflicto de
+    fuentes > fidelidad > sin-citas. Rojo > amarillo > verde.
+    """
+    banned = banned or []
+    conflicts = conflicts or []
+    if banned:
+        return (
+            Semaforo.ROJO,
+            f"Ingrediente prohibido o restringido: {'; '.join(banned[:2])}. No recomendar; "
+            "verificar la resolución ICA vigente.",
+        )
+    if offlabel:
+        return (
+            Semaforo.ROJO,
+            "Uso off-label: la dosis solo se respalda en fuentes de OTRO cultivo. Requiere agrónomo.",
+        )
     if not doses_ok:
         return (
             Semaforo.ROJO,
-            "Dosis no rastreable a una fuente citada: requiere validación de un agrónomo.",
+            "Dosis no rastreable al producto correcto en una fuente citada: requiere validación "
+            "de un agrónomo.",
+        )
+    if registro_required and not registro_ok:
+        return (
+            Semaforo.ROJO,
+            "Dosis de un producto fitosanitario sin etiqueta ICA registrada y vigente en las "
+            "fuentes citadas: no es rastreable a un registro. Requiere validación de un agrónomo.",
         )
     if not phi_ok:
         return (
@@ -340,6 +549,16 @@ def decide_semaforo(
         return (
             Semaforo.AMARILLO,
             "No se pudo verificar la asociación dosis–producto–plaga (juez no disponible): revisar.",
+        )
+    if not citation_ok:
+        return (
+            Semaforo.AMARILLO,
+            "Una cifra citada no aparece en el fragmento citado: revisar la cita antes de actuar.",
+        )
+    if conflicts:
+        return (
+            Semaforo.AMARILLO,
+            f"Las fuentes citadas discrepan ({conflicts[0]}): revisar cuál aplica a tu caso.",
         )
     if judge_failed:
         return Semaforo.AMARILLO, "No se pudo verificar la fidelidad (juez no disponible): revisar."

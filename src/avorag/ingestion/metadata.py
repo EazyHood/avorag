@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from avorag.agro_terms import extract_active_ingredient
+
 CategoriaToxicologica = Literal["N/A", "I", "II", "III", "IV"]
 NivelAutoridad = Literal["oficial-regulador", "gremio", "academico", "interno-cliente"]
 
@@ -154,55 +156,10 @@ _PESTS = (
 )
 
 
-# --- Ingredientes activos conocidos en aguacate (asocia dosis↔producto de forma determinista) ---
-# No exhaustivo; amplía con el registro PQUA. Sirve para detectar el i.a. en texto libre y para
-# parsear celdas de tabla. Incluye insecticidas, acaricidas, fungicidas y biológicos comunes.
-_ACTIVE_INGREDIENTS: tuple[str, ...] = (
-    "abamectina",
-    "spinetoram",
-    "spinosad",
-    "imidacloprid",
-    "thiamethoxam",
-    "acetamiprid",
-    "spirotetramat",
-    "clorantraniliprol",
-    "clorpirifos",
-    "lambda-cialotrina",
-    "lambdacialotrina",
-    "cipermetrina",
-    "deltametrina",
-    "buprofezin",
-    "pyriproxyfen",
-    "piriproxifen",
-    "azadiractina",
-    "bacillus thuringiensis",
-    "beauveria bassiana",
-    "metarhizium",
-    "trichoderma",
-    "azufre",
-    "aceite agricola",
-    "fosetil",
-    "fosetil-aluminio",
-    "metalaxil",
-    "mancozeb",
-    "oxicloruro de cobre",
-    "hidroxido de cobre",
-    "propiconazol",
-    "difenoconazol",
-    "azoxistrobina",
-    "fosfito",
-)
-
 _DOSE_CELL_RE = re.compile(
     r"\d+(?:[.,]\d+)?\s*(?:%|ppm|cc\s?/\s?\d*\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l)\b",
     re.IGNORECASE,
 )
-
-
-def extract_active_ingredient(text: str) -> str | None:
-    """Primer ingrediente activo conocido que aparece en el texto (o None)."""
-    low = text.lower()
-    return next((ia for ia in _ACTIVE_INGREDIENTS if ia in low), None)
 
 
 def _classify_header(cell: str) -> str | None:

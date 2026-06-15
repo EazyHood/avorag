@@ -1,0 +1,106 @@
+"""Ola 3: guardarraíles DETERMINISTAS de dosis atados al fragmento de origen.
+
+Incluye el test que el fallo original NO detectaba: una dosis correcta pegada al producto
+EQUIVOCADO debe quedar sin respaldo (ROJO), no en verde.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from avorag.rag.guardrails import (
+    banned_ingredients_in_answer,
+    citation_supports_claim,
+    decide_semaforo,
+    dose_conflicts,
+    dose_product_grounded,
+    ica_registro_ok,
+    is_offlabel,
+    recommends_pesticide,
+)
+from avorag.rag.schemas import Semaforo
+from avorag.retrieval.types import ScoredChunk
+
+
+def mk(content: str, **meta) -> ScoredChunk:
+    chunk = SimpleNamespace(id="c", content=content, context=None, pagina=1, meta=meta)
+    return ScoredChunk(chunk=chunk, score=1.0)
+
+
+def test_dose_with_wrong_product_is_unsupported() -> None:
+    # La respuesta asocia 2,5 cc/L a abamectina, pero el ÚNICO fragmento con esa dosis es de
+    # clorpirifos -> la dosis NO está respaldada para el producto correcto (el fallo #11).
+    answer = "Aplica abamectina a una dosis de 2,5 cc/L."
+    chunks = [mk("Lorsban (clorpirifos) se usa a 2,5 cc/L en otros cultivos.")]
+    ok, unsupported = dose_product_grounded(answer, chunks)
+    assert ok is False
+    assert "2.5" in unsupported
+
+
+def test_dose_with_correct_product_is_grounded() -> None:
+    answer = "Aplica abamectina a una dosis de 2,5 cc/L."
+    chunks = [mk("Vertimec (abamectina) para trips: 2,5 cc/L.")]
+    ok, _ = dose_product_grounded(answer, chunks)
+    assert ok is True
+
+
+def test_ica_registro_ok_requires_official_non_expired() -> None:
+    good = [
+        mk(
+            "...",
+            registro_ica="1234",
+            vigencia="por-verificar",
+            nivel_autoridad="oficial-regulador",
+        )
+    ]
+    assert ica_registro_ok(good) is True
+    expired = [
+        mk("...", registro_ica="1234", vigencia="caducado", nivel_autoridad="oficial-regulador")
+    ]
+    assert ica_registro_ok(expired) is False
+    no_reg = [mk("...", nivel_autoridad="oficial-regulador")]
+    assert ica_registro_ok(no_reg) is False
+
+
+def test_citation_supports_claim_detects_unsupported_figure() -> None:
+    chunks = [mk("La carencia es de 14 dias."), mk("Dosis de abamectina 2,5 cc/L.")]
+    ok, issues = citation_supports_claim("Aplica 9 cc/L [1] segun la fuente.", chunks)
+    assert ok is False
+    assert any("[1]" in i for i in issues)
+    ok2, _ = citation_supports_claim("Aplica 2,5 cc/L [2].", chunks)
+    assert ok2 is True
+
+
+def test_banned_ingredient_flagged() -> None:
+    hits = banned_ingredients_in_answer("Puedes usar clorpirifos para el trips.")
+    assert hits and "clorpirifos" in hits[0]
+
+
+def test_recommends_pesticide() -> None:
+    assert recommends_pesticide("Aplica abamectina 2,5 cc/L") is True
+    assert recommends_pesticide("Aplica 150 kg/ha de nitrogeno") is False  # fertilizante, no i.a.
+
+
+def test_dose_conflicts_across_sources() -> None:
+    chunks = [mk("abamectina 2,5 cc/L"), mk("abamectina 10 cc/L")]
+    conflicts = dose_conflicts(chunks)
+    assert conflicts and "abamectina" in conflicts[0]
+
+
+def test_is_offlabel_when_only_other_crop_supports() -> None:
+    answer = "Aplica abamectina 2,5 cc/L."
+    chunks = [mk("abamectina 2,5 cc/L en tomate", cultivo="tomate")]
+    assert is_offlabel(answer, chunks) is True
+    chunks_hass = [mk("abamectina 2,5 cc/L en aguacate", cultivo="hass")]
+    assert is_offlabel(answer, chunks_hass) is False
+
+
+def test_semaforo_new_branches() -> None:
+    base = {"cat_tox": {"N/A"}, "faithfulness": 0.9, "doses_ok": True}
+    assert decide_semaforo(**base, banned=["clorpirifos (restringido)"])[0] == Semaforo.ROJO
+    assert decide_semaforo(**base, offlabel=True)[0] == Semaforo.ROJO
+    assert decide_semaforo(**base, registro_required=True, registro_ok=False)[0] == Semaforo.ROJO
+    assert decide_semaforo(**base, citation_ok=False)[0] == Semaforo.AMARILLO
+    assert decide_semaforo(**base, conflicts=["abamectina: 2,5 vs 10"])[0] == Semaforo.AMARILLO
+    # Sin banderas problemáticas -> verde.
+    assert decide_semaforo(**base)[0] == Semaforo.VERDE

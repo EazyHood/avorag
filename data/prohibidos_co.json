@@ -1,0 +1,19 @@
+{
+  "_comment": "Lista-backstop de ingredientes activos PROHIBIDOS o RESTRINGIDOS para uso agrícola. Es una RED DE SEGURIDAD del guardarraíl (si un i.a. de esta lista aparece en una respuesta, el semáforo va a ROJO), NO una fuente legal autoritativa: el estado vigente lo define el ICA (resoluciones de cancelación/restricción) y debe verificarse en SimplifICA. Mantener con fecha. 'estado': prohibido | restringido. Ampliar con cada resolución del ICA.",
+  "actualizado": "2026-06-14",
+  "pais": "CO",
+  "fuente_nota": "Compilado de prohibiciones/restricciones ampliamente reconocidas (Convenio de Estocolmo/Róterdam, UE, y restricciones ICA). VERIFICAR contra la resolución ICA vigente antes de cualquier uso profesional.",
+  "ingredientes": [
+    { "ingrediente_activo": "endosulfan", "estado": "prohibido", "motivo": "COP (Convenio de Estocolmo); prohibido en Colombia" },
+    { "ingrediente_activo": "monocrotofos", "estado": "prohibido", "motivo": "organofosforado de alta toxicidad; cancelado" },
+    { "ingrediente_activo": "metamidofos", "estado": "prohibido", "motivo": "organofosforado categoría I; cancelado" },
+    { "ingrediente_activo": "metil paration", "estado": "prohibido", "motivo": "organofosforado categoría I; cancelado" },
+    { "ingrediente_activo": "paration", "estado": "prohibido", "motivo": "organofosforado categoría I; cancelado" },
+    { "ingrediente_activo": "aldicarb", "estado": "prohibido", "motivo": "carbamato de muy alta toxicidad; cancelado" },
+    { "ingrediente_activo": "carbofuran", "estado": "restringido", "motivo": "carbamato; uso muy restringido/cancelado en varios cultivos; verificar ICA" },
+    { "ingrediente_activo": "paraquat", "estado": "restringido", "motivo": "herbicida de uso restringido (alta toxicidad aguda); verificar condiciones ICA" },
+    { "ingrediente_activo": "clorpirifos", "estado": "restringido", "motivo": "organofosforado; prohibido en la UE (2020) y restringido en varios usos; verificar registro vigente y LMR de destino" },
+    { "ingrediente_activo": "lindano", "estado": "prohibido", "motivo": "organoclorado COP; prohibido" },
+    { "ingrediente_activo": "ddt", "estado": "prohibido", "motivo": "organoclorado COP; prohibido en agricultura" }
+  ]
+}

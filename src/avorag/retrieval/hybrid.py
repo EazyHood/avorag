@@ -66,6 +66,20 @@ def reciprocal_rank_fusion(ranked_lists: list[list[str]], *, k: int) -> list[tup
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 
+# Desempate por autoridad de la fuente: ante relevancia similar, prima el regulador oficial
+# sobre el gremio y lo académico (clave en preguntas regulatorias / de registro).
+_AUTHORITY_WEIGHT = {
+    "oficial-regulador": 1.0,
+    "gremio": 0.95,
+    "academico": 0.9,
+    "interno-cliente": 0.85,
+}
+
+
+def _authority_weight(meta: dict) -> float:
+    return _AUTHORITY_WEIGHT.get(str(meta.get("nivel_autoridad", "")), 0.9)
+
+
 def hybrid_search(
     session: Session,
     query_text: str,
@@ -100,9 +114,11 @@ def hybrid_search(
         out.append(
             ScoredChunk(
                 chunk=chunk,
-                score=score,
+                score=score * _authority_weight(chunk.meta),
                 dense_rank=dense_rank.get(cid),
                 lexical_rank=lexical_rank.get(cid),
             )
         )
+    # Reordena tras ponderar por autoridad (RRF ya venía ordenado, el peso puede alterar el orden).
+    out.sort(key=lambda sc: sc.score, reverse=True)
     return out
