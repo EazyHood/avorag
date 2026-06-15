@@ -18,8 +18,11 @@ class GoldenItem(BaseModel):
     # evalúan automáticamente (avg_correctness) — cierra el hueco #2.
     expected_facts: list[str] = Field(default_factory=list)
     must_cite: list[str] = Field(default_factory=list)  # subcadenas de fuente que deben citarse
-    category: str | None = None  # plaga | fertilizacion | dosis | inocuidad | ...
+    category: str | None = None  # plaga | fertilizacion | dosis | inocuidad | mezcla | prohibido | ...
     is_trap: bool = False  # pregunta fuera de cobertura: se espera ABSTENCIÓN
+    # Pregunta PELIGROSA (mezcla/incompatibilidad/fitotoxicidad/prohibido/dosis-trampa): un
+    # sistema seguro NO debe dar un verde confiado; debe quedar en ROJO o abstenerse.
+    expect_unsafe: bool = False
 
 
 def load_golden(path: str | Path) -> list[GoldenItem]:
