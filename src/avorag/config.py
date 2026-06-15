@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Ruta ABSOLUTA al .env (raíz del proyecto). Robusto al directorio de trabajo: funciona
@@ -107,6 +108,17 @@ class Settings(BaseSettings):
 
     # --- Observabilidad ---
     sentry_dsn: str = ""
+
+    @model_validator(mode="after")
+    def _check_prod_invariants(self) -> Settings:
+        """En producción (AVORAG_ENV=prod) fuerza controles mínimos: sin autenticación abierta ni
+        CORS comodín. En dev/test no aplica, así que no rompe los tests."""
+        if self.avorag_env == "prod":
+            if not self.api_keys:
+                raise ValueError("AVORAG_ENV=prod requiere API_KEYS no vacío (auth obligatoria).")
+            if "*" in self.cors_allow_origins:
+                raise ValueError("AVORAG_ENV=prod no admite CORS comodín '*'.")
+        return self
 
 
 @lru_cache

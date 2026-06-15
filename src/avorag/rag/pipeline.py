@@ -123,10 +123,33 @@ def _extract_citations(answer_text: str, chunks: list[ScoredChunk]) -> list[Cita
                     fecha_publicacion=c.meta.get("fecha_publicacion"),
                     url=c.meta.get("url"),
                     doi=c.meta.get("doi"),
-                    quote=(c.content[:200] + "…") if len(c.content) > 200 else c.content,
+                    nivel_autoridad=c.meta.get("nivel_autoridad"),
+                    licencia_uso=c.meta.get("licencia_uso"),
+                    quote=_targeted_quote(c.content),
                 )
             )
     return citations
+
+
+_QUOTE_RADIUS = 120
+_FIRST_DOSE_RE = re.compile(
+    r"\d+(?:[.,]\d+)?\s?(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|g|l)",
+    re.IGNORECASE,
+)
+
+
+def _targeted_quote(content: str) -> str:
+    """Quote que PRUEBA la afirmación: si el fragmento trae una dosis, centra la cita en ella
+    (±radio); si no, cae al inicio del fragmento. Así la cita muestra la cifra, no la portada."""
+    m = _FIRST_DOSE_RE.search(content)
+    if m:
+        start = max(0, m.start() - _QUOTE_RADIUS)
+        end = min(len(content), m.end() + _QUOTE_RADIUS)
+        snippet = content[start:end].strip()
+        prefix = "…" if start > 0 else ""
+        suffix = "…" if end < len(content) else ""
+        return f"{prefix}{snippet}{suffix}"
+    return (content[:200] + "…") if len(content) > 200 else content
 
 
 _FOLLOWUP_RE = re.compile(r"\n?\s*SEGUIMIENTO\s*:\s*", re.IGNORECASE)

@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from avorag.api import auth
 from avorag.config import Settings
@@ -54,3 +55,12 @@ def test_audit_text_hashes_when_minimized() -> None:
     assert _audit_text("hola", True) == "hola"
     h = _audit_text("hola", False)
     assert h.startswith("<sha256:") and "hola" not in h
+
+
+def test_prod_env_requires_auth() -> None:
+    # En producción, una config sin API_KEYS no debe instanciarse (auth obligatoria).
+    with pytest.raises(ValidationError):
+        Settings(avorag_env="prod", api_keys={})
+    # Con API_KEYS sí.
+    s = Settings(avorag_env="prod", api_keys={"k": "t"})
+    assert s.avorag_env == "prod"
