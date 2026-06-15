@@ -49,6 +49,7 @@ def _prewarm_defaults() -> None:
 
     try:
         prewarm.load_from_disk()
+        prewarm.load_answer_bank()  # fija las 500 respuestas precalculadas (si existen y vigentes)
         threading.Thread(target=prewarm.refresh, name="prewarm", daemon=True).start()
     except Exception as exc:  # noqa: BLE001
         log.warning("prewarm_setup_failed", error=str(exc))

@@ -29,6 +29,8 @@ DEFAULT_QUESTIONS = [
 ]
 
 _STORE = Path(__file__).resolve().parents[3] / "data" / "cache" / "default_answers.json"
+# Banco de las 500 preguntas de evaluación, precalculadas para servirse al instante.
+_BANK = Path(__file__).resolve().parents[3] / "data" / "cache" / "answer_bank.jsonl"
 
 # Súbelo al cambiar la lógica de guardarraíles/formato de respuesta, para invalidar la caché en disco.
 _LOGIC_VERSION = "5"
@@ -62,6 +64,29 @@ def load_from_disk() -> int:
             continue
     if n:
         log.info("prewarm_loaded", count=n)
+    return n
+
+
+def load_answer_bank() -> int:
+    """Fija el banco de respuestas de las 500 preguntas (solo las de firma vigente). Instantáneo.
+    Sirve para que esas preguntas (y sus variantes exactas) respondan al instante."""
+    if not _BANK.exists():
+        return 0
+    sig = _signature()
+    n = 0
+    for line in _BANK.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+            if rec.get("firma") != sig or "answer" not in rec:
+                continue
+            pipeline.pin_answer(rec["pregunta"], Answer.model_validate(rec["answer"]))
+            n += 1
+        except Exception:  # noqa: BLE001
+            continue
+    if n:
+        log.info("answer_bank_loaded", count=n)
     return n
 
 
