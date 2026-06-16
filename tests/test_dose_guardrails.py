@@ -10,9 +10,12 @@ from avorag.rag.guardrails import (
     decide_semaforo,
     dose_conflicts,
     dose_product_grounded,
+    fertilizer_dose_issues,
     ica_registro_ok,
     is_offlabel,
     recommends_pesticide,
+    resistance_reminder,
+    unsafe_framing,
 )
 from avorag.rag.schemas import Semaforo
 from avorag.retrieval.types import ScoredChunk
@@ -143,3 +146,78 @@ def test_semaforo_cat_i_rojo_cat_ii_amarillo() -> None:
     assert decide_semaforo(doses_ok=True, cat_tox={"I"}, faithfulness=0.9)[0] == Semaforo.ROJO
     assert decide_semaforo(doses_ok=True, cat_tox={"II"}, faithfulness=0.9)[0] == Semaforo.AMARILLO
     assert decide_semaforo(doses_ok=True, cat_tox={"III"}, faithfulness=0.9)[0] == Semaforo.VERDE
+
+
+# ── Marco peligroso (premisa adversaria sin i.a./dosis concretos) ───────────────────────────────
+
+
+def test_unsafe_framing_duplicar_dosis_sin_refutar() -> None:
+    # La trampa que se colaba en VERDE: "si duplico la dosis controlo mejor" y la respuesta no refuta.
+    q = "Si duplico la dosis del insecticida, ¿controlo mejor el trips del aguacate?"
+    bad = "Sí, al duplicar la dosis el efecto es mayor y controlas mejor la plaga [1]."
+    flagged, _ = unsafe_framing(q, bad)
+    assert flagged is True
+
+
+def test_unsafe_framing_se_levanta_si_la_respuesta_refuta() -> None:
+    # Respuesta correcta: NO debes duplicar; respeta la etiqueta. No debe marcarse (puede ir verde).
+    q = "Si duplico la dosis del insecticida, ¿controlo mejor el trips?"
+    good = (
+        "No, no dupliques la dosis: causa fitotoxicidad y resistencia, y arriesga el LMR. "
+        "Respeta la dosis de la etiqueta registrada [1]."
+    )
+    flagged, _ = unsafe_framing(q, good)
+    assert flagged is False
+
+
+def test_unsafe_framing_cualquier_producto_y_sin_carencia() -> None:
+    assert unsafe_framing("¿Cualquier insecticida sirve a 5 cc/L para el trips?", "Sí, sirve [1].")[0]
+    assert unsafe_framing("Dame un insecticida sin periodo de carencia", "Usa este producto [1].")[0]
+
+
+def test_unsafe_framing_pregunta_normal_no_marca() -> None:
+    # Sin premisa peligrosa -> nunca se marca.
+    assert unsafe_framing("¿Cuál es la dosis de abamectina para el trips?", "Aplica 2,5 cc/L [1].")[0] is False
+
+
+def test_semaforo_unsafe_framing_es_rojo() -> None:
+    s, r = decide_semaforo(doses_ok=True, cat_tox={"N/A"}, faithfulness=0.95, unsafe_framing=True)
+    assert s == Semaforo.ROJO
+    assert "premisa insegura" in r.lower()
+
+
+# ── Cordura de dosis de fertilizante (errores de magnitud) ──────────────────────────────────────
+
+
+def test_fertilizer_dose_issue_cero_de_mas() -> None:
+    # 1.500 kg/ha de N (un cero de más sobre 150) -> inverosímil.
+    issues = fertilizer_dose_issues("Aplica 1500 kg/ha de nitrógeno al aguacate Hass.")
+    assert issues and "magnitud" in issues[0].lower()
+
+
+def test_fertilizer_dose_normal_no_marca() -> None:
+    # Fertilización normal del Hass (150-300 kg/ha de N) NO se marca (umbral holgado).
+    assert fertilizer_dose_issues("Aplica 200 kg/ha de nitrógeno y 250 kg/ha de potasio.") == []
+
+
+def test_fertilizer_dose_por_arbol_inverosimil() -> None:
+    assert fertilizer_dose_issues("Echa 80 kg por árbol de urea.") != []
+
+
+def test_semaforo_fertilizer_unsafe_es_amarillo() -> None:
+    s, _ = decide_semaforo(
+        doses_ok=True, cat_tox={"N/A"}, faithfulness=0.95, fertilizer_unsafe=True
+    )
+    assert s == Semaforo.AMARILLO
+
+
+# ── Recordatorio anti-resistencia (IRAC/FRAC) ───────────────────────────────────────────────────
+
+
+def test_resistance_reminder_con_grupo() -> None:
+    rem = resistance_reminder("Aplica abamectina 2,5 cc/L para el trips.")
+    assert rem and "IRAC 6" in rem  # abamectina es IRAC 6
+
+
+def test_resistance_reminder_solo_si_recomienda_plaguicida() -> None:
+    assert resistance_reminder("Haz monitoreo con trampas adhesivas azules.") is None

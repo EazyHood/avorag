@@ -17,9 +17,13 @@ _UNSAFE = DoseSafety(safe=False, issues=["x"], cat_i_ii=False)
 _CATII = DoseSafety(safe=True, issues=[], cat_i_ii=True)
 
 
-def _is_red(*, banned, offlabel, doses_ok, phi_ok, registro_required, registro_ok, cat_tox, safety):
+def _is_red(
+    *, banned, offlabel, doses_ok, phi_ok, registro_required, registro_ok, cat_tox, safety,
+    unsafe_framing,
+):
     return (
         bool(banned)
+        or unsafe_framing
         or offlabel
         or (not doses_ok)
         or (registro_required and not registro_ok)
@@ -41,6 +45,8 @@ def test_failsafe_invariants_exhaustive() -> None:
         "registro_ok",
         "registro_required",
         "citation_ok",
+        "unsafe_framing",
+        "fertilizer_unsafe",
     ]
     cat_options = [{"N/A"}, {"I"}, {"II"}, {"III"}]
     safety_options = [None, _SAFE, _UNSAFE, _CATII]
@@ -73,6 +79,7 @@ def test_failsafe_invariants_exhaustive() -> None:
                 registro_ok=flags["registro_ok"],
                 cat_tox=cat_tox,
                 safety=safety,
+                unsafe_framing=flags["unsafe_framing"],
             )
             # Toda condición ROJO => ROJO.
             if red:
@@ -81,6 +88,7 @@ def test_failsafe_invariants_exhaustive() -> None:
             healthy = (
                 not red
                 and not (flags["safety_required"] and safety is None)
+                and not flags["fertilizer_unsafe"]
                 and "II" not in cat_tox
                 and flags["citation_ok"]
                 and not conflicts
