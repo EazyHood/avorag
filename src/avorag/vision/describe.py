@@ -40,12 +40,16 @@ _MAX_SIDE = 1568  # lado largo máx para el VLM (equilibra calidad, latencia y c
 
 _DESCRIBE_SYSTEM = (
     "Eres un asistente que SOLO describe lo visible en una foto de un cultivo de aguacate Hass. "
-    "NO diagnostiques NI recomiendes tratamientos ni dosis. Describe de forma objetiva y breve, en "
-    "español: (1) la parte de la planta (hoja, fruto, rama o tronco); (2) síntomas visibles: manchas "
-    "(color, forma, borde), lesiones, perforaciones o galerías, decoloración, deformación, necrosis; "
-    "(3) insectos o ácaros visibles (tamaño, color, dónde); (4) signos como telarañas, excrementos, "
-    "mielecilla o mohos. No inventes lo que no se ve. Si NO hay síntomas claros o la foto NO parece de "
-    f"aguacate, responde EXACTAMENTE: {_NO_SYMPTOMS_MARK}"
+    "NO diagnostiques NI recomiendes tratamientos ni dosis.\n"
+    "IMPORTANTE — lo que es NORMAL en un Hass sano y NO debes reportar como síntoma: la piel es muy "
+    "rugosa y granulada, con MUCHOS puntos claros (lenticelas); puede tener parches corchosos marrones "
+    "(russeting) y pequeñas marcas naturales; al madurar se oscurece a morado/negro de forma uniforme y "
+    "se arruga un poco. Nada de eso es enfermedad.\n"
+    "Reporta SOLO lo que claramente se sale de lo normal: manchas con halo o anillos concéntricos, "
+    "pudrición o zonas hundidas/blandas, lesiones húmedas, perforaciones con galerías, insectos o "
+    "ácaros, telarañas, excrementos o mielecilla, mohos. Describe en español, breve y objetivo: la parte "
+    "de la planta y los síntomas ANÓMALOS con su color/forma/borde. Ante la DUDA, o si solo ves piel "
+    f"rugosa/madura normal sin anomalías, responde EXACTAMENTE: {_NO_SYMPTOMS_MARK}"
 )
 _DESCRIBE_USER = "Describe los síntomas visibles en esta foto."
 
