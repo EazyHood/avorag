@@ -143,7 +143,8 @@ def test_archivos_destino_bien_formados_y_usables() -> None:
         market = data["mercado"]
         for it in items:
             assert it.get("ingrediente_activo") and it.get("estado") and it.get("motivo"), f"{f.name}: entrada incompleta"
-            assert it["estado"] in {"no_aprobado", "retirado", "prohibido"}, f"{f.name}: estado inválido {it['estado']}"
+            assert it["estado"] in {"no_aprobado", "retirado", "prohibido", "cancelado_epa", "sin_tolerancia"}, \
+                f"{f.name}: estado inválido {it['estado']}"
         # Round-trip: cada activo listado DEBE detectarse en un texto que lo menciona (la lista es usable).
         for it in items:
             ia = it["ingrediente_activo"]
