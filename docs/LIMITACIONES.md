@@ -4,6 +4,10 @@ Este documento existe para que un **decisor** (exportadora, agrónomo, comprador
 qué hace y qué NO hace** AvoRAG hoy, sin sorpresas. La honestidad es parte del producto: preferimos
 perder una venta a que alguien tome una decisión cara confiando de más.
 
+> Responde punto por punto a la [revisión crítica](REVISION_CRITICA_AGRONOMO_Y_DUENO.md) de dos
+> perfiles exigentes (ingeniero agrónomo de Hass de exportación + dueño de exportadora). Lo que era
+> arreglable se arregló (PRs #13–#16); lo estructural se documenta aquí en vez de esconderse.
+
 ## Qué es (y qué NO es)
 - **Es:** un *bibliotecario citador* + una *red de seguridad fitosanitaria determinista* + unas
   *calculadoras* agronómicas. Responde citando la fuente, se abstiene cuando no sabe, y bloquea en
