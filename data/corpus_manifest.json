@@ -1,6 +1,6 @@
 {
   "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
-  "corpus_version": "2026-06-15.3",
+  "corpus_version": "2026-06-16.1",
   "documents": [
     {
       "filename": "agrosavia_insectos_acaros.pdf",
@@ -217,6 +217,17 @@
       "download": "auto",
       "note": "Honduras (NO ICA). Útil para principios agronómicos, no para insumos registrados en Colombia.",
       "sha256": "521d57df51378cfa5ee05e05ba819474f5c0af65408b5b087aa5aefd3b0916e9"
+    }
+  ],
+  "_curated_comment": "Síntesis curadas (NO publicaciones oficiales) versionadas en el repo, para cerrar vacíos puntuales del corpus. Se ingieren aparte (no las toca build_corpus.py). Atribución honesta: 'Síntesis AvoRAG' con sus referencias reales citadas; solo descripción/manejo cultural, las dosis/registros los define el ICA.",
+  "curated_supplements": [
+    {
+      "path": "data/corpus_curado/sanidad_quiescente_sunblotch.md",
+      "fuente": "Sintesis AvoRAG (refs: UC IPM, PaDIL, Frontiers 2025) - antracnosis quiescente y sunblotch (ASBVd)",
+      "autoridad": "academico",
+      "licencia": "sintesis propia - referencias citadas",
+      "note": "Cierra 2 vacíos reales verificados en BD (antracnosis QUIESCENTE = 0 chunks; sunblotch/ASBVd = 0 chunks). Re-ingerir: avorag ingest data/corpus_curado/sanidad_quiescente_sunblotch.md --fuente '...' --autoridad academico --licencia 'sintesis propia - referencias citadas' --url https://ipm.ucanr.edu/agriculture/avocado/sunblotch/ --no-contextual",
+      "ingested_chunks": 4
     }
   ]
 }
