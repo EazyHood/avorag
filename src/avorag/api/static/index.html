@@ -265,6 +265,36 @@
     @keyframes droppop{from{transform:scale(.9); opacity:0} to{transform:scale(1); opacity:1}}
     @keyframes droppulse{0%,100%{border-color:var(--leaf)} 50%{border-color:var(--pulp-deep)}}
     @keyframes dropbounce{0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-13px) rotate(3deg)}}
+
+    /* ---- Calculadoras ---- */
+    .calc-trigger{font:inherit; font-size:.82rem; font-weight:600; border:1px solid var(--line);
+      background:var(--leaf); color:#fff; border-radius:var(--r-pill); padding:.35rem .8rem; cursor:pointer}
+    .calc-trigger:hover{filter:brightness(1.06)}
+    .calc-ov{position:fixed; inset:0; z-index:210; display:none; align-items:flex-start; justify-content:center;
+      padding:5vh 1rem; overflow:auto; background:rgba(42,92,57,.30); backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px); animation:dropfade .18s ease}
+    .calc-ov.show{display:flex}
+    .calc-card{width:min(560px,94vw); background:var(--paper); border:1px solid var(--line); border-radius:var(--r-l);
+      box-shadow:var(--shadow-l); padding:1.4rem 1.4rem 1.1rem; animation:droppop .24s cubic-bezier(.2,.9,.3,1.2)}
+    .calc-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.6rem}
+    .calc-head h2{font-family:var(--serif); font-size:1.3rem; color:var(--leaf-ink); margin:0}
+    .calc-x{border:none; background:transparent; font-size:1.5rem; cursor:pointer; color:var(--ink-3); line-height:1}
+    .calc-tabs{display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.9rem}
+    .calc-tab{font:inherit; font-size:.8rem; border:1px solid var(--line); background:transparent; color:var(--ink-2);
+      border-radius:var(--r-pill); padding:.3rem .7rem; cursor:pointer}
+    .calc-tab.on{background:var(--leaf); color:#fff; border-color:var(--leaf)}
+    .calc-pane{display:none} .calc-pane.on{display:block}
+    .calc-row{display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:.6rem}
+    .calc-f{flex:1 1 110px; display:flex; flex-direction:column; font-size:.78rem; color:var(--ink-2); gap:.22rem}
+    .calc-f input{font:inherit; font-size:.95rem; padding:.45rem .55rem; border:1px solid var(--line); border-radius:9px; background:#fff}
+    .calc-go{font:inherit; font-weight:600; background:var(--leaf); color:#fff; border:none; border-radius:var(--r-pill);
+      padding:.5rem 1.1rem; cursor:pointer; margin-top:.2rem}
+    .calc-out{margin-top:.85rem; font-size:.9rem; line-height:1.55; color:var(--ink)}
+    .calc-out .v{font-weight:700}
+    .calc-out .note{font-size:.8rem; color:var(--ink-3); margin-top:.45rem}
+    .calc-badge{display:inline-block; padding:.08rem .5rem; border-radius:var(--r-pill); font-size:.76rem; font-weight:700}
+    .b-ok{background:#dcefd8; color:#1f5b2e} .b-warn{background:#fdf0cf; color:#7a5a12} .b-bad{background:#f7d9d9; color:#8a2020}
+    .calc-help{font-size:.78rem; color:var(--ink-3); margin:-.2rem 0 .7rem}
   </style>
 </head>
 <body>
@@ -321,7 +351,10 @@
         <div class="brand-sub">Asesor de finca · aguacate Hass</div>
       </span>
     </a>
-    <span class="pill"><span class="ring"></span> en línea</span>
+    <div style="display:flex; align-items:center; gap:.6rem">
+      <button id="calcBtn" type="button" class="calc-trigger" title="Calculadoras agronómicas">🧮 Calculadoras</button>
+      <span class="pill"><span class="ring"></span> en línea</span>
+    </div>
   </header>
 
   <main>
@@ -666,6 +699,99 @@
       }
       send.disabled=false; nearBottom();
     }
+
+    /* ---- Calculadoras (cálculo determinista vía /api/calc/*) ---- */
+    document.addEventListener('DOMContentLoaded', function(){
+      const ov=document.getElementById('calcOv'); if(!ov) return;
+      const open=()=>{ov.classList.add('show'); ov.setAttribute('aria-hidden','false')};
+      const close=()=>{ov.classList.remove('show'); ov.setAttribute('aria-hidden','true')};
+      document.getElementById('calcBtn').onclick=open;
+      document.getElementById('calcClose').onclick=close;
+      ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
+      ov.querySelectorAll('.calc-tab').forEach(t=>t.onclick=()=>{
+        const p=t.dataset.pane;
+        ov.querySelectorAll('.calc-tab').forEach(x=>x.classList.toggle('on', x===t));
+        ov.querySelectorAll('.calc-pane').forEach(x=>x.classList.toggle('on', x.dataset.pane===p));
+      });
+      const num=id=>{ const v=document.getElementById(id).value; return v===''?null:parseFloat(v); };
+      const badge=e=>({'apto':'b-ok','óptimo':'b-ok','sin encalado':'b-ok','limítrofe':'b-warn','bajo':'b-warn','alto':'b-warn','por debajo':'b-bad'}[e]||'b-warn');
+      async function call(url, payload, outId, render){
+        const out=document.getElementById(outId); out.innerHTML='Calculando…';
+        try{
+          const r=await fetch(url,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+          const j=await r.json().catch(()=>null);
+          if(!r.ok){
+            const d=j&&j.detail, msg=typeof d==='string'?d:'Revisa que los campos requeridos estén completos.';
+            out.innerHTML=`<span class="calc-badge b-bad">Revisa los datos</span> ${esc(msg)}`; return;
+          }
+          out.innerHTML=render(j);
+        }catch(err){ out.innerHTML=`<span class="calc-badge b-bad">Error</span> ${esc(String(err.message||err))}`; }
+      }
+      ov.querySelectorAll('.calc-go').forEach(b=>b.onclick=()=>{
+        const k=b.dataset.calc;
+        if(k==='ms'){
+          call('/api/calc/materia-seca', {peso_fresco_g:num('ms_fresco'), peso_seco_g:num('ms_seco'), umbral_pct:num('ms_umbral')||23}, 'ms_out',
+            j=>`<div><span class="calc-badge ${badge(j.veredicto)}">${esc(j.veredicto)}</span> <span class="v">${j.materia_seca_pct}%</span> de materia seca (umbral ${j.umbral_pct}%)</div><div class="note">${esc(j.nota)}</div>`);
+        } else if(k==='cal'){
+          call('/api/calc/encalado', {al:num('c_al'), ca:num('c_ca'), mg:num('c_mg'), k:num('c_k'), psa_objetivo_pct:num('c_psa')||15, prnt_pct:num('c_prnt')||100}, 'cal_out',
+            j=>`<div>Saturación de Al: <span class="v">${j.saturacion_al_pct}%</span> · CICE ${j.cice_cmol_kg} cmol⁺/kg</div>`
+              +(j.requiere_encalado?`<div>Cal estimada: <span class="v">${j.cal_t_ha} t/ha</span> (requerimiento ${j.requerimiento_cmol_kg} cmol⁺/kg)</div>`:`<div><span class="calc-badge b-ok">sin encalado por Al</span></div>`)
+              +`<div class="note">${esc(j.nota)}${j.supuestos&&j.supuestos!=='—'?' '+esc(j.supuestos):''}</div>`);
+        } else {
+          call('/api/calc/relaciones-foliares', {n:num('f_n'), k:num('f_k'), ca:num('f_ca'), mg:num('f_mg')}, 'fol_out',
+            j=>Object.entries(j.relaciones).map(([r,v])=>`<div>${esc(r)}: <span class="v">${v.valor}</span> <span class="calc-badge ${badge(v.estado)}">${esc(v.estado)}</span> <span class="note" style="display:inline">(ref ${esc(v.banda_ref)})</span></div>`).join('')+`<div class="note">${esc(j.nota)}</div>`);
+        }
+      });
+    });
   </script>
+
+  <div id="calcOv" class="calc-ov" aria-hidden="true">
+    <div class="calc-card" role="dialog" aria-label="Calculadoras agronómicas">
+      <div class="calc-head"><h2>🧮 Calculadoras</h2><button class="calc-x" id="calcClose" aria-label="Cerrar">×</button></div>
+      <div class="calc-tabs">
+        <button class="calc-tab on" data-pane="ms">Materia seca</button>
+        <button class="calc-tab" data-pane="cal">Encalado (Al)</button>
+        <button class="calc-tab" data-pane="fol">Relaciones foliares</button>
+      </div>
+      <div class="calc-pane on" data-pane="ms">
+        <div class="calc-help">Corte de exportación por materia seca. Pesa pulpa fresca, sécala a peso constante y mete ambos pesos.</div>
+        <div class="calc-row">
+          <label class="calc-f">Peso fresco (g)<input id="ms_fresco" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Peso seco (g)<input id="ms_seco" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Umbral (%)<input id="ms_umbral" type="number" step="any" value="23" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="ms">Calcular</button>
+        <div class="calc-out" id="ms_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="cal">
+        <div class="calc-help">Requerimiento de cal por saturación de aluminio (cationes en cmol⁺/kg del análisis de suelo).</div>
+        <div class="calc-row">
+          <label class="calc-f">Al<input id="c_al" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Ca<input id="c_ca" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Mg<input id="c_mg" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">K<input id="c_k" type="number" step="any" min="0" inputmode="decimal"></label>
+        </div>
+        <div class="calc-row">
+          <label class="calc-f">Sat. Al objetivo (%)<input id="c_psa" type="number" step="any" value="15" inputmode="decimal"></label>
+          <label class="calc-f">PRNT de la cal (%)<input id="c_prnt" type="number" step="any" value="100" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="cal">Calcular</button>
+        <div class="calc-out" id="cal_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="fol">
+        <div class="calc-help">Relaciones foliares (macros en % de materia seca). Mete al menos dos.</div>
+        <div class="calc-row">
+          <label class="calc-f">N (%)<input id="f_n" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">K (%)<input id="f_k" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Ca (%)<input id="f_ca" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Mg (%)<input id="f_mg" type="number" step="any" min="0" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="fol">Calcular</button>
+        <div class="calc-out" id="fol_out"></div>
+      </div>
+      <div class="calc-help" style="margin-top:.9rem; border-top:1px solid var(--line); padding-top:.6rem">Cálculos orientativos; los umbrales y factores varían por mercado y laboratorio. Apoyo de decisión, no sustituye al agrónomo ni al análisis de tu laboratorio.</div>
+    </div>
+  </div>
 </body>
 </html>
