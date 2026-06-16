@@ -501,6 +501,17 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         citation_ok, citation_issues = True, []
         conflicts, warnings = [], []
 
+    # Autorización por país de DESTINO de exportación (EXPORT_MARKET): un activo no aprobado en el
+    # destino → ROJO (evita rechazo por LMR); un activo con LMR estricto → aviso. Apagado si no hay
+    # mercado configurado. Mira el DESTINO, complementario a 'banned' que mira el registro ICA local.
+    from avorag.rag import destino
+
+    destino_no_auth = destino.unauthorized_for_destination(question + "\n" + raw)
+    destino_lmr = destino.strict_lmr_for_destination(raw)
+    forbidden = banned + destino_no_auth
+    if destino_lmr:
+        warnings = [*warnings, *destino_lmr]
+
     # El juez de seguridad, la categoría toxicológica y el registro ICA SOLO aplican si la respuesta
     # recomienda un PLAGUICIDA QUÍMICO con dosis. Antes se disparaban con cualquier "aplicar" (incluido
     # control biológico/cultural) o por la metadata de un fragmento recuperado -> falsos ROJOS.
@@ -541,7 +552,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         judge_failed=judge_failed,
         safety=safety,
         safety_required=chem_pesticide,
-        banned=banned,
+        banned=forbidden,
         offlabel=offlabel,
         registro_ok=registro_ok,
         registro_required=registro_required and chem_pesticide,
@@ -556,15 +567,21 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     if not citation_ok and citation_issues:
         reason += f" (citas: {'; '.join(citation_issues)})"
 
-    if banned:
-        # Producto prohibido/restringido: la respuesta es la advertencia, directa y limpia. Se
-        # descarta el cuerpo del modelo (suele divagar) y el ruido de dosis/avisos (es irrelevante
-        # si no debe usarse).
+    if forbidden:
+        # Producto prohibido/restringido (ICA) o NO autorizado en el mercado de destino: la respuesta
+        # es la advertencia, directa y limpia. Se descarta el cuerpo del modelo (suele divagar) y el
+        # ruido de dosis/avisos (irrelevante si no debe usarse).
+        nombres = " ni ".join(s.split(" (")[0] for s in forbidden[:2])
+        destino_txt = (
+            f" No está autorizado en tu mercado de destino ({destino.market_name()})."
+            if destino_no_auth
+            else ""
+        )
         raw = (
-            f"⛔ No, no debes usar {' ni '.join(banned[:2])} en aguacate Hass de exportación.\n\n"
-            "Es un producto prohibido o restringido. Consulta con tu técnico alternativas "
-            "registradas y vigentes ante el ICA, y verifica el límite máximo de residuos (LMR) "
-            "del país de destino antes de cualquier aplicación."
+            f"⛔ No, no debes usar {nombres} en aguacate Hass de exportación.{destino_txt}\n\n"
+            "Es un producto prohibido/restringido o no autorizado en el destino. Consulta con tu "
+            "técnico alternativas registradas y vigentes ante el ICA, y verifica el límite máximo de "
+            "residuos (LMR) del país de destino antes de cualquier aplicación."
         )
         conflicts, warnings, citations, follow_ups = [], [], [], []
 

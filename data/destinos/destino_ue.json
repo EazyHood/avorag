@@ -1,0 +1,39 @@
+{
+  "mercado": "ue",
+  "nombre": "Unión Europea",
+  "actualizado": "2026-06-16",
+  "_AVISO": "Lista de MÍNIMOS VERIFICADOS, NO exhaustiva. Son 27 activos cuyo estado 'no aprobado' en la UE se verificó contra fuente primaria (EUR-Lex / EU Pesticides Database / sentencia del Tribunal). La EU Pesticides Database tiene CIENTOS de sustancias no aprobadas; esto cubre las relevantes/históricamente problemáticas para aguacate. La AUSENCIA de un activo aquí NO significa que esté autorizado. Tolerancia de residuo (LMR) ≠ uso autorizado. Revisar al menos anualmente (el estatus cambia). Fuente autoritativa: https://ec.europa.eu/food/plant/pesticides/eu-pesticides-database",
+  "no_autorizados": [
+    {"ingrediente_activo": "clorpirifos", "estado": "no_aprobado", "motivo": "Aprobación no renovada en la UE por neurotoxicidad del desarrollo en niños y genotoxicidad no descartable.", "fuente": "Reglamento de Ejecución (UE) 2020/18 — https://eur-lex.europa.eu/eli/reg_impl/2020/18/oj/eng"},
+    {"ingrediente_activo": "clorpirifos-metil", "estado": "no_aprobado", "motivo": "Aprobación no renovada por genotoxicidad no descartable, neurotoxicidad del desarrollo y posible toxicidad para la reproducción 1B.", "fuente": "Reglamento de Ejecución (UE) 2020/17 — https://eur-lex.europa.eu/eli/reg_impl/2020/17/oj/eng"},
+    {"ingrediente_activo": "metomilo", "estado": "no_aprobado", "motivo": "Aprobación expirada el 31 de agosto de 2019 sin solicitud de renovación; autorizaciones revocadas.", "fuente": "Reg. (CE) 1107/2009; expiración confirmada por Reg. (UE) 2023/1783"},
+    {"ingrediente_activo": "carbofurano", "estado": "prohibido", "motivo": "No incluido en el Anexo I por datos insuficientes sobre aguas subterráneas, metabolitos peligrosos y riesgo a consumidores.", "fuente": "Decisión 2007/416/CE — https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007D0416"},
+    {"ingrediente_activo": "dimetoato", "estado": "no_aprobado", "motivo": "Aprobación no renovada por genotoxicidad no descartable, metabolito ometoato mutagénico y riesgo a abejas/mamíferos.", "fuente": "Reglamento de Ejecución (UE) 2019/1090"},
+    {"ingrediente_activo": "endosulfan", "estado": "prohibido", "motivo": "No incluido en el Anexo I; contaminante orgánico persistente bajo el Convenio de Estocolmo.", "fuente": "Decisión 2005/864/CE"},
+    {"ingrediente_activo": "fenamifos", "estado": "no_aprobado", "motivo": "Nematicida; aprobación no renovada por riesgo agudo/crónico al consumidor y genotoxicidad incompleta de metabolitos.", "fuente": "Reglamento de Ejecución (UE) 2020/1246"},
+    {"ingrediente_activo": "fipronil", "estado": "no_aprobado", "motivo": "Uso FITOSANITARIO no aprobado (expiró 30-sep-2017); no aplica a su uso distinto como biocida.", "fuente": "Reg. (CE) 1107/2009; expiración en Reg. (UE) 2019/1792"},
+    {"ingrediente_activo": "aldicarb", "estado": "prohibido", "motivo": "No incluido en el Anexo I; carbamato altamente tóxico, en el Anexo III del Convenio de Rotterdam (PIC).", "fuente": "Decisión del Consejo 2003/199/CE"},
+    {"ingrediente_activo": "etoprofos", "estado": "no_aprobado", "motivo": "Nematicida; aprobación no renovada por genotoxicidad no resuelta y riesgo alto a aves y organismos del suelo.", "fuente": "Reglamento de Ejecución (UE) 2019/344"},
+    {"ingrediente_activo": "carbaril", "estado": "prohibido", "motivo": "No incluido en el Anexo I por posibles propiedades carcinógenas y riesgo a aves/acuáticos.", "fuente": "Decisión 2007/355/CE"},
+    {"ingrediente_activo": "metamidofos", "estado": "no_aprobado", "motivo": "Inclusión temporal (solo patata) caducada el 30-jun-2008 sin renovación; clasificado altamente peligroso por la OMS.", "fuente": "Reg. (CE) 1107/2009; antecedente Directiva 2006/131/CE"},
+    {"ingrediente_activo": "mancozeb", "estado": "no_aprobado", "motivo": "Aprobación no renovada por ser tóxico para la reproducción 1B y disruptor endocrino.", "fuente": "Reglamento de Ejecución (UE) 2020/2087 — https://eur-lex.europa.eu/eli/reg_impl/2020/2087/oj/eng"},
+    {"ingrediente_activo": "clorotalonil", "estado": "no_aprobado", "motivo": "Aprobación no renovada; carcinógeno 1B, genotoxicidad y contaminación de aguas subterráneas por metabolitos.", "fuente": "Reglamento de Ejecución (UE) 2019/677"},
+    {"ingrediente_activo": "carbendazim", "estado": "no_aprobado", "motivo": "Aprobación expirada el 30-nov-2014 sin renovación; mutágeno 1B y tóxico para la reproducción 1B.", "fuente": "Reg. (CE) 1107/2009 (PPDB Univ. Hertfordshire id 116)"},
+    {"ingrediente_activo": "tiofanato-metilo", "estado": "no_aprobado", "motivo": "Aprobación no renovada; solicitud retirada por el solicitante y lagunas de datos de la EFSA.", "fuente": "Reglamento de Ejecución (UE) 2020/1498"},
+    {"ingrediente_activo": "iprodiona", "estado": "no_aprobado", "motivo": "Aprobación no renovada; LMR rebajados al límite de cuantificación.", "fuente": "Reglamento de Ejecución (UE) 2017/2091"},
+    {"ingrediente_activo": "procimidona", "estado": "no_aprobado", "motivo": "Inclusión temporal/restringida caducada el 30-jun-2008 sin renovación; disruptor endocrino.", "fuente": "Reg. (CE) 1107/2009; antecedente Directiva 2006/132/CE"},
+    {"ingrediente_activo": "benomilo", "estado": "prohibido", "motivo": "No incluido en el Anexo I por mutagenicidad y efectos sobre la reproducción.", "fuente": "Decisión 2002/928/CE"},
+    {"ingrediente_activo": "paraquat", "estado": "prohibido", "motivo": "Directiva de inclusión 2003/112/CE anulada por el Tribunal; riesgo inaceptable al operario y posible vínculo con Parkinson.", "fuente": "Sentencia T-229/04 — https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:62004TJ0229"},
+    {"ingrediente_activo": "diuron", "estado": "no_aprobado", "motivo": "Aprobación expirada el 30-sep-2020 sin renovación; autorizaciones revocadas.", "fuente": "Reg. (UE) 2023/1783; Reg. (CE) 1107/2009"},
+    {"ingrediente_activo": "atrazina", "estado": "prohibido", "motivo": "No incluida en el Anexo I por contaminación de aguas subterráneas por encima de 0,1 µg/l.", "fuente": "Decisión 2004/248/CE"},
+    {"ingrediente_activo": "simazina", "estado": "prohibido", "motivo": "No incluida en el Anexo I por contaminación de aguas subterráneas por encima de 0,1 µg/l.", "fuente": "Decisión 2004/247/CE"},
+    {"ingrediente_activo": "alacloro", "estado": "prohibido", "motivo": "No incluido en el Anexo I por posible riesgo carcinógeno y contaminación de aguas subterráneas.", "fuente": "Decisión 2006/966/CE"},
+    {"ingrediente_activo": "acetocloro", "estado": "no_aprobado", "motivo": "No aprobado; genotoxicidad no descartable de metabolito, riesgo a aguas y organismos acuáticos.", "fuente": "Reglamento de Ejecución (UE) 1372/2011"},
+    {"ingrediente_activo": "s-metolacloro", "estado": "no_aprobado", "motivo": "Aprobación no renovada por contaminación de aguas subterráneas por metabolitos y riesgo a mamíferos.", "fuente": "Reglamento de Ejecución (UE) 2024/20"},
+    {"ingrediente_activo": "glufosinato-amonio", "estado": "no_aprobado", "motivo": "Aprobación expirada el 31-jul-2018, solicitud de renovación retirada; tóxico para la reproducción 1B.", "fuente": "Reg. (CE) 1107/2009 y Reg. (UE) 540/2011"},
+    {"ingrediente_activo": "cadusafos", "estado": "prohibido", "motivo": "Nematicida; no incluido en el Anexo I por riesgo a consumidores y aguas subterráneas.", "fuente": "Decisión 2007/428/CE"}
+  ],
+  "lmr_estricto": [
+    {"ingrediente_activo": "imidacloprid", "nota": "Aprobado pero con uso al aire libre muy restringido en la UE (neonicotinoide) y LMR bajos. Verificar el LMR vigente del destino antes de aplicar.", "fuente": "Restricciones UE a neonicotinoides"}
+  ]
+}
