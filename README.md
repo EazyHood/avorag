@@ -48,6 +48,23 @@ tratadas como plaguicida) y guió la **ampliación del corpus** con 8 fuentes of
 > el default interactivo es **3B (~7–22 s)**, que con el mismo corpus sigue citando y aplicando los
 > guardarraíles. Para máxima calidad puntual se cambia `LLM_MODEL` a 7B (`.env`).
 
+## 📷 Visión: diagnóstico de madurez por foto (multimodal)
+El productor sube una **foto** del fruto → un clasificador (MobileNetV3, licencia permisiva BSD —
+**sin YOLO/AGPL**) identifica la **etapa de madurez** → la etiqueta entra al motor RAG, que responde
+**citando la fuente** con su semáforo. La visión **solo identifica; nunca aconseja dosis por sí sola**.
+
+| Métrica (held-out: 71 frutos NO vistos · n=2.304) | Valor |
+|:--|:--:|
+| Exacto (5 etapas) | **82%** |
+| **Dentro de ±1 etapa** | **99.4%** |
+| Calibración (confianza acierto vs fallo) | 0.82 vs 0.69 |
+
+La UI muestra una **banda ±1** ("etapa 3–4: maduro → óptimo") en vez de forzar 1 de 5 — honesto con la
+incertidumbre real (las etapas oscuras son visualmente continuas). **Honestidad:** madurez entrenable
+hoy (dataset Mendeley **CC BY 4.0**); patología es un slot **preparado** (sin dataset limpio aún). El
+color indica *maduración*; el punto de corte de **exportación se decide por materia seca, no por
+color**. Detalle: [`docs/VISION.md`](docs/VISION.md).
+
 ## 🎯 Qué demuestra
 RAG con **prácticas de producción** (recuperación híbrida + reranking + evaluación con gate,
 guardarraíles, auditoría, observabilidad), **criterio de producto** (guardarraíl de dosis
@@ -143,6 +160,8 @@ extracción de páginas) y respeta `data/corpus_manifest.json` (fuentes, URLs y 
 - [`docs/SOURCES.md`](docs/SOURCES.md) — corpus: fuentes legales y su licencia.
 - [`docs/SECURITY.md`](docs/SECURITY.md) — datos, secretos, Habeas Data.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — operación, backups, rollback.
+- [`docs/VISION.md`](docs/VISION.md) — módulo de visión (foto → madurez → RAG): arquitectura, licencias y resultados honestos.
+- [`docs/TERMINOS_DE_USO.md`](docs/TERMINOS_DE_USO.md) — términos de uso y aviso legal (borrador para revisión de un abogado).
 - [`docs/DEUDA_TECNICA.md`](docs/DEUDA_TECNICA.md) — corregido en v0.1 + diferidos a Ruta 🅱️.
 
 La evaluación genera un **dashboard HTML** en `eval/reports/report.html` (captúralo para el portafolio).
