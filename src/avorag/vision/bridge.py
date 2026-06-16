@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from avorag.vision.labels import question_for
 from avorag.vision.registry import get_vision_classifier
-from avorag.vision.schemas import VisionDiagnosis, VisionResult
+from avorag.vision.schemas import HealthDiagnosis, VisionDiagnosis, VisionResult
 
 
 def classify_image(image: bytes, *, top_k: int = 3) -> VisionResult:
@@ -66,3 +66,29 @@ def diagnose(
         region=region,
     )
     return VisionDiagnosis(vision=result, answer=ans.model_dump())
+
+
+def diagnose_health(
+    image: bytes,
+    *,
+    tenant: str | None = None,
+    country: str | None = None,
+    soil_type: str | None = None,
+    region: str | None = None,
+    run_rag: bool = True,
+) -> HealthDiagnosis:
+    """Describe los síntomas de la foto con un VLM y, si hay algo, obtiene del RAG los candidatos de
+    plaga/enfermedad y su manejo CITANDO la fuente. La visión SOLO describe; el RAG diagnostica."""
+    from avorag.vision.describe import build_health_query
+    from avorag.vision.registry import get_vision_describer
+
+    report = get_vision_describer().describe(image)
+    query = build_health_query(report)
+    report.suggested_query = query
+    if not run_rag or query is None:
+        return HealthDiagnosis(report=report, answer=None)
+
+    from avorag.rag import answer  # import perezoso (no acoplar avorag.db al importar visión)
+
+    ans = answer(query, tenant=tenant, country=country, soil_type=soil_type, region=region)
+    return HealthDiagnosis(report=report, answer=ans.model_dump())

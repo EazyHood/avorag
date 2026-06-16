@@ -29,11 +29,21 @@ from avorag.vision.schemas import VisionKind, VisionPrediction, VisionResult
 
 log = get_logger(__name__)
 
+# Soporte HEIC/HEIF (formato por defecto de fotos de iPhone). Si pillow-heif está instalado, registra
+# el decodificador en Pillow; si no, los HEIC caen a un 422 claro (no rompe el arranque).
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+    _HEIC_OK = True
+except Exception:  # noqa: BLE001 — soporte opcional (extra 'vision')
+    _HEIC_OK = False
+
 # Normalización por defecto (ImageNet); el labels.json puede sobreescribirla.
 _DEFAULT_MEAN = (0.485, 0.456, 0.406)
 _DEFAULT_STD = (0.229, 0.224, 0.225)
 _DEFAULT_SIZE = 224
-_MAX_IMAGE_PIXELS = 24_000_000  # ~24 MP: tope anti bomba de descompresión (imagen pequeña → GBs en RAM)
+_MAX_IMAGE_PIXELS = 60_000_000  # ~60 MP: cubre fotos de móvil (48-50 MP); PIL lanza DecompressionBombError por encima de 2× (anti-bomba)
 
 
 # ----------------------------- helpers compartidos -----------------------------
@@ -64,19 +74,27 @@ def _softmax(logits: np.ndarray) -> np.ndarray:
 
 
 def _preprocess_np(image: bytes, size: int, mean: Any, std: Any) -> np.ndarray:
-    """bytes de imagen → tensor NCHW float32 normalizado (PIL + numpy)."""
-    from PIL import Image, UnidentifiedImageError
+    """bytes de imagen → tensor NCHW float32 normalizado, robusto a fotos reales: cualquier formato
+    (incl. HEIC si pillow-heif está), corrige la orientación EXIF (móviles) y aplana transparencia."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
 
-    Image.MAX_IMAGE_PIXELS = _MAX_IMAGE_PIXELS  # defensa en profundidad (PIL lanza si se excede)
+    Image.MAX_IMAGE_PIXELS = _MAX_IMAGE_PIXELS  # PIL lanza DecompressionBombError por encima de 2×
     try:
         img: Image.Image = Image.open(io.BytesIO(image))
-        if img.size[0] * img.size[1] > _MAX_IMAGE_PIXELS:  # chequeo por cabecera, ANTES de decodificar
-            raise ValueError(
-                f"imagen demasiado grande ({img.size[0]}x{img.size[1]} px; máx {_MAX_IMAGE_PIXELS} px)"
-            )
+        img = ImageOps.exif_transpose(img)  # endereza fotos de móvil giradas (orientación EXIF)
+    except Image.DecompressionBombError as e:
+        raise ValueError("la imagen es demasiado grande; redúcela antes de subirla") from e
+    except UnidentifiedImageError as e:
+        hint = "" if _HEIC_OK else " Si es una foto HEIC de iPhone, conviértela a JPG."
+        raise ValueError(f"no reconozco el formato de esta imagen (usa JPG, PNG o WebP).{hint}") from e
+    except OSError as e:
+        raise ValueError("el archivo de imagen está incompleto o dañado; vuelve a subirlo") from e
+    if img.mode in ("RGBA", "LA", "P"):  # aplana transparencia sobre blanco (evita fondo negro)
+        img = Image.alpha_composite(
+            Image.new("RGBA", img.size, (255, 255, 255, 255)), img.convert("RGBA")
+        ).convert("RGB")
+    else:
         img = img.convert("RGB")
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
-        raise ValueError("no pude leer la imagen (¿archivo dañado o no es una imagen válida?)") from e
     w, h = img.size
     scale = size / min(w, h)  # resize lado corto + center-crop cuadrado
     img = img.resize((max(1, round(w * scale)), max(1, round(h * scale))))

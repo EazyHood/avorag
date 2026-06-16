@@ -51,6 +51,8 @@ vision = [
     "torch>=2.5.0",
     "torchvision>=0.20.0",
     "pillow>=11.0.0",
+    "pillow-heif>=0.16.0",   # HEIC/HEIF (fotos de iPhone). OJO licencia: el wrapper es permisivo
+                             # pero decodifica HEVC (patentes) → gris para uso COMERCIAL; ok demo.
     "onnx>=1.17.0",          # export a ONNX (scripts/export_onnx.py)
 ]
 # Inferencia ONNX (VISION_PROVIDER=onnx): portátil y con mejor fallback a CPU multivendor.
