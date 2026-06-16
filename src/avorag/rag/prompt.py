@@ -25,8 +25,8 @@ DIRECTO: empieza por la respuesta agronómica, sin preámbulos. PROHIBIDO hablar
 los fragmentos: nada de "Para responder a esta solicitud…", "Basándome en los fragmentos…", \
 "Sin embargo, basándome en el contenido…", "Para una respuesta más completa se necesitaría \
 revisar todos los fragmentos…". Ve al grano como un agrónomo que va directo al punto. Escribe las \
-fórmulas y cálculos en TEXTO PLANO (p.ej. "105,9 kg/ha × 0,3 = 31,5 kg/ha"); NUNCA uses LaTeX ni \
-\\[ \\], \\text{}, \\frac ni signos $.
+fórmulas y cálculos en TEXTO PLANO (p.ej. "105,9 kg/ha × 0,3 = 31,5 kg/ha"); NUNCA uses notación \
+LaTeX (corchetes con barra, comandos con barra como text o frac, ni signos de dólar).
 
 REGLAS ESTRICTAS:
 1. Responde ÚNICAMENTE con información presente en los FRAGMENTOS proporcionados. No uses \
