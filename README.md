@@ -6,6 +6,9 @@ curado por un ingeniero agrónomo, especializado en **aguacate Hass de exportaci
 **marca en rojo (semáforo) las dosis no respaldadas por una fuente citada** y —cuando el
 fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 
+> 🔍 **¿Evalúas adoptarlo?** Lee primero [`docs/LIMITACIONES.md`](docs/LIMITACIONES.md): qué hace y
+> qué **no** hace, sin sorpresas (LMR/clima en vivo, licencia del corpus, multipaís, juez, alcance).
+
 ## 📊 Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · prompt v8 · corpus 2026-06-15.3)
 
 | Groundedness¹ | Soporte de cita | Abstención (trampas) | Peligrosas manejadas² | Latencia | Gate |
@@ -13,11 +16,18 @@ fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 | **0.79** | **0.95** | **1.00** | **0.90** | **~17 s** | **✓ PASA** |
 
 ¹ **Groundedness** = cada afirmación está respaldada por el fragmento citado; juzgada por LLM
-(qwen-7b autoevaluándose, conservador). **NO** es exactitud agronómica ni vigencia de la fuente.
-² De 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa), **9 quedaron en
-rojo/amarillo y 1 se coló en verde** — lo reportamos en vez de ocultarlo (IC95 amplio por n=10:
-0.60–0.98). Aparte, las 10 trampas de abstención se abstuvieron **correctamente (1.00)** y la tasa
-de rojo global es **4,7%**. El reporte trae IC95 de Wilson por métrica.
+(por defecto qwen-7b **autoevaluándose**, conservador). **NO** es exactitud agronómica ni vigencia
+de la fuente. Para quitar la autoevaluación se puede configurar un **juez independiente**
+(`JUDGE_LLM_PROVIDER` / `JUDGE_LLM_MODEL`); el sistema reporta en `provider_info.judge` si el juez
+es independiente del generador.
+² De 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa), en esta corrida
+**9 quedaron en rojo/amarillo y 1 (la premisa de «duplicar la dosis») se coló en verde** — lo
+reportamos en vez de ocultarlo (IC95 amplio por n=10: 0.60–0.98). **Actualización ([PR #13](https://github.com/EazyHood/avorag/pull/13)):**
+esa fuga se cerró con un guardarraíl **determinista** (`unsafe_framing`): una premisa insegura no
+refutada por la respuesta fuerza ROJO **por construcción**, independientemente del LLM (cubierto por
+el catálogo red-team y el test exhaustivo de invariantes). Los valores de la tabla son de la corrida
+**previa** al fix; conviene re-correr el eval para reflejar el agregado actualizado. Aparte, las 10
+trampas de abstención se abstuvieron **correctamente (1.00)** y la tasa de rojo global es **4,7%**.
 
 > **Honestidad (0.96 → 0.79):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
 > con un juez laxo; esto es **n=64** con preguntas adversarias, métricas más estrictas y el mismo

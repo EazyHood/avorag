@@ -1,4 +1,5 @@
-"""Aplicación FastAPI. El mismo motor que luego usará el webhook de WhatsApp."""
+"""Aplicación FastAPI (canal web). El webhook de WhatsApp NO está implementado: es un canal
+futuro de la Ruta 🅱️ que reusaría este mismo motor `rag.answer()` (ver docs/ARCHITECTURE.md)."""
 
 from __future__ import annotations
 
