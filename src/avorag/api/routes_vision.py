@@ -16,15 +16,16 @@ from avorag.vision.registry import get_vision_classifier
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
 
-_ALLOWED = ("image/jpeg", "image/png", "image/webp")
+# Acepta cualquier imagen (image/*): PIL decodifica JPG/PNG/WebP/BMP/GIF/TIFF…; un formato no
+# legible cae a 422 limpio (manejado en classifier._preprocess_np).
 
 
 async def _read_image(file: UploadFile) -> bytes:
     s = get_settings()
-    if file.content_type not in _ALLOWED:
+    if not (file.content_type or "").startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Formato no soportado ({file.content_type}). Usa JPEG, PNG o WebP.",
+            detail=f"Sube una imagen (recibí '{file.content_type}'): JPG, PNG, WebP, etc.",
         )
     # Lee como máximo el límite + 1 byte: NUNCA bufferiza un cuerpo enorme en memoria.
     data = await file.read(s.vision_image_max_bytes + 1)
