@@ -37,11 +37,15 @@ data/vision/**
 # PDFs sueltos en la raíz (corpus mal ubicado): nunca versionar
 /*.pdf
 
-# --- IDE / SO ---
+# --- IDE / SO / herramientas locales ---
 .idea/
 .vscode/
+.claude/
 .DS_Store
 Thumbs.db
+
+# --- Scratch local (logs/PIDs de corridas, PDFs descargados para pruebas) ---
+_verif/
 
 # --- Modelos locales descargados ---
 models/
