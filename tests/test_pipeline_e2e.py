@@ -181,6 +181,16 @@ def test_cat_tox_no_fuerza_rojo_si_no_hay_plaguicida(monkeypatch) -> None:
     assert ans.semaforo.value != "rojo"
 
 
+def test_targeted_quote_limpia_ruido() -> None:
+    # Quita sintaxis de tabla, números de página sueltos y une cortes de línea del PDF.
+    q1 = P._targeted_quote("|Elemento|0-15<br>cm| |---|---| |pH|5,33|Fuertemente<br>ácido|")
+    assert "|" not in q1 and "<br>" not in q1 and "---" not in q1
+    q2 = P._targeted_quote("32 32 32 En este escenario la fertilización es clave para el suelo del Hass.")
+    assert q2.startswith("En este escenario")
+    q3 = P._targeted_quote("La interpre- tación del análisis foliar del aguacate Hass es importante.")
+    assert "interpretación" in q3.lower()
+
+
 def test_generation_problem_detecta_fallos() -> None:
     assert P._generation_problem("PREGUNTA DEL PRODUCTOR:\n¿algo?\n\nFRAGMENTOS:\n[1]") == "eco"
     assert P._generation_problem("[6] 根据计算，施用钾肥。") == "idioma"

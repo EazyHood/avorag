@@ -147,7 +147,7 @@
     .cite .quote{display:block; margin-top:5px; font-style:italic; color:var(--ink-2); font-size:13px;
       border-left:2px solid var(--pulp-deep); padding-left:9px}
     .auth{display:inline-flex; align-items:center; font-size:10.5px; font-weight:600; letter-spacing:.02em;
-      color:var(--seed); background:var(--seed-soft); border-radius:6px; padding:1px 7px; margin-left:4px; text-transform:capitalize}
+      color:var(--seed); background:var(--seed-soft); border-radius:6px; padding:1px 7px; margin-left:4px}
 
     /* ---- contextos ---- */
     details.ctx{margin-top:14px}
@@ -439,7 +439,8 @@
           let link='';
           if (c.doi) link = ` · <a href="https://doi.org/${esc(c.doi)}" target="_blank" rel="noopener">doi:${esc(c.doi)}</a>`;
           else if (c.url) link = ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">ver fuente</a>`;
-          const auth = c.nivel_autoridad ? `<span class="auth">${esc(c.nivel_autoridad)}</span>` : '';
+          const authMap = {'oficial-regulador':'Oficial ICA','academico':'Académico','gremio':'Gremio','internacional':'Internacional'};
+          const auth = c.nivel_autoridad ? `<span class="auth">${esc(authMap[c.nivel_autoridad]||c.nivel_autoridad)}</span>` : '';
           const quote = c.quote ? `<span class="quote">“${esc(c.quote)}”</span>` : '';
           h += `<div class="cite"><span class="num">${i+1}</span><span class="src">${esc(c.fuente)}</span>${pag} ${auth}${link}${quote}</div>`;
         });

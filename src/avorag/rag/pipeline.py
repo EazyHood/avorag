@@ -156,17 +156,44 @@ _FIRST_DOSE_RE = re.compile(
 )
 
 
+_QUOTE_NOISE = re.compile(r"<br\s*/?>|\|", re.IGNORECASE)  # etiquetas y barras de tabla markdown
+_QUOTE_SEP = re.compile(r"[-:]{3,}")  # separadores de tabla |---|
+_QUOTE_FUENTE = re.compile(r"Fuente:\s*Elaboraci[oó]n propia\.?", re.IGNORECASE)
+_QUOTE_LEADING_NUM = re.compile(r"^(?:\d{1,4}\b[\s.]*)+")  # números de página repetidos al inicio
+_QUOTE_MULTISPACE = re.compile(r"\s+")
+
+
+def _clean_for_quote(content: str) -> str:
+    """Limpia el fragmento crudo para una cita legible: quita sintaxis de tabla (|, <br>, ---),
+    el ruido de 'Fuente: Elaboración propia', los números de página sueltos y colapsa espacios."""
+    t = _QUOTE_NOISE.sub(" ", content)
+    t = _QUOTE_SEP.sub(" ", t)
+    t = _QUOTE_FUENTE.sub(" ", t)
+    t = re.sub(r"([a-záéíóúñ])-\s+([a-záéíóúñ])", r"\1\2", t, flags=re.IGNORECASE)  # une corte de línea
+    t = _QUOTE_MULTISPACE.sub(" ", t).strip()
+    t = _QUOTE_LEADING_NUM.sub("", t).strip()
+    return t
+
+
 def _targeted_quote(content: str) -> str:
-    """Cita centrada en la primera dosis del fragmento; si no hay dosis, usa el inicio."""
-    m = _FIRST_DOSE_RE.search(content)
+    """Cita legible centrada en la primera dosis del fragmento; si no hay dosis, usa el inicio.
+    Recorta a límites de palabra y limpia la sintaxis de tabla/ruido del chunk."""
+    text = _clean_for_quote(content)
+    if not text:
+        return ""
+    m = _FIRST_DOSE_RE.search(text)
     if m:
         start = max(0, m.start() - _QUOTE_RADIUS)
-        end = min(len(content), m.end() + _QUOTE_RADIUS)
-        snippet = content[start:end].strip()
-        prefix = "…" if start > 0 else ""
-        suffix = "…" if end < len(content) else ""
-        return f"{prefix}{snippet}{suffix}"
-    return (content[:200] + "…") if len(content) > 200 else content
+        end = min(len(text), m.end() + _QUOTE_RADIUS)
+        if start > 0:  # no cortar a media palabra
+            start = text.find(" ", start - 1) + 1 or start
+        if end < len(text):
+            cut = text.rfind(" ", m.end(), end)
+            end = cut if cut > m.end() else end
+        snippet = text[start:end].strip()
+        return f"{'…' if start > 0 else ''}{snippet}{'…' if end < len(text) else ''}"
+    snippet = text[:200].rsplit(" ", 1)[0] if len(text) > 200 else text
+    return snippet + ("…" if len(text) > 200 else "")
 
 
 _FOLLOWUP_RE = re.compile(r"\n?\s*SEGUIMIENTO\s*:\s*", re.IGNORECASE)
