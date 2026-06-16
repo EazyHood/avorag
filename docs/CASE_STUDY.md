@@ -42,26 +42,27 @@ licensed professional. That's my contribution as an agronomist, and the product'
 Providers swappable by config (free local via Ollama, or Claude for the sales demo). Details
 in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Results (real run · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus_version 2026-06-14)
+## Results (real run · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · prompt v8 · corpus_version 2026-06-15.3)
 <!-- Paste a screenshot of eval/reports/report.html here -->
 | Metric | Value (Wilson 95% CI) | What it measures (and what it does NOT) |
 |---|---|---|
-| **Groundedness** | **0.73** | Each claim is backed by the cited chunk. **NOT** agronomic accuracy nor currency. LLM judge (qwen-7b grading itself, conservative). |
-| Citation support | **0.89** (0.76–0.95) | The cited figure `[n]` is actually in chunk `n` (deterministic). |
-| Answers with a citation | **0.73** (0.58–0.84) | **Presence** of a citation; non-citing answers drop to amber. |
-| Correct abstention (traps) | **0.90** (0.60–0.98) | 9/10 traps abstained. |
-| Dangerous questions handled | **1.00** | All 10 adversarial questions (mixtures, banned, phytotox, dose-traps) ended amber/red, **none green**. |
-| Answer rate (real questions) | **0.81** | 44/54; 10 honest abstentions. |
-| Latency | **35 s** (`RERANK_PROVIDER=local`, CPU) · **<50 ms** repeated (cache) | Factory default is `none`; GPU brings it to seconds. |
+| **Groundedness** | **0.79** | Each claim is backed by the cited chunk. **NOT** agronomic accuracy nor currency. LLM judge (qwen-7b grading itself, conservative). |
+| Citation support | **0.95** (0.84–0.99) | The cited figure `[n]` is actually in chunk `n` (deterministic). |
+| Answers with a citation | **0.93** (0.81–0.98) | **Presence** of a citation; non-citing answers drop to amber. |
+| Correct abstention (traps) | **1.00** (0.72–1.0) | All 10 abstention traps abstained correctly. |
+| Dangerous questions handled | **0.90** (0.60–0.98) | Of 10 adversarial questions (mixtures, banned, phytotox, dose-traps), **9 ended amber/red and 1 slipped to green** — reported, not hidden (wide CI, n=10). |
+| Answer rate (real questions) | **0.76** (0.63–0.85) | 41/54; 13 honest abstentions. |
+| Latency | **~17 s** (`RERANK_PROVIDER=local`, GPU) · **<50 ms** repeated (cache) | Factory default is `none`; on CPU the reranker adds ~12 s. |
 
-**Gate: ✓ PASS** (no-regression floor calibrated on this run).
+**Gate: ✓ PASS** (no-regression floor; this run passes on prompt v8 + the expanded corpus). Overall red rate 4.7%.
 
-> **Honesty about the 0.96 → 0.73 drop:** not a regression, it's honesty. The v1 figure was
+> **Honesty about the 0.96 → 0.79 figure:** not a regression, it's honesty. The v1 figure was
 > groundedness on **16 easy questions** with a laxer judge; this is **n=64** with hard adversarial
 > questions (mixtures, banned products, phytotoxicity), **stricter metrics**, and the same
-> **qwen-7b grading itself** (conservative). A stronger generator/judge (Claude) + human validation
-> raise it; **targets** are ~0.85. Sample n=64 is still moderate (wide CIs on the n=10 trap/danger
-> buckets). For a commercial claim: **≥200** curated questions + a second human evaluator.
+> **qwen-7b grading itself** (conservative). It rose from a prior 0.73 once we moved to **prompt v8 +
+> the expanded corpus**. A stronger generator/judge (Claude) + human validation raise it further;
+> **targets** are ~0.85. Sample n=64 is still moderate (wide CIs on the n=10 trap/danger buckets).
+> For a commercial claim: **≥200** curated questions + a second human evaluator.
 
 ## Scale simulation (500 questions) and the right metric
 500 questions (pests, fertility/soils, physiology, inputs, other) were generated and run through the

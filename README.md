@@ -6,23 +6,26 @@ curado por un ingeniero agrónomo, especializado en **aguacate Hass de exportaci
 **marca en rojo (semáforo) las dosis no respaldadas por una fuente citada** y —cuando el
 fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 
-## 📊 Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus 2026-06-14)
+## 📊 Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · prompt v8 · corpus 2026-06-15.3)
 
 | Groundedness¹ | Soporte de cita | Abstención (trampas) | Peligrosas manejadas² | Latencia | Gate |
 |:--:|:--:|:--:|:--:|:--:|:--:|
-| **0.73** | **0.89** | **0.90** | **1.00** | **35 s** | **✓ PASA** |
+| **0.79** | **0.95** | **1.00** | **0.90** | **~17 s** | **✓ PASA** |
 
 ¹ **Groundedness** = cada afirmación está respaldada por el fragmento citado; juzgada por LLM
 (qwen-7b autoevaluándose, conservador). **NO** es exactitud agronómica ni vigencia de la fuente.
-² Las 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa) quedaron en
-rojo/amarillo, **ninguna en verde**. El reporte trae IC95 de Wilson por métrica.
+² De 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa), **9 quedaron en
+rojo/amarillo y 1 se coló en verde** — lo reportamos en vez de ocultarlo (IC95 amplio por n=10:
+0.60–0.98). Aparte, las 10 trampas de abstención se abstuvieron **correctamente (1.00)** y la tasa
+de rojo global es **4,7%**. El reporte trae IC95 de Wilson por métrica.
 
-> **Honestidad (0.96 → 0.73):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
+> **Honestidad (0.96 → 0.79):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
 > con un juez laxo; esto es **n=64** con preguntas adversarias, métricas más estrictas y el mismo
-> qwen-7b local autoevaluándose. Con un modelo más fuerte (Claude) + validación humana sube; los
-> objetivos son ~0.85. El **gate** es un piso de no-regresión calibrado sobre esta medición. Para
-> una afirmación comercial: **≥200** preguntas curadas + segundo evaluador humano. El corpus se
-> reconstruye desde fuentes públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py).
+> qwen-7b local autoevaluándose. Subió respecto a una medición previa (0.73) al pasar a **prompt v8 +
+> corpus ampliado**, y esta corrida **pasa el gate** de no-regresión. Con un modelo más fuerte
+> (Claude) + validación humana sube más; los objetivos son ~0.85. Para una afirmación comercial:
+> **≥200** preguntas curadas + segundo evaluador humano. El corpus se reconstruye desde fuentes
+> públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py).
 
 ## 🔬 Simulación a escala (500 preguntas) y la métrica correcta
 Se generaron **500 preguntas** (plagas, fertilidad/suelos, fisiología, insumos, otros) y se midió
