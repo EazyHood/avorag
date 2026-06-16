@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from avorag import __version__
 from avorag.api.routes_chat import router as chat_router
 from avorag.api.routes_health import router as health_router
+from avorag.api.routes_vision import router as vision_router
 from avorag.config import get_settings
 from avorag.logging import configure_logging, get_logger
 
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(chat_router)
+    app.include_router(vision_router)
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)

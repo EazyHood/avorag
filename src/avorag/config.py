@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     dose_guardrail: bool = True
     country: str = "CO"  # CO | ES
 
+    # --- Visión (identificación por foto: madurez/patología) ---
+    # El módulo de visión SOLO identifica; el RAG aconseja con sus guardarraíles. Ver docs/VISION.md.
+    vision_provider: str = "none"  # none | fake | local (TorchScript) | onnx (onnxruntime)
+    vision_model_path: str = "models/vision/model.pt"  # .pt (extra 'vision') o .onnx (extra 'vision-onnx')
+    vision_labels_path: str = ""  # vacío = labels.json junto al modelo
+    vision_device: str = "auto"  # auto | cpu | cuda
+    vision_min_confidence: float = 0.55  # bajo esto → requires_review (pedir mejor foto)
+    vision_image_max_bytes: int = 8_000_000  # 8 MB
+
     # --- API ---
     api_host: str = "127.0.0.1"
     api_port: int = 8000

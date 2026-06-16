@@ -43,6 +43,23 @@ local = [
     "sentence-transformers>=3.3.0",
     "torch>=2.5.0",
 ]
+# Visión: clasificación de imágenes (madurez/patología). Stack de licencia PERMISIVA
+# (torch BSD-3 · torchvision BSD-3 · pillow MIT-CMU) — sin copyleft tipo AGPL. Instalar con:
+# uv sync --extra vision. En Blackwell (RTX 50xx) instala torch desde el índice CUDA cu128
+# (ver docs/VISION.md). El entrenamiento usa torchvision; la inferencia carga TorchScript.
+vision = [
+    "torch>=2.5.0",
+    "torchvision>=0.20.0",
+    "pillow>=11.0.0",
+    "onnx>=1.17.0",          # export a ONNX (scripts/export_onnx.py)
+]
+# Inferencia ONNX (VISION_PROVIDER=onnx): portátil y con mejor fallback a CPU multivendor.
+# Licencias permisivas (onnxruntime MIT). Entrena/exporta con 'vision'; sirve con 'vision-onnx'.
+# uv sync --extra vision-onnx
+vision-onnx = [
+    "onnxruntime>=1.20.0",
+    "pillow>=11.0.0",
+]
 # Reranker por API (alternativa al local)
 cohere = ["cohere>=5.13.0"]
 # OCR para PDF escaneados (p.ej. Resolución ICA 1507/2016). Requiere ADEMÁS el binario
@@ -87,6 +104,8 @@ known-first-party = ["avorag"]
 [tool.ruff.lint.per-file-ignores]
 # Typer exige llamadas en los defaults (Argument/Option); es el patrón idiomático.
 "src/avorag/cli/*" = ["B008"]
+# FastAPI exige llamadas en los defaults (File/Form) para subir imágenes; idéntico patrón.
+"src/avorag/api/routes_vision.py" = ["B008"]
 # Los tests usan asserts y fixtures con nombres flexibles.
 "tests/*" = ["B008", "S101"]
 
