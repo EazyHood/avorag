@@ -172,7 +172,8 @@ def main() -> None:
 
     model = _build_model(args.arch, len(classes), pretrained=not args.no_pretrained).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
-    loss_fn = nn.CrossEntropyLoss()
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)  # calibra (-sobreconfianza) y suaviza fronteras adyacentes
 
     args.out.mkdir(parents=True, exist_ok=True)
     best_acc = 0.0
@@ -188,12 +189,14 @@ def main() -> None:
             opt.step()
             running += loss.item() * x.size(0)
         acc = _evaluate(model, val_dl, device)
-        print(f"época {epoch:02d}/{args.epochs} | loss {running / len(train_dl.dataset):.4f} | val_acc {acc:.3f}")
+        lr_now = opt.param_groups[0]["lr"]
+        print(f"época {epoch:02d}/{args.epochs} | loss {running / len(train_dl.dataset):.4f} | val_acc {acc:.3f} | lr {lr_now:.2e}")
         if acc >= best_acc:
             best_acc = acc
             scripted = torch.jit.script(model.eval().cpu())
             scripted.save(str(best_path))
             model.to(device)
+        sched.step()
 
     labels = {
         "classes": classes,

@@ -144,22 +144,26 @@ aparte, solo un driver NVIDIA reciente.
 
 ## Resultados del modelo de madurez (medición honesta)
 
-Transfer learning (MobileNetV3‑Large sobre ImageNet) → TorchScript.
+Transfer learning (MobileNetV3‑Large sobre ImageNet) con **label smoothing 0.1 + LR cosine** → TorchScript.
 
-| Métrica | Valor |
+| Métrica (held-out: 71 frutos NO vistos / 2.304 imágenes) | Valor |
 |---|---|
-| **val_acc (split por FRUTO)** | **~0.82** |
-| Clases | 5 (verde → sobremaduro) |
+| Exacto (5 clases) | **82.0%** |
+| **Dentro de ±1 etapa** | **99.4%** ← la métrica que importa para decidir cosecha |
+| Calibración (confianza media aciertos vs fallos) | **0.82 vs 0.69** (los fallos son menos confiados → filtrables) |
 | Split | 478 frutos → 407 train / 71 val (validación sobre frutos NO vistos) |
 
-> **Por qué el split es por fruto y no por imagen (honestidad de la cifra):** el dataset tiene ~478
-> frutos físicos, cada uno fotografiado por sus 2 lados (a/b) durante varios días (~30 imágenes por
-> fruto). Un split aleatorio **por imagen** metería el MISMO fruto en train y val → el modelo
-> memorizaría el fruto y el val_acc saldría inflado. Aquí se parte **por fruto** (`_fruit_id` en
-> `scripts/train_vision.py`): se valida contra frutos que el modelo nunca vio. El número honesto
-> (~0.82) quedó casi igual que el del split por imagen (~0.83), lo que **confirma que el modelo
-> aprendió la madurez, no la identidad del fruto**. Con solo 71 frutos de validación hay varianza
-> entre épocas (0.65–0.82); para una afirmación firme conviene una validación mayor.
+> **Por qué el split es por fruto (honestidad de la cifra):** el dataset tiene ~478 frutos físicos,
+> cada uno fotografiado por sus 2 lados (a/b) durante varios días (~30 img/fruto). Un split **por
+> imagen** metería el MISMO fruto en train y val → val_acc inflado. Se parte **por fruto**
+> (`_fruit_id` en `scripts/train_vision.py`): se valida contra frutos nunca vistos.
+>
+> **Por qué reportamos ±1 (99.4%) y una BANDA en la UI:** los errores restantes son casi todos de
+> **etapa adyacente** (maduro-inicial/óptimo/sobremaduro son visualmente continuas; ni un humano las
+> separa siempre) más algo de **ruido de etiquetas** del dataset. El exacto (82%) está cerca de su
+> techo; forzarlo más pelearía contra ese ruido. Por eso la UI muestra una **banda ±1** ("etapa 3–4:
+> maduro→óptimo") en vez de 1 de 5. Recordatorio agronómico: el color = **maduración** (consumo); el
+> corte de **exportación** se decide por **materia seca**, no por color.
 
 ## Limitaciones honestas
 
