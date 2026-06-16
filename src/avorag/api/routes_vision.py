@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 
 from avorag.api.auth import rate_limit, require_api_key
 from avorag.config import get_settings
-from avorag.vision import VisionDiagnosis, VisionResult
-from avorag.vision.bridge import classify_image, diagnose
-from avorag.vision.registry import get_vision_classifier
+from avorag.vision import HealthDiagnosis, VisionDiagnosis, VisionResult
+from avorag.vision.bridge import classify_image, diagnose, diagnose_health
+from avorag.vision.registry import get_vision_classifier, get_vision_describer
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
 
@@ -44,6 +44,14 @@ def _ensure_enabled() -> None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="El módulo de visión no está configurado o no tiene modelo cargado.",
+        )
+
+
+def _ensure_describer_enabled() -> None:
+    if not getattr(get_vision_describer(), "available", False):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El describidor visual no está configurado (VISION_DESCRIBER_PROVIDER=none).",
         )
 
 
@@ -86,6 +94,27 @@ async def diagnose_route(
             soil_type=soil_type,
             region=region,
             top_k=max(1, min(top_k, 5)),
+        )
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+
+
+@router.post("/health", response_model=HealthDiagnosis)
+async def health_route(
+    file: UploadFile = File(..., description="Foto de hoja/fruto con síntomas (JPG/PNG/WebP/HEIC)."),
+    country: str | None = Form(None),
+    soil_type: str | None = Form(None),
+    region: str | None = Form(None),
+    auth_tenant: str = Depends(require_api_key),
+    _rl: None = Depends(rate_limit),
+) -> HealthDiagnosis:
+    """Describe los síntomas de la foto (VLM) y obtiene del RAG los candidatos de plaga/enfermedad
+    y su manejo, CITANDO la fuente. La visión solo describe; el RAG diagnostica y aconseja."""
+    _ensure_describer_enabled()
+    data = await _read_image(file)
+    try:
+        return diagnose_health(
+            data, tenant=auth_tenant, country=country, soil_type=soil_type, region=region
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e

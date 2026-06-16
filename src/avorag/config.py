@@ -74,7 +74,10 @@ class Settings(BaseSettings):
     # --- Guardarraíles ---
     faithfulness_judge: bool = True
     dose_guardrail: bool = True
-    country: str = "CO"  # CO | ES
+    country: str = "CO"  # CO | ES (país de PRODUCCIÓN: registro ICA, prohibidos locales)
+    # País de DESTINO de exportación: bloquea recomendar activos no autorizados allí (LMR/rechazos).
+    # Vacío = apagado. Valores con datos: "ue" (ver data/destinos/). Ej.: EXPORT_MARKET=ue
+    export_market: str = ""
 
     # --- Visión (identificación por foto: madurez/patología) ---
     # El módulo de visión SOLO identifica; el RAG aconseja con sus guardarraíles. Ver docs/VISION.md.
@@ -83,7 +86,10 @@ class Settings(BaseSettings):
     vision_labels_path: str = ""  # vacío = labels.json junto al modelo
     vision_device: str = "auto"  # auto | cpu | cuda
     vision_min_confidence: float = 0.55  # bajo esto → requires_review (pedir mejor foto)
-    vision_image_max_bytes: int = 8_000_000  # 8 MB
+    vision_image_max_bytes: int = 25_000_000  # 25 MB (cubre fotos de móvil grandes; HEIC pesa menos)
+    # Describidor visual de síntomas (VLM) → consulta al RAG (identifica plaga/enfermedad citado):
+    vision_describer_provider: str = "none"  # none | fake | ollama (VLM local) | anthropic (Claude)
+    vision_describer_model: str = ""  # vacío = llava:7b (ollama) o el modelo Claude por defecto
 
     # --- API ---
     api_host: str = "127.0.0.1"

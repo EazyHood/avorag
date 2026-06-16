@@ -50,3 +50,25 @@ class VisionDiagnosis(BaseModel):
     vision: VisionResult
     # `answer` es un avorag.rag.schemas.Answer; se anida como dict para no acoplar capas aquí.
     answer: dict | None = None
+
+
+class SymptomReport(BaseModel):
+    """Descripción OBJETIVA de los síntomas visibles en la foto (la produce un VLM). NO es un
+    diagnóstico: el motor RAG identifica la plaga/enfermedad y aconseja, citando la fuente."""
+
+    descripcion: str = ""  # síntomas observados, en texto
+    sin_sintomas: bool = False  # no hay síntomas claros o la foto no parece de aguacate
+    provider: str = ""  # qué VLM lo describió (trazabilidad)
+    suggested_query: str | None = None  # consulta derivada para el RAG
+    disclaimer: str = (
+        "Descripción visual asistida por IA: señala POSIBLES síntomas, NO es un diagnóstico. La "
+        "identificación y el manejo los da el asesor citando la fuente; confírmalo con tu agrónomo."
+    )
+
+
+class HealthDiagnosis(BaseModel):
+    """Síntomas descritos por la visión + la respuesta citada del RAG (candidatos + manejo)."""
+
+    report: SymptomReport
+    # `answer` es un avorag.rag.schemas.Answer anidado como dict (no acoplar capas).
+    answer: dict | None = None
