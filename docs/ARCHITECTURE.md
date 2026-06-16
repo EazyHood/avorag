@@ -35,7 +35,10 @@
 
 ## Decisiones clave (resumen; detalle en `docs/adr/`)
 - **Proveedores abstractos** (`providers/base.py`): LLM, embeddings y reranker son
-  intercambiables por `.env`. El default es **100% local y gratis** (Ollama + GPU).
+  intercambiables por `.env`. Generación y embeddings por defecto son **100% locales** (Ollama);
+  el reranker por defecto es `RERANK_PROVIDER=none` (sin reordenar). Para la calidad de las
+  métricas publicadas se usa `RERANK_PROVIDER=local` (cross-encoder; CPU ~45 s o GPU con
+  `--extra local`). El juez de evaluación puede ser **independiente** (`JUDGE_LLM_PROVIDER`).
 - **Recuperación híbrida** (denso + léxico) fusionada con **RRF**: lo denso da
   significado; lo léxico acierta en SKUs, registros ICA y dosis exactas.
 - **Contextual Retrieval** (Anthropic) en ingesta: antepone contexto a cada chunk.

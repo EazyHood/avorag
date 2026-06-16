@@ -27,12 +27,12 @@
 |---|---|---|
 | **Autenticación de API** (OAuth2/JWT) + tenant desde token | Ruta 🅰️ es demo de 1 tenant | Primer tenant real / exponer la API |
 | **Aislamiento de tenant en BD** (tabla `tenants` + FK / RLS) | Hoy el filtro es a nivel de app | Multi-tenant real |
-| **Rate limiting** (slowapi) | No hay exposición pública aún | API pública o piloto |
-| **Auditoría con cola + reintentos** (Redis) | Commit síncrono es tolerable en 🅰️ | WhatsApp / volumen / SLA |
+| **Rate limiting distribuido** (Redis) | Ya hay rate-limit **en memoria** (por proceso); Redis se necesita para multi-worker | API pública multi-worker |
+| **Auditoría con cola + reintentos** (Redis) | Ya es **tolerante a fallo** (savepoint) y con minimización de datos; la cola se necesita a volumen/SLA | WhatsApp / volumen / SLA |
 | **Re-embedding blue-green** (CLI) al cambiar `EMBEDDING_DIM` | Cambiar de modelo es raro y manual hoy | Cambio de modelo de embeddings (ver ADR 0004) |
-| **Automatización de vigencia ICA** (job + fuente ICA) | El filtro por `vigencia` ya existe; marcar es manual | Acceso a datos del ICA |
+| **Automatización de vigencia ICA** (job + fuente ICA) | El filtro por `vigencia` existe pero HOY ningún chunk se marca `caducado` automáticamente, así que aún no excluye nada; el guardarraíl ya exige registro NO caducado y avisa de datos viejos (PQUA mar-2022) | Acceso a datos del ICA |
 | **Health checks profundos** (Ollama, índices) + monitoreo/alerting/on-call | Innecesario en local | Despliegue en servidor |
-| **Normalización de unidades de dosis** (kg↔g, cc↔ml) | v1 compara número con unidad presente | Falsos negativos por equivalencia en el piloto |
+| **Distinción producto comercial vs ingrediente activo + unidad por matriz** (foliar/suelo) | La normalización de dimensiones (conc vs /ha, kg↔g, cc↔ml) **ya está**; falta el sentido agronómico de la unidad | Recomendación de dosis sitio-específica |
 | **Validación de coherencia país en ingesta** + geofiltro por-tenant | 1 país/1 tenant en 🅰️ | Multi-país (fase España/UE) |
 | **Hardening anti prompt-injection** (sanitización del input) | El LLM-judge + geofiltro mitigan parte | WhatsApp abierto al productor |
 | **Contrato Answer documentado** para consumidores externos | FastAPI ya expone `/docs` y `/openapi.json` | Integración del webhook WhatsApp |

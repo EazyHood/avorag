@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -19,12 +20,55 @@ log = get_logger(__name__)
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
+def _warm_models() -> None:
+    """Precarga el reranker (y el embedder) al arrancar, para que la PRIMERA consulta no pague
+    la carga del modelo (~varios s). Tolerante a fallo: si algo no está listo, no rompe el arranque."""
+    from avorag.providers import (
+        get_embedding_provider,
+        get_llm_provider,
+        get_rerank_provider,
+    )
+
+    s = get_settings()
+    try:
+        if s.rerank_provider.lower() == "local":
+            get_rerank_provider().rerank("warmup", ["warmup"], 1)
+        get_embedding_provider().embed_query("hola")
+        get_llm_provider().complete("Responde solo: ok", "ok", max_tokens=1)
+        log.info("models_warmed", rerank=s.rerank_provider, llm=s.llm_provider)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("model_warmup_failed", error=str(exc))
+
+
+def _prewarm_defaults() -> None:
+    """Sirve al instante las preguntas por defecto: carga del disco lo válido y recalcula en un
+    hilo de fondo lo que falte (sin bloquear el arranque)."""
+    import threading
+
+    from avorag.rag import prewarm
+
+    try:
+        prewarm.load_from_disk()
+        prewarm.load_answer_bank()  # fija las 500 respuestas precalculadas (si existen y vigentes)
+        threading.Thread(target=prewarm.refresh, name="prewarm", daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("prewarm_setup_failed", error=str(exc))
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    _warm_models()
+    _prewarm_defaults()
+    yield
+
+
 def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(
         title="AvoRAG — Asesor Hass",
         version=__version__,
         description="Asistente agronómico RAG en español con citación a fuente.",
+        lifespan=_lifespan,
     )
 
     settings = get_settings()

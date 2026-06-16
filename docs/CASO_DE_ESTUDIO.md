@@ -43,31 +43,85 @@ Recuperación **híbrida** (denso `pgvector` + léxico FTS español) → fusión
 Proveedores intercambiables por configuración (local gratis con Ollama, o Claude para el
 demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Resultados (medidos sobre mi golden set de 16 preguntas)
+## Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus_version 2026-06-14)
 <!-- Pega aquí la captura de eval/reports/report.html -->
-| Métrica | Valor |
-|---|---|
-| Fidelidad media | **0,96** |
-| Citación en respuestas | **100%** |
-| Abstención correcta (trampas) | **100%** |
-| Alucinaciones de dosis de alta severidad | **0** |
-| Tasa de respuesta (reales) | **83% (10/12; 2 abstenciones honestas)** |
-| Latencia media | **44 847 ms** (reranker en CPU) |
+| Métrica | Valor (IC95 Wilson) | Qué mide (y qué NO) |
+|---|---|---|
+| **Groundedness** | **0,73** | Cada afirmación está respaldada por el fragmento citado. **NO** es exactitud agronómica ni vigencia. Juez LLM (qwen-7b autoevaluándose, conservador). |
+| Soporte de cita | **0,89** (0,76–0,95) | La cifra citada `[n]` está realmente en el fragmento `n` (determinista). |
+| Respuestas con cita | **0,73** (0,58–0,84) | **Presencia** de cita; las que no citan caen a amarillo. |
+| Abstención correcta (trampas) | **0,90** (0,60–0,98) | 9/10 trampas abstenidas. |
+| Manejo de preguntas peligrosas | **1,00** | Las 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa) quedaron en rojo/amarillo, **ninguna en verde**. |
+| must_cite (regulador correcto) | **0,89** | El item cita al regulador exigido (ICA/Agrosavia). |
+| Tasa de respuesta (reales) | **0,81** | 44/54; 10 abstenciones honestas. |
+| Latencia media | **35 s** (`RERANK_PROVIDER=local`, CPU) · **<50 ms** repetidas (caché) | El default de fábrica es `none`. GPU lo baja a segundos. |
 
-> Cómo lo logré: corpus curado + Contextual Retrieval + búsqueda híbrida + reranking +
-> guardarraíl de dosis. _(Si comparo modelos/configs, pongo la tabla antes/después.)_
+**Gate: ✓ PASA** (piso de no-regresión calibrado sobre esta medición).
+
+> **Honestidad sobre la caída vs la v1 (0,96 → 0,73):** NO es una regresión, es honestidad. La
+> cifra v1 era groundedness sobre **n=16 fáciles** con un juez más laxo; aquí es **n=64** con
+> preguntas adversarias difíciles (mezclas, prohibidos, fitotoxicidad), métricas **más estrictas**
+> y el **mismo qwen-7b local autoevaluándose** (conservador). Con un modelo generador/juez más
+> fuerte (Claude) y validación humana, sube. Los **objetivos** son groundedness/citación ~0,85.
+>
+> **Hallazgo de calibración:** el barrido de umbral separa trampas (score ~0) de reales (≥0,02)
+> con **98,3% de exactitud**; `min_rerank_score` se fijó en 0,01 con base en eso.
+
+> **Validez estadística:** n=64 sigue siendo una muestra **moderada** (los IC95 de Wilson son
+> anchos, sobre todo en trampas y peligrosas, n=10 cada uno). Para una afirmación comercial:
+> **≥200** preguntas curadas por el agrónomo + segundo evaluador humano (acuerdo inter-anotador).
+
+## Simulación a escala (500 preguntas) y la métrica correcta de un asesor de seguridad
+Se generaron **500 preguntas** (100 × plagas, fertilidad/suelos, fisiología, insumos, otros) y se
+midió el sistema completo en 7B con el corpus ampliado. Distribución del semáforo (n=189, IC95% Wilson,
+estable durante toda la corrida): **verde 44% [38–52] · amarillo 51% · rojo 4% [2–8] · abstención 21%.**
+
+**Conclusión (ver [ADR 0005](adr/0005-metrica-de-asesor-de-seguridad.md)):** sobre preguntas
+**arbitrarias** un objetivo de "≥80% verde" no es alcanzable ni deseable — forzarlo solo se logra
+relajando el semáforo, lo que haría afirmar con confianza sin respaldo. El amarillo/abstención es
+una **función** (decir "con cautela / consulta"), no un fallo. Las métricas de aceptación correctas
+para un asesor de seguridad, medidas aquí:
+
+| KPI (asesor de seguridad) | Valor (n=189) | Significado |
+|---|---|---|
+| **Respuestas peligrosas** | **0%** | Nunca da verde sin respaldo citado. |
+| **Respaldo de las respuestas** | **89%** | De lo que responde (no abstiene), ≥1 cita verificable. |
+| **Bloqueo de inseguros (rojo)** | **4%** | Prohibido/off-label/dosis no rastreable → rojo (casi todo legítimo). |
+| **Cobertura confiable (verde)** | **44%** | Responde con seguridad donde el corpus fundamenta (crece con corpus). |
+| **Deferencia honesta** | **51%** | Cautela/abstención cuando no hay fuente. |
+
+Verde por categoría: plagas 53%, fertilidad 47%, otros 44%, fisiología 43%, **insumos 12%**. Insumos
+es el techo estructural (dosis/producto exactos requieren la **etiqueta ICA viva**, no un PDF) y se
+reposiciona como *"oriento y remito al registro ICA vigente (SimplifICA)"*. El valor del producto es
+el **0% de respuestas peligrosas** + responder citado en su dominio, no un número alto de verde.
 
 ## Limitaciones honestas (lo que NO hace)
 - No reemplaza a un ingeniero agrónomo; es herramienta de **apoyo**.
-- El diagnóstico por foto sería una pista, no un veredicto (no implementado en esta versión).
-- La equivalencia de unidades de dosis (kg↔g) es una mejora pendiente del guardarraíl.
+- **Es texto-only:** NO identifica plaga/enfermedad por foto (la guía visual aporta sus *pies de
+  figura* al índice, no la imagen). El diagnóstico por imagen sería trabajo futuro.
+- El contexto de finca (suelo/región) afina cualitativamente vía prompt y recuperación; **no**
+  interpreta análisis foliar/suelo ni calcula dosis por balance de nutrientes, y la evidencia de
+  lixiviación por textura proviene de fuentes no-colombianas (se transfieren principios, no dosis).
 - Cobertura limitada al corpus curado; fuera de él, se abstiene a propósito.
+- El registro PQUA del ICA es de **mar-2022**; el estado vivo de cada producto está en SimplifICA
+  (la respuesta lleva ese aviso cuando cita un registro).
+- **Estado v0.1 (prueba de concepto):** sin rodaje en producción ni validación con usuarios reales.
+
+## Guardarraíles de seguridad (qué verifica antes de mostrar una dosis)
+- **Dosis con fuente:** toda cifra de dosis debe estar respaldada por el contexto (con equivalencia kg↔g); si no, **ROJO**.
+- **Asociación producto–plaga–dosis–carencia:** un juez verifica que la dosis correcta vaya con el **producto y la plaga correctos** (no una dosis válida pegada al producto equivocado).
+- **Periodo de carencia (PHI)/reingreso:** si el texto afirma una carencia que no está en la fuente, **ROJO** (riesgo de LMR en exportación).
+- **Categoría toxicológica I/II:** se extrae del registro en la ingesta; si el producto recomendado es cat. I/II, **ROJO** con advertencia.
+- Estos guardarraíles están cubiertos por **tests unitarios en el CI**.
 
 ## Stack
-Python 3.12 · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · RAGAS · ruff/mypy/pytest · CI.
+Python 3.11+ · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · evaluación con **juez LLM
+propio + golden set con gate** · ruff/mypy/pytest · CI.
+_(Nota: RAGAS figura como dependencia opcional pero la evaluación NO la usa; se retiró de esta
+lista para no sobre-declarar el stack.)_
 
 ## Qué aprendí
-- Diseñar un RAG **de producción** (no un demo): evaluación, guardarraíles, observabilidad.
+- Diseñar un RAG con **prácticas de producción** (no un demo): evaluación, guardarraíles, observabilidad.
 - Que el valor está en el **contenido curado y los guardarraíles**, no en el modelo.
 - A medir calidad con números propios y a comunicar límites con honestidad.
 

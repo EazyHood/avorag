@@ -11,18 +11,24 @@ _RETRY = retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, m
 
 
 class OllamaLLM(LLMProvider):
-    """Generación con un modelo local de Ollama (gratis)."""
+    """Generación con Ollama local."""
 
     name = "ollama"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from ollama import Client
 
         s = get_settings()
         self._client = Client(host=s.ollama_host)
-        self._model = s.llm_model
+        self._model = model or s.llm_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
+
+    def _options(self, temperature, max_tokens) -> dict:
+        return {
+            "temperature": self._temperature if temperature is None else temperature,
+            "num_predict": self._max_tokens if max_tokens is None else max_tokens,
+        }
 
     @_RETRY
     def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
@@ -32,27 +38,38 @@ class OllamaLLM(LLMProvider):
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            options={
-                "temperature": self._temperature if temperature is None else temperature,
-                "num_predict": self._max_tokens if max_tokens is None else max_tokens,
-            },
+            options=self._options(temperature, max_tokens),
         )
         return resp.message.content or ""
 
+    def stream(self, system, user, *, temperature=None, max_tokens=None):
+        for chunk in self._client.chat(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            options=self._options(temperature, max_tokens),
+            stream=True,
+        ):
+            piece = chunk.message.content
+            if piece:
+                yield piece
+
 
 class AnthropicLLM(LLMProvider):
-    """Generación con Claude (para el demo de venta / producción)."""
+    """Generación con Claude (Anthropic)."""
 
     name = "anthropic"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from anthropic import Anthropic
 
         s = get_settings()
         if not s.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY vacío pero LLM_PROVIDER=anthropic")
         self._client = Anthropic(api_key=s.anthropic_api_key)
-        self._model = s.anthropic_model
+        self._model = model or s.anthropic_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 
@@ -73,14 +90,14 @@ class OpenAILLM(LLMProvider):
 
     name = "openai"
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from openai import OpenAI
 
         s = get_settings()
         if not s.openai_api_key:
             raise ValueError("OPENAI_API_KEY vacío pero LLM_PROVIDER=openai")
         self._client = OpenAI(api_key=s.openai_api_key)
-        self._model = s.openai_llm_model
+        self._model = model or s.openai_llm_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
 

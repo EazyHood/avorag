@@ -42,31 +42,60 @@ licensed professional. That's my contribution as an agronomist, and the product'
 Providers swappable by config (free local via Ollama, or Claude for the sales demo). Details
 in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Results (measured on my golden set of 16 questions)
+## Results (real run · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus_version 2026-06-14)
 <!-- Paste a screenshot of eval/reports/report.html here -->
-| Metric | Value |
-|---|---|
-| Mean faithfulness | **0.96** |
-| Citation rate (answered) | **100%** |
-| Correct abstention (traps) | **100%** |
-| High-severity dose hallucinations | **0** |
-| Answer rate (real questions) | **83% (10/12; 2 honest abstentions)** |
-| Mean latency | **44,847 ms** (reranker on CPU) |
+| Metric | Value (Wilson 95% CI) | What it measures (and what it does NOT) |
+|---|---|---|
+| **Groundedness** | **0.73** | Each claim is backed by the cited chunk. **NOT** agronomic accuracy nor currency. LLM judge (qwen-7b grading itself, conservative). |
+| Citation support | **0.89** (0.76–0.95) | The cited figure `[n]` is actually in chunk `n` (deterministic). |
+| Answers with a citation | **0.73** (0.58–0.84) | **Presence** of a citation; non-citing answers drop to amber. |
+| Correct abstention (traps) | **0.90** (0.60–0.98) | 9/10 traps abstained. |
+| Dangerous questions handled | **1.00** | All 10 adversarial questions (mixtures, banned, phytotox, dose-traps) ended amber/red, **none green**. |
+| Answer rate (real questions) | **0.81** | 44/54; 10 honest abstentions. |
+| Latency | **35 s** (`RERANK_PROVIDER=local`, CPU) · **<50 ms** repeated (cache) | Factory default is `none`; GPU brings it to seconds. |
 
-> How I got there: curated corpus + Contextual Retrieval + hybrid search + reranking + dose
-> guardrail. _(If I compare models/configs, I add a before/after table.)_
+**Gate: ✓ PASS** (no-regression floor calibrated on this run).
+
+> **Honesty about the 0.96 → 0.73 drop:** not a regression, it's honesty. The v1 figure was
+> groundedness on **16 easy questions** with a laxer judge; this is **n=64** with hard adversarial
+> questions (mixtures, banned products, phytotoxicity), **stricter metrics**, and the same
+> **qwen-7b grading itself** (conservative). A stronger generator/judge (Claude) + human validation
+> raise it; **targets** are ~0.85. Sample n=64 is still moderate (wide CIs on the n=10 trap/danger
+> buckets). For a commercial claim: **≥200** curated questions + a second human evaluator.
+
+## Scale simulation (500 questions) and the right metric
+500 questions (pests, fertility/soils, physiology, inputs, other) were generated and run through the
+full system on 7B with the expanded corpus (~1,832 chunks). Instead of chasing a high "% green", we
+report the KPIs of a **safety advisor** (n=189, Wilson 95% CI):
+
+| Dangerous answers | Grounding (citation on what it answers) | Unsafe blocks (red) | Reliable coverage (green) | Honest deferral |
+|:--:|:--:|:--:|:--:|:--:|
+| **0%** | **89%** | **4%** | **44%** | **51%** |
+
+**Conclusion ([ADR 0005](adr/0005-metrica-de-asesor-de-seguridad.md)):** over **arbitrary**
+questions, a "≥80% green" target is neither reachable nor desirable — forcing it only works by
+loosening the semáforo (confidently asserting without support). The tool's value is the **0% dangerous
+answers** plus answering with citations in its domain and honestly deferring outside it. The
+simulation found and fixed guardrail false positives (fertilizer/irrigation doses treated as
+pesticide) and drove the **corpus expansion** with 8 new official sources (Agrosavia, MinAgricultura,
+ICESI, UNAD).
 
 ## Honest limitations (what it does NOT do)
 - It does not replace an agronomist; it's a **decision-support** tool.
-- Photo diagnosis would be a hint, not a verdict (not implemented in this version).
-- Dose unit equivalence (kg↔g) is a pending guardrail improvement.
+- It is **text-only**: it does NOT identify pests/diseases from a photo.
+- Farm context (soil/region) tunes answers qualitatively; it does NOT interpret leaf/soil tests
+  nor compute nutrient-balance doses; leaching-by-texture evidence is non-Colombian (principles, not doses).
 - Coverage limited to the curated corpus; outside it, it abstains on purpose.
+- **Status v0.1 (proof of concept):** no production track record nor real-user validation.
 
 ## Stack
-Python 3.12 · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · RAGAS · ruff/mypy/pytest · CI.
+Python 3.11+ · FastAPI · SQLAlchemy + **pgvector** · Ollama/Claude · own LLM judge + gated golden
+set · ruff/mypy/pytest · CI.
+_(Note: RAGAS is an optional dependency but the evaluation does NOT use it; removed from this list
+to avoid over-claiming the stack.)_
 
 ## What I learned
-- Designing a **production** RAG (not a demo): evaluation, guardrails, observability.
+- Designing a RAG with **production practices** (not a demo): evaluation, guardrails, observability.
 - That the value lives in the **curated content and guardrails**, not the model.
 - Measuring quality with my own numbers and communicating limits honestly.
 

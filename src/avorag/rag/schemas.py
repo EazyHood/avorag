@@ -27,6 +27,8 @@ class Citation(BaseModel):
     fecha_publicacion: str | None = None
     url: str | None = None
     doi: str | None = None
+    nivel_autoridad: str | None = None
+    licencia_uso: str | None = None
     quote: str | None = None
 
 
@@ -49,6 +51,8 @@ class Answer(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     contexts: list[RetrievedContext] = Field(default_factory=list)
     follow_ups: list[str] = Field(default_factory=list)  # preguntas de seguimiento sugeridas
+    conflict: list[str] = Field(default_factory=list)  # discrepancias entre fuentes citadas
+    warnings: list[str] = Field(default_factory=list)  # avisos (p.ej. dato desactualizado)
     disclaimer: str = ""
     latency_ms: int = 0
     provider_info: dict = Field(default_factory=dict)

@@ -3,8 +3,8 @@ name = "avorag"
 version = "0.1.0"
 description = "AvoRAG — asistente agronómico RAG en español, neutral y con citación a fuente, especializado en aguacate Hass."
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
-license = { text = "Proprietary" }
+requires-python = ">=3.11"
+license = { text = "MIT" }
 authors = [{ name = "Jhonatan del Rio" }]
 
 # --- Dependencias base (ligeras, sin ML pesado ni Docker) ---
@@ -45,8 +45,12 @@ local = [
 ]
 # Reranker por API (alternativa al local)
 cohere = ["cohere>=5.13.0"]
-# Evaluación avanzada (RAGAS). El runner propio funciona SIN esto.
-eval = ["ragas>=0.2.0", "datasets>=3.2.0"]
+# OCR para PDF escaneados (p.ej. Resolución ICA 1507/2016). Requiere ADEMÁS el binario
+# `tesseract` instalado en el sistema (con el paquete de idioma español 'spa').
+ocr = ["pytesseract>=0.3.13", "pillow>=11.0.0"]
+# Integración RAGAS PLANIFICADA (no cableada): la evaluación actual usa un juez LLM propio +
+# golden set con gate, NO RAGAS. Este extra deja las deps listas para un segundo evaluador.
+ragas = ["ragas>=0.2.0", "datasets>=3.2.0"]
 
 [project.scripts]
 avorag = "avorag.cli.main:app"
@@ -70,7 +74,7 @@ packages = ["src/avorag"]
 # ----------------------------- Herramientas -----------------------------
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -87,7 +91,7 @@ known-first-party = ["avorag"]
 "tests/*" = ["B008", "S101"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 disallow_untyped_defs = false

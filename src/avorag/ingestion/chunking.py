@@ -1,9 +1,4 @@
-"""Chunking recursivo orientado a documentos técnicos en español.
-
-Estrategia (ver docs/adr/0003): partir por separadores semánticos (párrafo →
-línea → oración → palabra) hasta acercarse a un tamaño objetivo, con solape.
-El tamaño se expresa en tokens aproximados (~4 caracteres/token).
-"""
+"""Chunking recursivo por separadores semánticos, con solape. Tamaño en tokens (~4 chars/token)."""
 
 from __future__ import annotations
 
@@ -56,6 +51,56 @@ def _apply_overlap(chunks: list[str], overlap_chars: int) -> list[str]:
     return out
 
 
+def _is_separator_row(line: str) -> bool:
+    return set(line.replace("|", "").strip()) <= set("-: ")
+
+
+def _segment_blocks(text: str) -> list[tuple[str, str]]:
+    """Separa el texto en bloques de prosa y bloques de tabla Markdown (líneas con '|')."""
+    segments: list[tuple[str, str]] = []
+    cur_kind: str | None = None
+    cur: list[str] = []
+    for ln in text.splitlines():
+        kind = "table" if ln.strip().startswith("|") else "prose"
+        if cur_kind is not None and kind != cur_kind and cur:
+            segments.append((cur_kind, "\n".join(cur)))
+            cur = []
+        cur_kind = kind
+        cur.append(ln)
+    if cur and cur_kind is not None:
+        segments.append((cur_kind, "\n".join(cur)))
+    return segments
+
+
+def _split_table(block: str, max_chars: int) -> list[str]:
+    """Trocea una tabla Markdown por filas, re-anteponiendo el encabezado a cada sub-chunk."""
+    lines = [ln for ln in block.splitlines() if ln.strip()]
+    if not lines:
+        return []
+    header = [lines[0]]
+    body_start = 1
+    if len(lines) > 1 and _is_separator_row(lines[1]):
+        header.append(lines[1])
+        body_start = 2
+    if len(block) <= max_chars:
+        return [block.strip()]
+    header_len = len("\n".join(header))
+    chunks: list[str] = []
+    cur = list(header)
+    cur_len = header_len
+    for ln in lines[body_start:]:
+        if cur_len + len(ln) + 1 > max_chars and len(cur) > len(header):
+            chunks.append("\n".join(cur))
+            cur = [*header, ln]
+            cur_len = header_len + len(ln) + 1
+        else:
+            cur.append(ln)
+            cur_len += len(ln) + 1
+    if len(cur) > len(header):
+        chunks.append("\n".join(cur))
+    return chunks
+
+
 def chunk_text(
     text: str,
     *,
@@ -64,9 +109,16 @@ def chunk_text(
     page: int | None = None,
     start_ordinal: int = 0,
 ) -> list[TextChunk]:
-    """Divide un texto en chunks con solape. Devuelve TextChunk numerados."""
+    """Divide un texto en chunks con solape. Las tablas se trocean por filas (con encabezado
+    repetido) y la prosa por separadores semánticos. Devuelve TextChunk numerados."""
     max_chars = target_tokens * _CHARS_PER_TOKEN
     overlap_chars = int(max_chars * overlap_ratio)
-    raw = _split_recursive(text, max_chars, _SEPARATORS)
-    raw = _apply_overlap(raw, overlap_chars)
-    return [TextChunk(text=t, ordinal=start_ordinal + i, page=page) for i, t in enumerate(raw)]
+    pieces: list[str] = []
+    for kind, block in _segment_blocks(text):
+        if kind == "table":
+            pieces.extend(_split_table(block, max_chars))
+        else:
+            prose = _split_recursive(block, max_chars, _SEPARATORS)
+            pieces.extend(_apply_overlap(prose, overlap_chars))
+    pieces = [p for p in pieces if p.strip()]
+    return [TextChunk(text=t, ordinal=start_ordinal + i, page=page) for i, t in enumerate(pieces)]

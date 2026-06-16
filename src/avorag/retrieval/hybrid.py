@@ -1,12 +1,6 @@
-"""Recuperación híbrida: denso (pgvector) + léxico (Postgres FTS español) → RRF.
-
-La búsqueda híbrida es indispensable en este dominio: lo denso captura el
-significado, y lo léxico acierta en SKUs, números de registro ICA y dosis exactas.
-"""
+"""Recuperación híbrida: denso (pgvector) + léxico (Postgres FTS español) → RRF."""
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -14,16 +8,9 @@ from sqlalchemy.orm import Session
 from avorag.config import get_settings
 from avorag.db import Chunk
 from avorag.logging import get_logger
+from avorag.retrieval.types import ScoredChunk
 
 log = get_logger(__name__)
-
-
-@dataclass
-class ScoredChunk:
-    chunk: Chunk
-    score: float
-    dense_rank: int | None = None
-    lexical_rank: int | None = None
 
 
 def _base_filters(tenant: str, country: str | None):
@@ -60,7 +47,6 @@ def lexical_search(
     try:
         return [str(cid) for cid in session.scalars(stmt)]
     except Exception as exc:
-        # Una query léxica malformada no debe tumbar la búsqueda: caemos al lado denso.
         session.rollback()
         log.warning("lexical_search_failed", error=str(exc))
         return []
@@ -73,6 +59,19 @@ def reciprocal_rank_fusion(ranked_lists: list[list[str]], *, k: int) -> list[tup
         for rank, doc_id in enumerate(ranked):
             scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+
+# Regulador oficial > gremio > académico > interno.
+_AUTHORITY_WEIGHT = {
+    "oficial-regulador": 1.0,
+    "gremio": 0.95,
+    "academico": 0.9,
+    "interno-cliente": 0.85,
+}
+
+
+def _authority_weight(meta: dict) -> float:
+    return _AUTHORITY_WEIGHT.get(str(meta.get("nivel_autoridad", "")), 0.9)
 
 
 def hybrid_search(
@@ -109,9 +108,10 @@ def hybrid_search(
         out.append(
             ScoredChunk(
                 chunk=chunk,
-                score=score,
+                score=score * _authority_weight(chunk.meta),
                 dense_rank=dense_rank.get(cid),
                 lexical_rank=lexical_rank.get(cid),
             )
         )
+    out.sort(key=lambda sc: sc.score, reverse=True)
     return out

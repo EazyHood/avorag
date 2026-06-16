@@ -14,7 +14,7 @@ _CONFIGURED = False
 
 
 def _ensure_utf8_streams() -> None:
-    """En Windows la consola usa cp1252 y rompe con ✓/emojis/…; forzamos UTF-8."""
+    """Fuerza UTF-8 en stdout/stderr (Windows usa cp1252 por defecto)."""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:

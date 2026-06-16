@@ -7,7 +7,7 @@ from avorag.providers.base import RerankProvider
 
 
 class NoRerank(RerankProvider):
-    """Sin reranking: conserva el orden de la fusión (RRF). Default del MVP."""
+    """Sin reranking; conserva el orden de la fusión RRF."""
 
     def rerank(self, query: str, docs: list[str], top_k: int) -> list[tuple[int, float]]:
         return [(i, 1.0 / (i + 1)) for i in range(len(docs))][:top_k]
@@ -35,21 +35,30 @@ class CohereRerank(RerankProvider):
 
 
 class LocalRerank(RerankProvider):
-    """Cross-encoder self-hosted vía sentence-transformers (compatible con transformers 5).
+    """Cross-encoder self-hosted vía sentence-transformers. Requiere `uv sync --extra local`.
 
-    Requiere `uv sync --extra local`. Auto-detecta GPU; en CPU corre igual de fiable
-    (para reordenar pocos candidatos basta CPU, sin pelear con versiones de CUDA).
-    """
+    Usa GPU + fp16 si hay CUDA disponible (en CPU tarda ~12 s; en GPU ~20 ms)."""
 
     def __init__(self) -> None:
-        from sentence_transformers import CrossEncoder  # import perezoso (pesado)
+        import threading
+
+        import torch  # import diferido (pesado)
+        from sentence_transformers import CrossEncoder
 
         s = get_settings()
-        self._model = CrossEncoder(s.rerank_model)
+        if torch.cuda.is_available():
+            self._model = CrossEncoder(
+                s.rerank_model, device="cuda", model_kwargs={"torch_dtype": torch.float16}
+            )
+        else:
+            self._model = CrossEncoder(s.rerank_model)
+        # La inferencia en GPU no es thread-safe; serializa el precálculo de fondo con las peticiones.
+        self._lock = threading.Lock()
 
     def rerank(self, query: str, docs: list[str], top_k: int) -> list[tuple[int, float]]:
         if not docs:
             return []
-        scores = self._model.predict([(query, d) for d in docs])
+        with self._lock:
+            scores = self._model.predict([(query, d) for d in docs])
         ranked = sorted(enumerate(scores), key=lambda x: float(x[1]), reverse=True)
         return [(i, float(s)) for i, s in ranked[:top_k]]

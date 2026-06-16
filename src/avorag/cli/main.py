@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from avorag.logging import configure_logging
 
@@ -74,6 +75,9 @@ def ingest(
     tenant: str | None = typer.Option(None, "--tenant"),
     contextual: bool = typer.Option(True, "--contextual/--no-contextual"),
     force: bool = typer.Option(False, "--force", help="Re-ingerir aunque ya exista."),
+    ocr: bool = typer.Option(
+        False, "--ocr", help="OCR para PDF escaneados (requiere extra 'ocr' + tesseract)."
+    ),
 ) -> None:
     """Ingesta y vectoriza un documento del corpus."""
     from avorag.ingestion import DocumentMeta, ingest_document
@@ -90,7 +94,9 @@ def ingest(
         doi=doi,
     )
     with console.status(f"Ingiriendo {path.name}…"):
-        res = ingest_document(path, meta, tenant=tenant, contextual=contextual, force=force)
+        res = ingest_document(
+            path, meta, tenant=tenant, contextual=contextual, force=force, ocr=ocr
+        )
     if res.skipped:
         console.print(f"[yellow]Omitido:[/yellow] {res.reason}")
     else:
@@ -150,15 +156,71 @@ def serve(
 
 
 @app.command()
+def audit(
+    semaforo: str | None = typer.Option(None, "--semaforo", help="Filtra: verde|amarillo|rojo."),
+    tenant: str | None = typer.Option(None, "--tenant"),
+    since: str | None = typer.Option(None, "--since", help="Fecha ISO, p.ej. 2026-06-01."),
+    limit: int = typer.Option(50, "--limit"),
+    out: Path | None = typer.Option(None, "--out", help="Exporta a JSONL (audita en archivo)."),
+) -> None:
+    """Audita las consultas registradas con filtros opcionales."""
+    import json as _json
+
+    from sqlalchemy import desc, select
+
+    from avorag.db import QueryLog, get_session
+
+    configure_logging()
+    with get_session(tenant=tenant) as session:
+        stmt = select(QueryLog).order_by(desc(QueryLog.created_at)).limit(limit)
+        if semaforo:
+            stmt = stmt.where(QueryLog.semaforo == semaforo)
+        if tenant:
+            stmt = stmt.where(QueryLog.tenant == tenant)
+        if since:
+            stmt = stmt.where(QueryLog.created_at >= since)
+        rows = list(session.scalars(stmt))
+
+    records = [
+        {
+            "id": str(r.id),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "tenant": r.tenant,
+            "semaforo": r.semaforo,
+            "abstained": r.abstained,
+            "question": r.question,
+            "reason": (r.provider_info or {}).get("reason"),
+            "corpus_version": r.corpus_version,
+            "latency_ms": r.latency_ms,
+        }
+        for r in rows
+    ]
+    if out:
+        out.write_text("\n".join(_json.dumps(rec, ensure_ascii=False) for rec in records), "utf-8")
+        console.print(f"[green]✓ {len(records)} registros exportados a[/green] {out}")
+    else:
+        table = Table(title=f"Auditoría ({len(rows)} consultas)")
+        for col in ("fecha", "semáforo", "lat(ms)", "pregunta"):
+            table.add_column(col)
+        for r in rows:
+            fecha = r.created_at.isoformat()[:16] if r.created_at else ""
+            table.add_row(fecha, r.semaforo, str(r.latency_ms), (r.question or "")[:60])
+        console.print(table)
+
+
+@app.command()
 def eval(  # noqa: A001 (nombre del comando, intencional)
     golden: Path = typer.Argument(..., help="Ruta al golden set JSONL."),
     tenant: str | None = typer.Option(None, "--tenant"),
+    sweep: bool = typer.Option(
+        False, "--sweep", help="Calibra el umbral de evidencia (separa trampas de reales)."
+    ),
 ) -> None:
     """Corre el golden set y reporta métricas (gate de calidad)."""
     from avorag.eval import run_eval
 
     configure_logging()
-    _, passed = run_eval(golden, tenant=tenant)
+    _, passed = run_eval(golden, tenant=tenant, sweep=sweep)
     raise typer.Exit(code=0 if passed else 1)
 
 
