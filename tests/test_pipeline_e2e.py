@@ -181,6 +181,12 @@ def test_cat_tox_no_fuerza_rojo_si_no_hay_plaguicida(monkeypatch) -> None:
     assert ans.semaforo.value != "rojo"
 
 
+def test_strip_latex_a_texto_plano() -> None:
+    t = P._strip_latex(r"Resultado: \[ 105,9 \text{ kg K/ha} \times 0,3 = 31,5 \text{ kg K/ha} \]")
+    assert "\\[" not in t and "\\]" not in t and "\\text" not in t and "\\times" not in t
+    assert "kg K/ha" in t and "×" in t
+
+
 def test_targeted_quote_limpia_ruido() -> None:
     # Quita sintaxis de tabla, números de página sueltos y une cortes de línea del PDF.
     q1 = P._targeted_quote("|Elemento|0-15<br>cm| |---|---| |pH|5,33|Fuertemente<br>ácido|")

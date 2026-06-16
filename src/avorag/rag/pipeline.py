@@ -226,6 +226,18 @@ _FALLBACK_TEXT = (
 )
 
 
+def _strip_latex(text: str) -> str:
+    """Convierte la notación LaTeX que a veces emite el modelo a texto plano legible (la UI no
+    renderiza matemáticas): quita \\[ \\] \\( \\) y $, \\text{x}->x, \\times->×, \\frac{a}{b}->(a/b)."""
+    t = re.sub(r"\\[\[\]()]", "", text)
+    t = re.sub(r"\\text\s*\{([^}]*)\}", r"\1", t)
+    t = re.sub(r"\\frac\s*\{([^}]*)\}\s*\{([^}]*)\}", r"(\1/\2)", t)
+    t = t.replace("\\times", "×").replace("\\cdot", "·").replace("\\approx", "≈")
+    t = re.sub(r"\\,", " ", t)
+    t = re.sub(r"(?<!\d)\$|\$(?!\d)", "", t)  # $ delimitadores (no precios)
+    return re.sub(r"[ \t]{2,}", " ", t)
+
+
 def _is_abstention(body: str) -> bool:
     """True SOLO si el cuerpo es el marcador NO_LO_SE prácticamente solo. OJO: el 3B a veces
     antepone NO_LO_SE como tic y luego da una respuesta válida; en ese caso NO es abstención —
@@ -469,7 +481,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         _persist(ans, tenant)
         return ans
 
-    raw = _strip_meta(body.replace(ABSTENTION_MARKER, "").strip())
+    raw = _strip_latex(_strip_meta(body.replace(ABSTENTION_MARKER, "").strip()))
 
     if settings.dose_guardrail:
         doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
