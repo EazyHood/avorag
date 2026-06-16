@@ -63,6 +63,23 @@ in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 > raise it; **targets** are ~0.85. Sample n=64 is still moderate (wide CIs on the n=10 trap/danger
 > buckets). For a commercial claim: **≥200** curated questions + a second human evaluator.
 
+## Scale simulation (500 questions) and the right metric
+500 questions (pests, fertility/soils, physiology, inputs, other) were generated and run through the
+full system on 7B with the expanded corpus (~1,832 chunks). Instead of chasing a high "% green", we
+report the KPIs of a **safety advisor** (n=189, Wilson 95% CI):
+
+| Dangerous answers | Grounding (citation on what it answers) | Unsafe blocks (red) | Reliable coverage (green) | Honest deferral |
+|:--:|:--:|:--:|:--:|:--:|
+| **0%** | **89%** | **4%** | **44%** | **51%** |
+
+**Conclusion ([ADR 0005](adr/0005-metrica-de-asesor-de-seguridad.md)):** over **arbitrary**
+questions, a "≥80% green" target is neither reachable nor desirable — forcing it only works by
+loosening the semáforo (confidently asserting without support). The tool's value is the **0% dangerous
+answers** plus answering with citations in its domain and honestly deferring outside it. The
+simulation found and fixed guardrail false positives (fertilizer/irrigation doses treated as
+pesticide) and drove the **corpus expansion** with 8 new official sources (Agrosavia, MinAgricultura,
+ICESI, UNAD).
+
 ## Honest limitations (what it does NOT do)
 - It does not replace an agronomist; it's a **decision-support** tool.
 - It is **text-only**: it does NOT identify pests/diseases from a photo.

@@ -24,6 +24,27 @@ rojo/amarillo, **ninguna en verde**. El reporte trae IC95 de Wilson por métrica
 > una afirmación comercial: **≥200** preguntas curadas + segundo evaluador humano. El corpus se
 > reconstruye desde fuentes públicas con [`scripts/build_corpus.py`](scripts/build_corpus.py).
 
+## 🔬 Simulación a escala (500 preguntas) y la métrica correcta
+Se generaron **500 preguntas** (plagas, fertilidad/suelos, fisiología, insumos, otros) y se midió
+el sistema completo en 7B con el corpus ampliado (~1.832 chunks). En vez de perseguir un "% verde"
+alto, se reportan los KPIs de un **asesor de seguridad** (n=189, IC95 Wilson):
+
+| Respuestas peligrosas | Respaldo (cita en lo que responde) | Bloqueo de inseguros (rojo) | Cobertura confiable (verde) | Deferencia honesta |
+|:--:|:--:|:--:|:--:|:--:|
+| **0%** | **89%** | **4%** | **44%** | **51%** |
+
+**Conclusión ([ADR 0005](docs/adr/0005-metrica-de-asesor-de-seguridad.md)):** sobre preguntas
+**arbitrarias**, un objetivo de "≥80% verde" no es alcanzable ni deseable — forzarlo solo se logra
+relajando el semáforo (afirmar con confianza sin respaldo). El valor de la herramienta es el
+**0% de respuestas peligrosas** + responder citado en su dominio y deferir con honestidad fuera de
+él. La simulación encontró y arregló falsos positivos del guardarraíl (dosis de fertilizante/riego
+tratadas como plaguicida) y guió la **ampliación del corpus** con 8 fuentes oficiales nuevas
+(Agrosavia, MinAgricultura, ICESI, UNAD).
+
+> **Velocidad (trade-off de hardware):** en una GPU de 8 GB el modelo 7B tarda ~1–2 min/pregunta;
+> el default interactivo es **3B (~7–22 s)**, que con el mismo corpus sigue citando y aplicando los
+> guardarraíles. Para máxima calidad puntual se cambia `LLM_MODEL` a 7B (`.env`).
+
 ## 🎯 Qué demuestra
 RAG con **prácticas de producción** (recuperación híbrida + reranking + evaluación con gate,
 guardarraíles, auditoría, observabilidad), **criterio de producto** (guardarraíl de dosis
@@ -75,7 +96,8 @@ uv sync
 
 # 2) Modelos locales (una sola vez)
 ollama pull bge-m3
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen2.5:3b-instruct     # interactivo, rápido (~7-22 s)
+ollama pull qwen2.5:7b-instruct     # opcional: máxima calidad (más lento)
 
 # 3) Configuración
 Copy-Item .env.example .env      # y ajusta DATABASE_URL
