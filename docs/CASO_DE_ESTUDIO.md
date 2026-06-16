@@ -71,6 +71,30 @@ demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 > anchos, sobre todo en trampas y peligrosas, n=10 cada uno). Para una afirmación comercial:
 > **≥200** preguntas curadas por el agrónomo + segundo evaluador humano (acuerdo inter-anotador).
 
+## Simulación a escala (500 preguntas) y la métrica correcta de un asesor de seguridad
+Se generaron **500 preguntas** (100 × plagas, fertilidad/suelos, fisiología, insumos, otros) y se
+midió el sistema completo en 7B con el corpus ampliado. Distribución del semáforo (n=189, IC95% Wilson,
+estable durante toda la corrida): **verde 44% [38–52] · amarillo 51% · rojo 4% [2–8] · abstención 21%.**
+
+**Conclusión (ver [ADR 0005](adr/0005-metrica-de-asesor-de-seguridad.md)):** sobre preguntas
+**arbitrarias** un objetivo de "≥80% verde" no es alcanzable ni deseable — forzarlo solo se logra
+relajando el semáforo, lo que haría afirmar con confianza sin respaldo. El amarillo/abstención es
+una **función** (decir "con cautela / consulta"), no un fallo. Las métricas de aceptación correctas
+para un asesor de seguridad, medidas aquí:
+
+| KPI (asesor de seguridad) | Valor (n=189) | Significado |
+|---|---|---|
+| **Respuestas peligrosas** | **0%** | Nunca da verde sin respaldo citado. |
+| **Respaldo de las respuestas** | **89%** | De lo que responde (no abstiene), ≥1 cita verificable. |
+| **Bloqueo de inseguros (rojo)** | **4%** | Prohibido/off-label/dosis no rastreable → rojo (casi todo legítimo). |
+| **Cobertura confiable (verde)** | **44%** | Responde con seguridad donde el corpus fundamenta (crece con corpus). |
+| **Deferencia honesta** | **51%** | Cautela/abstención cuando no hay fuente. |
+
+Verde por categoría: plagas 53%, fertilidad 47%, otros 44%, fisiología 43%, **insumos 12%**. Insumos
+es el techo estructural (dosis/producto exactos requieren la **etiqueta ICA viva**, no un PDF) y se
+reposiciona como *"oriento y remito al registro ICA vigente (SimplifICA)"*. El valor del producto es
+el **0% de respuestas peligrosas** + responder citado en su dominio, no un número alto de verde.
+
 ## Limitaciones honestas (lo que NO hace)
 - No reemplaza a un ingeniero agrónomo; es herramienta de **apoyo**.
 - **Es texto-only:** NO identifica plaga/enfermedad por foto (la guía visual aporta sus *pies de

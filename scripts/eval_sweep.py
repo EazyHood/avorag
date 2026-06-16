@@ -10,6 +10,7 @@ Uso:  LLM_MODEL=qwen2.5:3b-instruct  CACHE_ENABLED=false  uv run python scripts/
 from __future__ import annotations
 
 import json
+import random
 import re
 import time
 from pathlib import Path
@@ -37,6 +38,7 @@ def _done_questions() -> set[str]:
 def main() -> None:
     data = json.loads(_QS.read_text(encoding="utf-8"))
     items = [(cat, q) for cat, qs in data.items() for q in qs]
+    random.Random(0).shuffle(items)  # orden barajado fijo: cualquier prefijo queda estratificado
     done = _done_questions()
     pending = [(c, q) for c, q in items if q not in done]
     _OUT.parent.mkdir(parents=True, exist_ok=True)
