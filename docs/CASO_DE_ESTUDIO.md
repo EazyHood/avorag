@@ -43,26 +43,27 @@ Recuperación **híbrida** (denso `pgvector` + léxico FTS español) → fusión
 Proveedores intercambiables por configuración (local gratis con Ollama, o Claude para el
 demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · corpus_version 2026-06-14)
+## Resultados (medición real · n=64 · `RERANK_PROVIDER=local` · qwen2.5:7b · prompt v8 · corpus_version 2026-06-15.3)
 <!-- Pega aquí la captura de eval/reports/report.html -->
 | Métrica | Valor (IC95 Wilson) | Qué mide (y qué NO) |
 |---|---|---|
-| **Groundedness** | **0,73** | Cada afirmación está respaldada por el fragmento citado. **NO** es exactitud agronómica ni vigencia. Juez LLM (qwen-7b autoevaluándose, conservador). |
-| Soporte de cita | **0,89** (0,76–0,95) | La cifra citada `[n]` está realmente en el fragmento `n` (determinista). |
-| Respuestas con cita | **0,73** (0,58–0,84) | **Presencia** de cita; las que no citan caen a amarillo. |
-| Abstención correcta (trampas) | **0,90** (0,60–0,98) | 9/10 trampas abstenidas. |
-| Manejo de preguntas peligrosas | **1,00** | Las 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa) quedaron en rojo/amarillo, **ninguna en verde**. |
-| must_cite (regulador correcto) | **0,89** | El item cita al regulador exigido (ICA/Agrosavia). |
-| Tasa de respuesta (reales) | **0,81** | 44/54; 10 abstenciones honestas. |
-| Latencia media | **35 s** (`RERANK_PROVIDER=local`, CPU) · **<50 ms** repetidas (caché) | El default de fábrica es `none`. GPU lo baja a segundos. |
+| **Groundedness** | **0,79** | Cada afirmación está respaldada por el fragmento citado. **NO** es exactitud agronómica ni vigencia. Juez LLM (qwen-7b autoevaluándose, conservador). |
+| Soporte de cita | **0,95** (0,84–0,99) | La cifra citada `[n]` está realmente en el fragmento `n` (determinista). |
+| Respuestas con cita | **0,93** (0,81–0,98) | **Presencia** de cita; las que no citan caen a amarillo. |
+| Abstención correcta (trampas) | **1,00** (0,72–1,0) | Las 10 trampas de abstención se abstuvieron correctamente. |
+| Manejo de preguntas peligrosas | **0,90** (0,60–0,98) | De 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa), **9 quedaron en rojo/amarillo y 1 se coló en verde** — lo reportamos (IC95 amplio, n=10). |
+| must_cite (regulador correcto) | **0,85** | El item cita al regulador exigido (ICA/Agrosavia). |
+| Tasa de respuesta (reales) | **0,76** (0,63–0,85) | 41/54; 13 abstenciones honestas. |
+| Latencia media | **~17 s** (`RERANK_PROVIDER=local`, GPU) · **<50 ms** repetidas (caché) | El default de fábrica es `none`. En CPU el reranker añade ~12 s. |
 
-**Gate: ✓ PASA** (piso de no-regresión calibrado sobre esta medición).
+**Gate: ✓ PASA** (piso de no-regresión; esta corrida lo pasa con prompt v8 + corpus ampliado). Tasa de rojo global 4,7%.
 
-> **Honestidad sobre la caída vs la v1 (0,96 → 0,73):** NO es una regresión, es honestidad. La
-> cifra v1 era groundedness sobre **n=16 fáciles** con un juez más laxo; aquí es **n=64** con
-> preguntas adversarias difíciles (mezclas, prohibidos, fitotoxicidad), métricas **más estrictas**
-> y el **mismo qwen-7b local autoevaluándose** (conservador). Con un modelo generador/juez más
-> fuerte (Claude) y validación humana, sube. Los **objetivos** son groundedness/citación ~0,85.
+> **Honestidad (0,96 → 0,79):** NO es una regresión, es honestidad. La cifra v1 era groundedness
+> sobre **n=16 fáciles** con un juez más laxo; aquí es **n=64** con preguntas adversarias difíciles
+> (mezclas, prohibidos, fitotoxicidad), métricas **más estrictas** y el **mismo qwen-7b local
+> autoevaluándose** (conservador). Subió desde un 0,73 previo al pasar a **prompt v8 + corpus
+> ampliado**. Con un modelo generador/juez más fuerte (Claude) y validación humana, sube más. Los
+> **objetivos** son groundedness/citación ~0,85.
 >
 > **Hallazgo de calibración:** el barrido de umbral separa trampas (score ~0) de reales (≥0,02)
 > con **98,3% de exactitud**; `min_rerank_score` se fijó en 0,01 con base en eso.
