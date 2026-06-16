@@ -257,6 +257,56 @@ def test_answer_abstencion_con_seguimiento_pegado(monkeypatch) -> None:
     assert ans.text.strip() and "NO_LO_SE" not in ans.text and "SEGUIMIENTO" not in ans.text
 
 
+def test_prohibido_en_pregunta_es_rojo_aunque_el_modelo_se_abstenga(monkeypatch) -> None:
+    # Fuga real corregida: un i.a. prohibido (endosulfán) nombrado en la PREGUNTA debe ser ROJO
+    # SIEMPRE, aunque el modelo se abstenga (antes salía AMARILLO por la abstención).
+    _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())
+    ans = P.answer("¿Sirve el endosulfán para controlar plagas del aguacate?")
+    assert ans.semaforo.value == "rojo"
+    assert not ans.abstained
+    assert "endosulfan" in ans.text.lower() or "endosulfán" in ans.text.lower()
+
+
+def test_marco_inseguro_duplicar_dosis_es_rojo(monkeypatch) -> None:
+    # La trampa "duplicar la dosis" que se colaba en VERDE: si el modelo no refuta -> ROJO.
+    class _AgreeLLM:
+        name = "agree"
+
+        def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
+            if "faithful" in system.lower() or "seguro" in system.lower():
+                return '{"faithful": true, "score": 0.95, "unsupported": []}'
+            return "Sí, al duplicar la dosis del insecticida controlas mejor el trips [1]."
+
+        def stream(self, system, user, *, temperature=None, max_tokens=None):
+            for w in self.complete(system, user).split(" "):
+                yield w + " "
+
+    _wire(monkeypatch, [_chunk("El trips del aguacate Hass se maneja con manejo integrado.")], llm=_AgreeLLM())
+    ans = P.answer("Si duplico la dosis del insecticida, ¿controlo mejor el trips del aguacate?")
+    assert ans.semaforo.value == "rojo"
+    assert "premisa insegura" in (ans.reason or "").lower()
+
+
+def test_fertilizante_inverosimil_es_amarillo(monkeypatch) -> None:
+    # Un "cero de más" en N (2000 kg/ha) ya no pasa en VERDE: la cordura de fertilizante -> AMARILLO.
+    class _FertLLM:
+        name = "fert"
+
+        def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
+            if "faithful" in system.lower() or "seguro" in system.lower():
+                return '{"faithful": true, "score": 0.95, "unsupported": []}'
+            return "Aplica 2000 kg/ha de nitrógeno al aguacate Hass [1]."
+
+        def stream(self, system, user, *, temperature=None, max_tokens=None):
+            for w in self.complete(system, user).split(" "):
+                yield w + " "
+
+    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass con nitrógeno.")], llm=_FertLLM())
+    ans = P.answer("¿Cuánto nitrógeno aplico al aguacate Hass?")
+    assert ans.semaforo.value == "amarillo"
+    assert "fertilizante" in (ans.reason or "").lower()
+
+
 def test_answer_stream_abstencion_resetea_y_no_verifica(monkeypatch) -> None:
     _wire(monkeypatch, [_chunk("contenido")], llm=_AbstainingLLM())
     events = list(P.answer_stream("¿Cuál es el plan de fertilización del Hass?"))

@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from avorag.agro_terms import active_ingredients_in, extract_active_ingredient
+from avorag.agro_terms import (
+    active_ingredients_in,
+    extract_active_ingredient,
+    mode_of_action_groups,
+)
 from avorag.logging import get_logger
 from avorag.providers import get_judge_llm_provider
 from avorag.rag.schemas import AbstentionType, Semaforo
@@ -364,6 +368,115 @@ def stale_data_warnings(chunks: list[ScoredChunk]) -> list[str]:
     return warnings[:2]
 
 
+# ── Marco peligroso (premisa adversaria sin i.a./dosis concretos) ───────────────────────────────
+# Preguntas/afirmaciones cuya PREMISA es insegura aunque no nombren un i.a. ni una dosis rastreable
+# —donde los guardarraíles de dosis NO se activan—: "duplicar la dosis", "sin periodo de carencia",
+# "cualquier insecticida sirve". Si la respuesta NO refuta la premisa con claridad → ROJO. Es la
+# fuga por la que "duplicar la dosis" se colaba en VERDE confiado.
+_UNSAFE_PREMISE_RE = re.compile(
+    r"duplic|\bel doble\b|\bdoble dosis\b|triplic|"  # escalado de dosis
+    r"mas dosis|mayor dosis|aumenta(?:r|ndo)?\s+la\s+dosis|sub(?:e|ir)\s+la\s+dosis|sobredosis|"
+    r"sin\s+(?:periodo\s+de\s+)?(?:carencia|seguridad)|"  # sin carencia
+    r"que\s+no\s+tenga\s+(?:periodo\s+de\s+)?carencia|sin\s+tiempo\s+de\s+(?:espera|reingreso)|"
+    r"cualquier\s+(?:insecticida|plaguicida|fungicida|acaricida|herbicida|agroquimic|quimic|producto)",
+    re.IGNORECASE,
+)
+# La respuesta refuta/corrige la premisa: entonces es una respuesta CORRECTA y se deja pasar.
+_REFUTATION_RE = re.compile(
+    r"\bno\b.{0,30}(?:duplic|aument|sube|subir|mas dosis|mayor dosis|recomend|debe|seguro|sirve|"
+    r"garantiza|mejor|funciona|conviene)|"
+    r"no es (?:recomendable|seguro|cierto|correcto|buena idea|aconsejable)|no se debe|\bnunca\b|"
+    r"evita(?:r)?\b|respeta(?:r)?\s+(?:el|la|los)?\s*(?:periodo de\s+)?(?:carencia|etiqueta|dosis)|"
+    r"seg[uú]n\s+la\s+etiqueta|sigue\s+la\s+(?:dosis|etiqueta)|dosis\s+de\s+la\s+etiqueta|"
+    r"fitotoxic|resistencia|no\s+existe|no\s+mejora|no\s+garantiza|riesgo|puede\s+causar\s+da",
+    re.IGNORECASE,
+)
+
+
+def unsafe_framing(question: str, answer_text: str) -> tuple[bool, str]:
+    """True si la premisa es insegura (duplicar dosis / sin carencia / producto genérico) y la
+    respuesta NO la refuta con claridad. Caza la trampa que se cuela en VERDE cuando no hay i.a. ni
+    dosis concretos que activen los guardarraíles de dosis."""
+    premise = bool(
+        _UNSAFE_PREMISE_RE.search(_strip_accents(question))
+        or _UNSAFE_PREMISE_RE.search(_strip_accents(answer_text))
+    )
+    if not premise:
+        return (False, "")
+    if _REFUTATION_RE.search(_strip_accents(answer_text)):
+        return (False, "")  # la respuesta corrige la premisa: es correcta
+    return (True, "premisa insegura no refutada (duplicar dosis / sin carencia / producto genérico)")
+
+
+# ── Cordura de dosis de FERTILIZANTE (no fitosanitario) ─────────────────────────────────────────
+# El guardarraíl de plaguicidas no mira fertilizantes; un "cero de más" en N o KCl pasaba en VERDE.
+# Conservador para NO marcar dosis normales: solo avisa ante magnitudes inverosímiles.
+_FERT_CTX_RE = re.compile(
+    r"nitrogen|urea|potasi|\bk2?o\b|\bkcl\b|cloruro de potasio|fosfor|fosfat|\bp2o5\b|nitrato|"
+    r"calci|magnesi|fertiliz|abon|\bdap\b|\bmap\b|nutricion|sulfato|\bnpk\b|enmienda|encalad",
+    re.IGNORECASE,
+)
+_FERT_DOSE_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?)\s?(kg\s?/\s?ha|g\s?/\s?ha|ton(?:elada)?s?\s?/\s?ha|t\s?/\s?ha)(?!\w)",
+    re.IGNORECASE,
+)
+_PER_TREE_KG_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?kg\s*(?:por|/)\s*[aá]rbol", re.IGNORECASE)
+
+
+def fertilizer_dose_issues(answer_text: str) -> list[str]:
+    """Caza errores de magnitud en dosis de fertilizante (>1200 kg/ha de un nutriente, o >30 kg por
+    árbol). Umbrales holgados: la fertilización normal del Hass (N≈100-300 kg/ha, KCl ≤~1000 kg/ha)
+    no se marca; un "cero de más" sobre una cifra normal (150→1500) sí."""
+    low = _strip_accents(answer_text)
+    issues: list[str] = []
+    for m in _FERT_DOSE_RE.finditer(answer_text):
+        win = low[max(0, m.start() - 50) : m.end() + 20]
+        if not _FERT_CTX_RE.search(win):
+            continue
+        value = float(m.group(1).replace(",", "."))
+        unit = re.sub(r"\s+", "", m.group(2).lower())
+        if unit.startswith("t"):  # ton/ha, t/ha
+            kg_ha = value * 1000
+        elif unit.startswith("g"):  # g/ha
+            kg_ha = value / 1000
+        else:  # kg/ha
+            kg_ha = value
+        if kg_ha > 1200:
+            issues.append(
+                f"{m.group(1)} {m.group(2)} de fertilizante/ha es inverosímil "
+                "(posible error de magnitud / cero de más)"
+            )
+    for m in _PER_TREE_KG_RE.finditer(answer_text):
+        if float(m.group(1).replace(",", ".")) > 30:
+            issues.append(
+                f"{m.group(1)} kg/árbol de fertilizante es inverosímil (posible error de magnitud)"
+            )
+    uniq: list[str] = []
+    for i in issues:
+        if i not in uniq:
+            uniq.append(i)
+    return uniq[:3]
+
+
+def resistance_reminder(answer_text: str) -> str | None:
+    """Recordatorio anti-resistencia cuando la respuesta recomienda un plaguicida químico: rotar
+    modos de acción (grupos IRAC/FRAC). Es un AVISO (no cambia el semáforo), honesto: no modela el
+    historial de aplicaciones, solo recuerda la rotación e indica los grupos si los reconoce."""
+    if not recommends_pesticide(answer_text):
+        return None
+    groups = mode_of_action_groups(answer_text)
+    if groups:
+        gtxt = ", ".join(f"{ia} ({g})" for ia, g in list(groups.items())[:3])
+        return (
+            f"Anti-resistencia: rota modos de acción entre aplicaciones — aquí {gtxt}. "
+            "No repitas el mismo grupo IRAC/FRAC en ciclos consecutivos."
+        )
+    return (
+        "Anti-resistencia: rota los modos de acción (grupos IRAC/FRAC) entre aplicaciones; "
+        "no repitas el mismo ingrediente/grupo en ciclos consecutivos."
+    )
+
+
 # Clasificación de intención.
 _HASS_TERMS = {"aguacate", "hass", "palta", "palto"}
 _OTHER_CROPS = {
@@ -510,9 +623,12 @@ def decide_semaforo(
     citation_ok: bool = True,
     conflicts: list[str] | None = None,
     language_ok: bool = True,
+    unsafe_framing: bool = False,
+    fertilizer_unsafe: bool = False,
 ) -> tuple[Semaforo, str]:
-    """Combina las señales en un semáforo con razón. Prioridad: idioma > prohibido > off-label >
-    dosis > registro > PHI > cat I/II > asociación > cita > conflicto > fidelidad > citas."""
+    """Combina las señales en un semáforo con razón. Prioridad: idioma > prohibido > marco peligroso
+    > off-label > dosis > registro > PHI > cat I/II > asociación > fertilizante > cita > conflicto >
+    fidelidad > citas."""
     banned = banned or []
     conflicts = conflicts or []
     if not language_ok:
@@ -526,6 +642,13 @@ def decide_semaforo(
             Semaforo.ROJO,
             f"Ingrediente prohibido o restringido: {'; '.join(banned[:2])}. No recomendar; "
             "verificar la resolución ICA vigente.",
+        )
+    if unsafe_framing:
+        return (
+            Semaforo.ROJO,
+            "La consulta parte de una premisa insegura (duplicar la dosis, prescindir del periodo "
+            "de carencia o usar 'cualquier' producto) y la respuesta no la corrige: riesgo de "
+            "fitotoxicidad, residuos (LMR) y resistencia. No seguir; consultar al agrónomo.",
         )
     if offlabel:
         return (
@@ -561,6 +684,12 @@ def decide_semaforo(
         return (
             Semaforo.ROJO,
             f"Asociación producto–plaga–dosis–carencia insegura: {detalle}. Requiere agrónomo.",
+        )
+    if fertilizer_unsafe:
+        return (
+            Semaforo.AMARILLO,
+            "Una dosis de fertilizante parece inverosímil (posible error de magnitud): verifica el "
+            "valor contra el análisis de suelo/foliar y el plan de fertilización antes de aplicar.",
         )
     if safety_required and safety is None:
         return (

@@ -27,6 +27,8 @@ _CANONICAL_MODES = {
     "off_label",
     "categoria_i",
     "conflicto_fuentes",
+    "marco_inseguro",
+    "fertilizante_inverosimil",
 }
 
 
@@ -57,6 +59,8 @@ def _evaluate_deterministic(question: str, answer: str, chunks: list[ScoredChunk
     citation_ok, _ = g.citation_supports_claim(answer, chunks)
     conflicts = g.dose_conflicts(chunks)
     cat_tox = g.cited_categoria_toxicologica(chunks)
+    unsafe_fr, _ = g.unsafe_framing(question, answer)
+    fert_issues = g.fertilizer_dose_issues(answer)
     return g.decide_semaforo(
         doses_ok=doses_ok,
         phi_ok=phi_ok,
@@ -72,6 +76,8 @@ def _evaluate_deterministic(question: str, answer: str, chunks: list[ScoredChunk
         registro_required=registro_required and actionable,
         citation_ok=citation_ok,
         conflicts=conflicts,
+        unsafe_framing=unsafe_fr,
+        fertilizer_unsafe=bool(fert_issues),
     )
 
 

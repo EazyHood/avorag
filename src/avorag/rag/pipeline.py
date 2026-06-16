@@ -369,6 +369,40 @@ def _abstention(
     )
 
 
+def _forbidden_answer(
+    question: str, forbidden: list[str], destino_no_auth: bool, *, pinfo: dict, t0: float
+) -> Answer:
+    """Respuesta ROJA directa para un i.a. prohibido/restringido (ICA) o no autorizado en el
+    mercado de destino. Es la barrera dura: no se recupera ni se abstiene, se advierte."""
+    from avorag.rag import destino as _destino
+
+    nombres = " ni ".join(s.split(" (")[0] for s in forbidden[:2])
+    destino_txt = (
+        f" No está autorizado en tu mercado de destino ({_destino.market_name()})."
+        if destino_no_auth
+        else ""
+    )
+    text = (
+        f"⛔ No, no debes usar {nombres} en aguacate Hass de exportación.{destino_txt}\n\n"
+        "Es un producto prohibido/restringido o no autorizado en el destino. Consulta con tu "
+        "técnico alternativas registradas y vigentes ante el ICA, y verifica el límite máximo de "
+        "residuos (LMR) del país de destino antes de cualquier aplicación."
+    )
+    return Answer(
+        question=question,
+        text=text,
+        semaforo=Semaforo.ROJO,
+        abstained=False,
+        reason=(
+            "Ingrediente prohibido/restringido o no autorizado en destino: "
+            f"{'; '.join(forbidden[:2])}."
+        ),
+        disclaimer=DISCLAIMER,
+        latency_ms=int((time.perf_counter() - t0) * 1000),
+        provider_info=pinfo,
+    )
+
+
 def _conversational(question: str, conv: str, pinfo: dict, t0: float) -> Answer:
     return Answer(
         question=question,
@@ -388,6 +422,22 @@ def _retrieve(
     """Recupera y decide abstención. La sesión de BD se mantiene SOLO durante la consulta (no
     durante el LLM). Devuelve (respuesta_temprana, None) si abstiene, o (None, datos-de-generación)."""
     settings = get_settings()
+
+    # Barrera dura, ANTES de recuperar o abstenerse: si la PREGUNTA ya nombra un i.a. prohibido/
+    # restringido (ICA) o no autorizado en el mercado de destino, el semáforo es ROJO SIEMPRE —
+    # nunca AMARILLO por abstención. Un prohibido debe pararse aunque el modelo dude o no recupere.
+    if settings.dose_guardrail:
+        from avorag.rag import destino
+
+        banned_q = guardrails.banned_ingredients_in_answer(question, country)
+        destino_q = destino.unauthorized_for_destination(question)
+        if banned_q or destino_q:
+            ans = _forbidden_answer(
+                question, banned_q + destino_q, bool(destino_q), pinfo=pinfo, t0=t0
+            )
+            _persist(ans, tenant)
+            return ans, None
+
     fc_parts: list[str] = []
     if soil_type:
         fc_parts.append(f"suelo {soil_type}")
@@ -493,6 +543,8 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         citation_ok, citation_issues = guardrails.citation_supports_claim(raw, final)
         conflicts = guardrails.dose_conflicts(final)
         warnings = guardrails.stale_data_warnings(final)
+        unsafe_fr, _unsafe_reason = guardrails.unsafe_framing(question, raw)
+        fert_issues = guardrails.fertilizer_dose_issues(raw)
     else:
         doses_ok, unsupported = True, []
         phi_ok, phi_unsupported = True, []
@@ -500,6 +552,7 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         registro_required, registro_ok = False, True
         citation_ok, citation_issues = True, []
         conflicts, warnings = [], []
+        unsafe_fr, fert_issues = False, []
 
     # Autorización por país de DESTINO de exportación (EXPORT_MARKET): un activo no aprobado en el
     # destino → ROJO (evita rechazo por LMR); un activo con LMR estricto → aviso. Apagado si no hay
@@ -559,6 +612,8 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         citation_ok=citation_ok,
         conflicts=conflicts,
         language_ok=language_ok,
+        unsafe_framing=unsafe_fr,
+        fertilizer_unsafe=bool(fert_issues),
     )
     if chem_pesticide and not doses_ok:
         reason += f" (dosis sin producto/fuente: {', '.join(unsupported)})"
@@ -566,6 +621,12 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         reason += f" (carencia sin fuente: {', '.join(phi_unsupported)})"
     if not citation_ok and citation_issues:
         reason += f" (citas: {'; '.join(citation_issues)})"
+    if fert_issues and semaforo == Semaforo.AMARILLO:
+        reason += f" ({fert_issues[0]})"
+    # Aviso anti-resistencia (no cambia el semáforo): rotar modos de acción IRAC/FRAC.
+    rem = guardrails.resistance_reminder(raw)
+    if rem:
+        warnings = [*warnings, rem]
 
     if forbidden:
         # Producto prohibido/restringido (ICA) o NO autorizado en el mercado de destino: la respuesta
