@@ -14,6 +14,8 @@ from avorag.logging import configure_logging
 app = typer.Typer(add_completion=False, help="AvoRAG — Asesor Hass (RAG agronómico).")
 db_app = typer.Typer(help="Migraciones de base de datos.")
 app.add_typer(db_app, name="db")
+vision_app = typer.Typer(help="Visión: identificar madurez/patología desde una foto.")
+app.add_typer(vision_app, name="vision")
 console = Console()
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -133,6 +135,64 @@ def ask(
     )
     fa = f" · fidelidad {ans.faithfulness:.2f}" if ans.faithfulness is not None else ""
     console.print(f"[dim]{ans.latency_ms} ms{fa} · {ans.reason or ''}[/dim]")
+
+
+@vision_app.command("classify")
+def vision_classify(
+    image: Path = typer.Argument(..., help="Foto de hoja o fruto (JPEG/PNG/WebP)."),
+    top_k: int = typer.Option(3, "--top-k"),
+) -> None:
+    """Identifica madurez/patología de una foto (sin pasar por el RAG)."""
+    from avorag.vision import classify_image
+
+    configure_logging()
+    res = classify_image(image.read_bytes(), top_k=top_k)
+    table = Table(title=f"Identificación visual ({res.model_version})")
+    for col in ("clase", "tipo", "confianza"):
+        table.add_column(col)
+    for p in res.predictions:
+        table.add_row(p.label_es, p.kind.value, f"{p.confidence * 100:.1f}%")
+    console.print(table)
+    if res.requires_review:
+        console.print("[yellow]Baja confianza: toma una foto más clara o consulta al agrónomo.[/yellow]")
+    console.print(f"[dim]{res.disclaimer}[/dim]")
+
+
+@vision_app.command("diagnose")
+def vision_diagnose(
+    image: Path = typer.Argument(..., help="Foto de hoja o fruto (JPEG/PNG/WebP)."),
+    question: str | None = typer.Option(None, "--question", "-q", help="Pregunta libre opcional."),
+    soil: str | None = typer.Option(None, "--soil"),
+    region: str | None = typer.Option(None, "--region"),
+) -> None:
+    """Identifica la foto y obtiene la respuesta CITADA del motor RAG."""
+    from avorag.vision import diagnose as run_diagnose
+
+    configure_logging()
+    res = run_diagnose(
+        image.read_bytes(), question=question, soil_type=soil, region=region
+    )
+    v = res.vision
+    if v.top:
+        console.print(
+            f"[bold]Foto:[/bold] {v.top.label_es} "
+            f"({v.top.kind.value}, {v.top.confidence * 100:.0f}%)"
+        )
+    if v.requires_review:
+        console.print("[yellow]Identificación poco fiable: foto más clara recomendada.[/yellow]")
+    if res.answer:
+        a = res.answer
+        color = {"verde": "green", "amarillo": "yellow", "rojo": "red"}.get(
+            a.get("semaforo", ""), "white"
+        )
+        body = a.get("text", "")
+        for i, c in enumerate(a.get("citations", []), start=1):
+            pag = f", p.{c['pagina']}" if c.get("pagina") else ""
+            body += f"\n  [{i}] {c.get('fuente', '')}{pag}"
+        console.print(
+            Panel(body, title=f"[{color}]{a.get('semaforo', '').upper()}[/{color}]", border_style=color)
+        )
+    console.print(f"[dim]{v.disclaimer}[/dim]")
 
 
 @app.command()

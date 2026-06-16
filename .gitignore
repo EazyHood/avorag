@@ -30,6 +30,10 @@ data/cache/
 eval/reports/
 *.sqlite
 *.duckdb
+# Imágenes de visión: no versionar (peso + licencia). Conserva solo la doc.
+data/vision/**
+!data/vision/
+!data/vision/DATASETS.md
 # PDFs sueltos en la raíz (corpus mal ubicado): nunca versionar
 /*.pdf
 
