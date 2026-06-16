@@ -161,6 +161,7 @@ extracción de páginas) y respeta `data/corpus_manifest.json` (fuentes, URLs y 
 - [`docs/SECURITY.md`](docs/SECURITY.md) — datos, secretos, Habeas Data.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — operación, backups, rollback.
 - [`docs/VISION.md`](docs/VISION.md) — módulo de visión (foto → madurez → RAG): arquitectura, licencias y resultados honestos.
+- [`docs/MOBILE.md`](docs/MOBILE.md) — llevar AvoRAG a una app móvil **offline** (clasificador ONNX on-device + conocimiento citado precalculado): guía de build exacta, con el preprocesamiento al detalle.
 - [`docs/TERMINOS_DE_USO.md`](docs/TERMINOS_DE_USO.md) — términos de uso y aviso legal (borrador para revisión de un abogado).
 - [`docs/DEUDA_TECNICA.md`](docs/DEUDA_TECNICA.md) — corregido en v0.1 + diferidos a Ruta 🅱️.
 

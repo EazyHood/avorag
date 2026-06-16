@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AvoRAG · Calculadora de ROI (honesta)</title>
+<style>
+  :root{
+    --paper:#F4F0E6; --card:#FCFAF3; --ink:#19301F; --ink-2:#52624F; --ink-3:#8A9685;
+    --line:rgba(25,48,31,.14); --leaf:#3E7C4F; --leaf-deep:#2A5C39; --leaf-ink:#143A22;
+    --verde:#2F8B57; --amarillo:#B0801F; --rojo:#AE4128; --honey-bg:#FAEBCB; --honey-ink:#7A5410;
+    --sans:'Hanken Grotesk',system-ui,Segoe UI,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55;padding:24px}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:26px;color:var(--leaf-ink);margin:0 0 4px}
+  .sub{color:var(--ink-2);margin:0 0 18px;font-size:14.5px}
+  .honesty{background:var(--honey-bg);color:var(--honey-ink);border:1px solid rgba(122,84,16,.25);
+    border-radius:12px;padding:12px 15px;font-size:13.5px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--leaf-deep);text-transform:uppercase;letter-spacing:.04em}
+  label{display:block;font-size:13.5px;color:var(--ink-2);margin:11px 0 4px}
+  label .q{color:var(--ink-3);cursor:help}
+  input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+    font-family:inherit;font-size:15px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--leaf)}
+  .out{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px}
+  .out .row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .out .row:last-child{border-bottom:none}
+  .out .row b{font-variant-numeric:tabular-nums}
+  .big{font-size:21px;color:var(--leaf-ink);font-weight:700}
+  .badge{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;margin-left:8px}
+  .b-verde{background:rgba(47,139,87,.14);color:var(--verde)}
+  .b-amar{background:rgba(176,128,31,.16);color:var(--amarillo)}
+  .b-rojo{background:rgba(174,65,40,.14);color:var(--rojo)}
+  .note{font-size:12.5px;color:var(--ink-3);margin-top:10px}
+  .defend{background:rgba(47,139,87,.07);border:1px solid rgba(47,139,87,.25);border-radius:12px;padding:14px;margin-top:16px}
+  .defend h3{margin:0 0 6px;font-size:14px;color:var(--leaf-deep)}
+  footer{margin-top:22px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:12px}
+  code{background:#0001;padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calculadora de ROI de AvoRAG</h1>
+  <p class="sub">Para exportadoras de aguacate Hass. Estima el <b>valor esperado</b> de prevenir rechazos, con tus propios supuestos.</p>
+
+  <div class="honesty">
+    <b>Honestidad primero:</b> esto es una <b>estimación de valor esperado</b>, no una garantía. El retorno de
+    la <i>prevención</i> es probabilístico — nadie puede probar que un rechazo concreto "no pasó gracias a la
+    herramienta". Por eso aquí <b>tú controlas los supuestos</b>, se muestran <b>rangos</b>, y el valor de
+    <b>"evidencia defendible"</b> (que NO depende de ese contrafactual) se calcula aparte. Ajusta los números a tu operación.
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Tus números</h2>
+      <label>Contenedores exportados al año</label>
+      <input type="number" id="contenedores" value="120" min="0">
+      <label>Valor FOB por contenedor (USD) <span class="q" title="~22 t × precio FOB. Hass grado A ronda 0.85–1.20 USD/kg según origen.">ⓘ</span></label>
+      <input type="number" id="valor" value="30000" min="0">
+      <label>Tasa de rechazo / reclamo actual en destino (%) <span class="q" title="Contenedores rechazados o con descuento por calidad/residuos sobre el total.">ⓘ</span></label>
+      <input type="number" id="tasaRechazo" value="3" min="0" max="100" step="0.1">
+      <label>% de esos rechazos por causas que AvoRAG ayuda a prevenir (LMR/dosis/plaga) <span class="q" title="No todos los rechazos son por residuos o manejo. Pon solo la fracción atacable con buen manejo citado.">ⓘ</span></label>
+      <input type="number" id="prevenible" value="50" min="0" max="100" step="1">
+      <label>Costo anual de AvoRAG (USD)</label>
+      <input type="number" id="costo" value="18000" min="0">
+    </div>
+
+    <div class="card">
+      <h2>Supuesto de efectividad (conservador ↔ optimista)</h2>
+      <label>Reducción ESPERADA de los rechazos prevenibles con la herramienta (%) <span class="q" title="Cuánto de lo prevenible crees que evitarías de verdad. Sé conservador: la herramienta informa, el equipo ejecuta.">ⓘ</span></label>
+      <input type="number" id="reduccionMin" value="20" min="0" max="100" step="1"> <span class="note">mínimo</span>
+      <input type="number" id="reduccionMax" value="50" min="0" max="100" step="1"> <span class="note">máximo</span>
+      <label>Riesgo de decertificación evitada al año (probabilidad %, opcional) <span class="q" title="Decertificar = perder el mercado entero, no un lote. Aunque sea poco probable, su impacto es enorme.">ⓘ</span></label>
+      <input type="number" id="probDecert" value="0" min="0" max="100" step="0.5">
+      <label>Pérdida si te decertificas (USD, opcional) <span class="q" title="Valor anual de las ventas a ese mercado que perderías.">ⓘ</span></label>
+      <input type="number" id="costoDecert" value="0" min="0">
+
+      <div class="out" id="salida"></div>
+    </div>
+  </div>
+
+  <div class="defend">
+    <h3>Valor que NO depende de evitar un rechazo (evidencia defendible)</h3>
+    <p class="note" style="color:var(--ink-2)" id="defendible"></p>
+    <label>En disputas de calidad al año, ¿cuánto descuento absorbes hoy sin base documental (USD)?</label>
+    <input type="number" id="descuentos" value="15000" min="0" style="max-width:220px">
+  </div>
+
+  <footer>
+    Modelo: <code>ahorro_esperado = contenedores × valor × tasa_rechazo × %prevenible × %reducción</code> +
+    <code>prob_decert × costo_decert</code>. ROI = (ahorro − costo) / costo. Rangos por el supuesto de reducción
+    mín/máx. Anclas verificadas (jun-2026): FOB Hass grado A 0.85–1.20 USD/kg; un contenedor ~22 t; asesoría
+    agronómica humana ~10–20 USD/ha/año. <b>No se garantiza ningún retorno.</b>
+  </footer>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-CO');
+  const pct = n => (n*100).toFixed(0) + '%';
+
+  function calcular(){
+    const cont = +$('contenedores').value || 0;
+    const valor = +$('valor').value || 0;
+    const tasa = (+$('tasaRechazo').value || 0)/100;
+    const prev = (+$('prevenible').value || 0)/100;
+    const costo = +$('costo').value || 0;
+    const redMin = (+$('reduccionMin').value || 0)/100;
+    const redMax = (+$('reduccionMax').value || 0)/100;
+    const pDec = (+$('probDecert').value || 0)/100;
+    const cDec = +$('costoDecert').value || 0;
+    const descuentos = +$('descuentos').value || 0;
+
+    const perdidaPrevenible = cont * valor * tasa * prev;   // pérdida anual atacable
+    const ahorroMin = perdidaPrevenible * redMin + pDec * cDec;
+    const ahorroMax = perdidaPrevenible * redMax + pDec * cDec;
+    const roiMin = costo > 0 ? (ahorroMin - costo)/costo : 0;
+    const roiMax = costo > 0 ? (ahorroMax - costo)/costo : 0;
+    const paybackMin = ahorroMax > 0 ? costo / (ahorroMax/12) : Infinity; // meses (mejor caso)
+    const paybackMax = ahorroMin > 0 ? costo / (ahorroMin/12) : Infinity; // meses (peor caso)
+
+    let badge = '<span class="badge b-rojo">no se paga</span>';
+    if (ahorroMin >= costo) badge = '<span class="badge b-verde">se paga incluso en el caso conservador</span>';
+    else if (ahorroMax >= costo) badge = '<span class="badge b-amar">se paga solo en el caso optimista</span>';
+
+    $('salida').innerHTML = `
+      <div class="row"><span>Pérdida anual por rechazos prevenibles</span><b>${fmt(perdidaPrevenible)}</b></div>
+      <div class="row"><span>Ahorro esperado (rango)</span><b>${fmt(ahorroMin)} – ${fmt(ahorroMax)}</b></div>
+      <div class="row"><span>ROI estimado ${badge}</span><b class="big">${pct(roiMin)} – ${pct(roiMax)}</b></div>
+      <div class="row"><span>Recuperas la inversión en</span><b>${isFinite(paybackMin)?paybackMin.toFixed(1):'∞'} – ${isFinite(paybackMax)?paybackMax.toFixed(1):'∞'} meses</b></div>
+    `;
+    const unRechazo = valor; // un solo contenedor
+    $('defendible').textContent =
+      `Aunque NO prevengas ningún rechazo, AvoRAG genera un registro citado de cada recomendación. ` +
+      `Si eso te evita absorber ${fmt(descuentos)} al año en descuentos de disputas sin base documental, ` +
+      `ya cubre ${descuentos>0 && costo>0 ? pct(Math.min(descuentos/costo,9)) : '0%'} del costo — sin depender de ningún contrafactual. ` +
+      `Además, prevenir UN solo contenedor (${fmt(unRechazo)}) ya supera el costo anual si éste es menor.`;
+    return {perdidaPrevenible, ahorroMin, ahorroMax, roiMin, roiMax};
+  }
+  document.querySelectorAll('input').forEach(i => i.addEventListener('input', calcular));
+  calcular();
+</script>
+</body>
+</html>
