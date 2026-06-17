@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 # Ingredientes activos reconocidos para la detección de los guardarraíles (NO es una lista de
 # productos registrados ni autoriza su uso; el registro/vigencia los define el ICA en SimplifICA).
 # Ampliada a moléculas modernas (diamidas, sulfoximinas, SDHI, cetoenoles, butenólidos, acaricidas
@@ -99,6 +101,9 @@ ACTIVE_INGREDIENTS: tuple[str, ...] = (
     "clorotalonil",
     "metiram",
     "folpet",
+    # — Herbicidas de uso en calle/cobertura —
+    "glifosato",
+    "glufosinato",
 )
 
 
@@ -195,16 +200,81 @@ MODE_OF_ACTION_GROUP: dict[str, str] = {
 }
 
 
+# Nombres COMERCIALES → ingrediente(s) activo(s). En finca nadie pide "clorpirifos": pide la marca
+# del almacén. Sin esto, el guardarraíl de prohibidos/destino/IRAC/cat-tox NO se activaba (la
+# detección era por subcadena del nombre químico). NO exhaustivo y los registros cambian: VERIFICA
+# siempre la etiqueta. Lo crítico aquí son las marcas que mapean a un i.a. PROHIBIDO/RESTRINGIDO
+# (Gramoxone→paraquat, Furadan→carbofurán, Thiodan→endosulfán, Lorsban→clorpirifos).
+COMMERCIAL_NAMES: dict[str, tuple[str, ...]] = {
+    # Prohibidos/restringidos por su marca (backstop de seguridad)
+    "gramoxone": ("paraquat",),
+    "gramuron": ("paraquat",),
+    "furadan": ("carbofuran",),
+    "thiodan": ("endosulfan",),
+    "lorsban": ("clorpirifos",),
+    "pyrinex": ("clorpirifos",),
+    "lannate": ("metomilo",),
+    # Insecticidas/acaricidas modernos por marca
+    "engeo": ("tiametoxam", "lambda-cialotrina"),
+    "actara": ("tiametoxam",),
+    "confidor": ("imidacloprid",),
+    "coragen": ("clorantraniliprol",),
+    "benevia": ("ciantraniliprol",),
+    "verimark": ("ciantraniliprol",),
+    "exirel": ("ciantraniliprol",),
+    "movento": ("spirotetramat",),
+    "vertimec": ("abamectina",),
+    "agrimec": ("abamectina",),
+    "oberon": ("spiromesifen",),
+    "rimon": ("novaluron",),
+    # Herbicidas
+    "roundup": ("glifosato",),
+    "round-up": ("glifosato",),
+    # Fungicidas por marca
+    "manzate": ("mancozeb",),
+    "dithane": ("mancozeb",),
+    "amistar": ("azoxistrobina",),
+    "bankit": ("azoxistrobina",),
+    "cabrio": ("piraclostrobina",),
+    "aliette": ("fosetil-aluminio",),
+    "ridomil": ("metalaxil", "mancozeb"),
+    "sercadis": ("fluxapiroxad",),
+    "revus": ("mandipropamida",),
+    "kocide": ("hidroxido de cobre",),
+}
+# Nota: se omiten marcas cuyo nombre es palabra común (Basta, Muralla, Luna, Score, Match, Tilt,
+# Switch, Closer, Tracer…) para no producir falsos positivos por coincidencia léxica.
+
+
 def extract_active_ingredient(text: str) -> str | None:
-    """Primer ingrediente activo conocido que aparece en el texto (o None)."""
+    """Primer ingrediente activo del texto (orden determinista: nombre químico por orden de la
+    tupla; si no hay, primer i.a. por marca comercial)."""
     low = text.lower()
-    return next((ia for ia in ACTIVE_INGREDIENTS if ia in low), None)
+    direct = next((ia for ia in ACTIVE_INGREDIENTS if ia in low), None)
+    if direct is not None:
+        return direct
+    for brand, actives in COMMERCIAL_NAMES.items():
+        if re.search(rf"\b{re.escape(brand)}\b", low):
+            return actives[0]
+    return None
+
+
+def commercial_actives_in(text: str) -> set[str]:
+    """Ingredientes activos detectados por NOMBRE COMERCIAL (marca), con límite de palabra."""
+    low = text.lower()
+    out: set[str] = set()
+    for brand, actives in COMMERCIAL_NAMES.items():
+        if re.search(rf"\b{re.escape(brand)}\b", low):
+            out.update(actives)
+    return out
 
 
 def active_ingredients_in(text: str) -> set[str]:
-    """Todos los ingredientes activos conocidos presentes en el texto."""
+    """Todos los ingredientes activos presentes, por nombre QUÍMICO o por marca comercial."""
     low = text.lower()
-    return {ia for ia in ACTIVE_INGREDIENTS if ia in low}
+    found = {ia for ia in ACTIVE_INGREDIENTS if ia in low}
+    found |= commercial_actives_in(text)
+    return found
 
 
 def mode_of_action_groups(text: str) -> dict[str, str]:

@@ -221,3 +221,53 @@ def test_resistance_reminder_con_grupo() -> None:
 
 def test_resistance_reminder_solo_si_recomienda_plaguicida() -> None:
     assert resistance_reminder("Haz monitoreo con trampas adhesivas azules.") is None
+
+
+# ── Fix del refutador de unsafe_framing + premisas nuevas ───────────────────────────────────────
+
+
+def test_unsafe_framing_no_se_desarma_con_palabra_tema() -> None:
+    # BUG real (exportador #30/#32): una respuesta que AVALA duplicar la dosis y de paso menciona
+    # 'resistencia'/'riesgo' debe seguir en ROJO; antes esa palabra suelta apagaba el guardarraíl.
+    q = "Si duplico la dosis del insecticida, ¿controlo mejor el trips?"
+    bad = "Sí, al duplicar la dosis controlas mejor, aunque ojo con la resistencia y el riesgo [1]."
+    flagged, _ = unsafe_framing(q, bad)
+    assert flagged is True
+
+
+def test_unsafe_framing_premisa_hidrica() -> None:
+    # Encharcar/saturar el suelo (asfixia radical / Phytophthora) sin refutar -> ROJO.
+    assert unsafe_framing(
+        "¿Mantengo el suelo siempre saturado para enfriar la raíz?", "Sí, mantén el suelo saturado [1]."
+    )[0]
+    # Si la respuesta refuta (asegura drenaje) -> no se marca.
+    assert (
+        unsafe_framing("¿Encharco el lote para conservar humedad?", "No, evita el encharcamiento y asegura buen drenaje [1].")[0]
+        is False
+    )
+
+
+def test_unsafe_framing_insecticida_en_floracion() -> None:
+    q = "¿Puedo asperjar un insecticida sistémico en plena floración?"
+    assert unsafe_framing(q, "Sí, aplica el insecticida sistémico en floración [1].")[0]
+    assert unsafe_framing(q, "No apliques insecticidas en floración: matas los polinizadores [1].")[0] is False
+
+
+def test_unsafe_framing_cobre_aceite() -> None:
+    assert unsafe_framing("¿Mezclo cobre con aceite agrícola a pleno sol?", "Sí, puedes mezclar cobre y aceite [1].")[0]
+
+
+def test_banned_por_marca_comercial() -> None:
+    # Gramoxone=paraquat, Furadan=carbofurán, Lorsban=clorpirifos -> el backstop debe dispararse por la MARCA (#28).
+    assert any("paraquat" in h for h in banned_ingredients_in_answer("¿Uso Gramoxone para las malezas?"))
+    assert any("carbofuran" in h for h in banned_ingredients_in_answer("Aplica Furadan al suelo."))
+    assert any("clorpirifos" in h for h in banned_ingredients_in_answer("Recomiendo Lorsban para el trips."))
+
+
+def test_active_ingredients_por_marca() -> None:
+    from avorag.agro_terms import active_ingredients_in
+
+    assert "spirotetramat" in active_ingredients_in("Aplica Movento contra la escama.")
+    assert "clorantraniliprol" in active_ingredients_in("Usa Coragen para el barrenador.")
+    # Marca podada por ser palabra común no debe falsear (Luna/Muralla se omiten a propósito).
+    assert active_ingredients_in("Cosecha en luna menguante y revisa el muro.") == set()
