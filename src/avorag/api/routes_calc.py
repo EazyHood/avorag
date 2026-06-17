@@ -113,6 +113,14 @@ class CaliberSampleIn(BaseModel):
     caja_kg: float = Field(4.0, gt=0, description="Peso de la caja de referencia (kg). UE = 4.")
 
 
+class NitrogenSplitIn(BaseModel):
+    n_total_kg_ha: float = Field(..., ge=0, description="Nitrógeno total anual (kg/ha).")
+    fracciones: dict[str, float] | None = Field(
+        None, description="Reparto por etapa (etapa→fracción). Si se omite, usa el esquema orientativo."
+    )
+    arboles_por_ha: float | None = Field(None, gt=0, description="Densidad de árboles (para g/árbol).")
+
+
 class MipThresholdIn(BaseModel):
     conteo_total: float = Field(..., ge=0, description="Conteo total observado (suma de las unidades).")
     n_unidades: int = Field(..., gt=0, description="Número de unidades de monitoreo (trampas/plantas).")
@@ -225,6 +233,17 @@ def calibre(body: CaliberIn) -> dict:
 def calibre_muestra(body: CaliberSampleIn) -> dict:
     try:
         r = agro_calc.fruit_caliber_sample(body.pesos_g, caja_kg=body.caja_kg)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return asdict(r)
+
+
+@router.post("/nitrogeno")
+def nitrogeno(body: NitrogenSplitIn) -> dict:
+    try:
+        r = agro_calc.nitrogen_split(
+            body.n_total_kg_ha, fracciones=body.fracciones, arboles_por_ha=body.arboles_por_ha
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return asdict(r)
