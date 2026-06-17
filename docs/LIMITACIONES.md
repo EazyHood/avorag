@@ -64,15 +64,18 @@ fingirse. Resumen honesto:
 - **Regulatorio/honestidad:** privacidad por defecto (`audit_store_text=False`); aviso **siempre** de
   verificar vigencia ICA al recomendar plaguicida; **+18 moléculas modernas** en destino UE/EE.UU.;
   riesgo **FRAC 11/7 (monositio) vs multisitio**; nudge **MIP/biocontrol** primero; daño por frío (~2-5 °C).
+- **Cobertura/herramientas nuevas:** síntesis citada de la **Res. ICA 1507/2016** (cuarentenarias) +
+  **aviso de tolerancia-cero** cuando se menciona Stenoma/Heilipus; calculadoras de **grados-día**
+  (marco fenológico), **calibre** y **umbral de acción MIP**.
 
 ### 🔴 Estructural — NO se "arregla" con código (es lo que es en un v0.1)
 | Tema (puntos de la revisión) | Por qué es estructural | Postura honesta |
 |---|---|---|
 | **Datos en vivo:** vigencia ICA, LMR/tolerancias (UE/EE.UU. 40 CFR 180), clima (IDEAM), precios | No hay feeds; el PQUA es extracto **mar-2022** | El sistema **avisa "verifica en SimplifICA"** y marca LMR de destino, pero **no consulta el estado vivo**. Es una foto, no un servicio regulatorio en tiempo real. |
-| **ICA Res. 1507/2016** (plagas de control oficial) | El PDF es **escaneado → 0 chunks sin OCR** | Pendiente de OCR antes de ingerir. Las cuarentenarias sí están cubiertas por otras fuentes (85 chunks). |
-| **Cuarentenarias tolerancia-cero** (Stenoma) | Requiere lógica de protocolo de finca/área libre, no umbral económico | Hoy se responde con el molde RAG general; el régimen de tolerancia-cero NO está modelado. |
-| **Fenología / ventana de cosecha** (grados-día, %MS vs días de cuaje) | Necesita un modelo calibrado con datos locales | No existe; la MS se interpreta como lectura ya tomada, no se predice **cuándo** llegará al corte. |
-| **Umbrales/monitoreo MIP** ("X trips/trampa, ¿aplico?") y **calibre/vida verde** | Necesitan motores de umbral/calidad con datos | No hay; son texto recuperable, no cálculo. |
+| **ICA Res. 1507/2016** (plagas de control oficial) | El PDF original es **escaneado → 0 chunks sin OCR** (y no hay tesseract) | **Parcial:** se ingirió una **síntesis del texto oficial** (Heilipus/Stenoma + tolerancia cero). El **OCR del PDF original** sigue pendiente. |
+| **Cuarentenarias tolerancia-cero** (Stenoma) | El protocolo completo (área libre, sistemas de mitigación) lo define el ICA | **Parcial:** ahora **AVISA** del régimen de tolerancia cero + reporte al ICA al mencionarse Stenoma/Heilipus; el protocolo operativo completo no está modelado. |
+| **Fenología / ventana de cosecha** (%MS vs días de cuaje) | La **curva** %MS-vs-tiempo-térmico es calibrada y local | **Parcial:** hay una calculadora de **grados-día** (marco fenológico) y de progreso vs objetivo; **no predice** el corte — tú calibras y confirmas con materia seca. |
+| **Umbrales/monitoreo MIP y calibre** | Los **umbrales** por plaga son del agrónomo/protocolo; vida verde necesita curva de firmeza | **Parcial:** calculadoras de **umbral de acción MIP** (tú pones el umbral) y de **calibre/count size**. **Vida verde** (firmeza/peso en tránsito) sigue sin herramienta. |
 | **Diagnóstico molecular** (qPCR antracnosis, RT-PCR de sunblotch) | Es un ensayo de **laboratorio** | La app explica la biología y cita, pero **no diagnostica** ni acerca el ensayo. |
 | **Foto-patología** (llava:7b débil; Claude rompe offline/soberanía) | Trade-off real modelo-local vs nube | El VLM local es flojo en lesiones sutiles; la vía precisa (Claude) **sale a internet y factura**. Hoy lo único portable offline es **madurez**. |
 | **Historial de aplicaciones** (anti-resistencia real) | Requiere integrar tu cuaderno de campo | El aviso IRAC/FRAC es **genérico**: no sabe qué aplicaste la semana pasada. |
