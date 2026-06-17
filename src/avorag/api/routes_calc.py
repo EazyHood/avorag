@@ -140,6 +140,7 @@ def relaciones_foliares(body: FoliarIn) -> dict:
         "relaciones": _asdict_ratios(r.relaciones),
         "niveles": _asdict_ratios(r.niveles),
         "alertas": r.alertas,
+        "limitante": r.limitante,
         "nota": r.nota,
     }
 

@@ -738,7 +738,7 @@
             ? {muestras: raw.split(/[\s,;]+/).map(parseFloat).filter(x=>!isNaN(x)), umbral_pct:num('ms_umbral')||23}
             : {peso_fresco_g:num('ms_fresco'), peso_seco_g:num('ms_seco'), umbral_pct:num('ms_umbral')||23};
           call('/api/calc/materia-seca', payload, 'ms_out',
-            j=>`<div><span class="calc-badge ${badge(j.veredicto)}">${esc(j.veredicto)}</span> <span class="v">${j.materia_seca_pct}%</span> MS${j.n_muestras>1?` (n=${j.n_muestras}${j.cv_pct!=null?`, CV ${j.cv_pct}%`:''})`:''} · umbral ${j.umbral_pct}%</div><div class="note">${esc(j.nota)}</div>`);
+            j=>`<div><span class="calc-badge ${badge(j.veredicto)}">${esc(j.veredicto)}</span> <span class="v">${j.materia_seca_pct}%</span> MS${j.n_muestras>1?` (n=${j.n_muestras}${j.cv_pct!=null?`, CV ${j.cv_pct}%`:''})`:''} · umbral ${j.umbral_pct}%${j.brecha_pct>0?` · faltan ${j.brecha_pct} pts`:(j.brecha_pct<0?` · +${(-j.brecha_pct).toFixed(1)} pts`:'')}</div><div class="note">${esc(j.nota)}</div>`);
         } else if(k==='cal'){
           call('/api/calc/encalado', {al:num('c_al'), ca:num('c_ca'), mg:num('c_mg'), k:num('c_k'), psa_objetivo_pct:num('c_psa')||15, prnt_pct:num('c_prnt')||100, densidad_aparente:num('c_dens'), profundidad_cm:num('c_prof')||20}, 'cal_out',
             j=>`<div>Saturación de Al: <span class="v">${j.saturacion_al_pct}%</span> · CICE ${j.cice_cmol_kg} cmol⁺/kg</div>`
@@ -749,7 +749,8 @@
           const ids=['n','p','k','ca','mg','s','b','zn','fe','mn','cu','cl','na'];
           const payload={}; ids.forEach(x=>{const v=num('f_'+x); if(v!=null) payload[x]=v;});
           call('/api/calc/relaciones-foliares', payload, 'fol_out',
-            j=>(Object.keys(j.relaciones).length?`<div><b>Relaciones</b></div>`+Object.entries(j.relaciones).map(([r,v])=>`<div>${esc(r)}: <span class="v">${v.valor}</span> <span class="calc-badge ${badge(v.estado)}">${esc(v.estado)}</span> <span class="note" style="display:inline">(ref ${esc(v.banda_ref)})</span></div>`).join(''):'')
+            j=>(j.limitante?`<div><b>⚠ Factor limitante:</b> ${esc(j.limitante)}</div>`:'')
+              +(Object.keys(j.relaciones).length?`<div style="margin-top:.4rem"><b>Relaciones</b></div>`+Object.entries(j.relaciones).map(([r,v])=>`<div>${esc(r)}: <span class="v">${v.valor}</span> <span class="calc-badge ${badge(v.estado)}">${esc(v.estado)}</span> <span class="note" style="display:inline">(ref ${esc(v.banda_ref)})</span></div>`).join(''):'')
               +(Object.keys(j.niveles).length?`<div style="margin-top:.5rem"><b>Niveles absolutos</b></div><div>${lv(j.niveles)}</div>`:'')
               +alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
         } else if(k==='riego'){

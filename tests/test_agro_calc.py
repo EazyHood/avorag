@@ -143,6 +143,22 @@ def test_dry_matter_sample_media_y_cv() -> None:
     assert r.veredicto == "apto"
 
 
+def test_dry_matter_brecha_al_umbral() -> None:
+    bajo = agro_calc.dry_matter_sample([20.0] * 5, umbral_pct=23.0)
+    assert bajo.brecha_pct == 3.0  # faltan 3 puntos
+    alto = agro_calc.dry_matter_sample([25.0] * 5, umbral_pct=23.0)
+    assert alto.brecha_pct == -2.0  # 2 puntos por encima
+
+
+def test_foliar_limitante_senala_deficiencia_mas_severa() -> None:
+    # Zn mucho más deficiente (15/30=50% del mínimo) que un leve desbalance -> Zn es el limitante.
+    r = agro_calc.foliar_ratios(k=1.0, ca=1.0, zn=15.0, b=90.0)
+    assert r.limitante and "ZN" in r.limitante
+    # Sin deficiencias absolutas pero con relación fuera de banda -> señala la relación.
+    r2 = agro_calc.foliar_ratios(k=3.0, ca=1.0)  # K/Ca alto
+    assert r2.limitante and "K/Ca" in r2.limitante
+
+
 def test_dry_matter_sample_heterogeneo_es_limitrofe() -> None:
     # Media supera el umbral pero hay frutos por debajo -> limítrofe (parte del lote no llega).
     r = agro_calc.dry_matter_sample([19.0, 20.0, 28.0, 29.0] * 3, umbral_pct=23.0)
@@ -280,6 +296,7 @@ def test_api_foliar_con_boro_zinc() -> None:
     body = r.json()
     assert body["niveles"]["b"]["estado"] == "deficiente"
     assert body["alertas"]
+    assert body["limitante"]  # el factor limitante se expone en la respuesta de la API
 
 
 def test_api_materia_seca_muestras() -> None:

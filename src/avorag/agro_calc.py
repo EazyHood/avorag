@@ -53,6 +53,7 @@ class DryMatterResult:
     n_muestras: int = 1
     cv_pct: float | None = None  # coeficiente de variación de la muestra (heterogeneidad)
     minimo_muestra_pct: float | None = None  # MS del fruto más bajo de la muestra
+    brecha_pct: float | None = None  # puntos hasta el umbral (>0 = aún por debajo; <0 = por encima)
 
 
 def _dry_matter_verdict(media: float, umbral_pct: float, *, minimo: float | None, cv: float | None,
@@ -121,6 +122,7 @@ def dry_matter_sample(
     return DryMatterResult(
         materia_seca_pct=media, umbral_pct=umbral_pct, veredicto=veredicto, nota=nota,
         n_muestras=n, cv_pct=cv, minimo_muestra_pct=minimo,
+        brecha_pct=round(umbral_pct - media, 1),
     )
 
 
@@ -279,6 +281,7 @@ class FoliarResult:
     niveles: dict[str, LevelResult] = field(default_factory=dict)
     alertas: list[str] = field(default_factory=list)
     nota: str = ""
+    limitante: str | None = None  # el factor más limitante (ley del mínimo): deficiencia o desbalance
 
 
 def foliar_ratios(
@@ -348,8 +351,24 @@ def foliar_ratios(
         )
     if not relaciones and not niveles:
         raise ValueError("Faltan datos utilizables (aporta valores foliares válidos).")
+    # Factor más limitante (ley del mínimo): prioriza la deficiencia ABSOLUTA más severa (déficit
+    # relativo a su rango); si no hay, la relación más desbalanceada. Da un foco accionable.
+    limitante: str | None = None
+    deficits = [
+        ((_FOLIAR_SUFFICIENCY[el][0] - lr.valor) / _FOLIAR_SUFFICIENCY[el][0], el, lr)
+        for el, lr in niveles.items()
+        if lr.estado == "deficiente" and el in _FOLIAR_SUFFICIENCY
+    ]
+    if deficits:
+        _, el, lr = max(deficits, key=lambda x: x[0])
+        limitante = f"{el.upper()} deficiente ({lr.valor}; suficiencia {lr.rango_ref})"
+    else:
+        imbalances = [(r, rr) for r, rr in relaciones.items() if rr.estado in ("bajo", "alto")]
+        if imbalances:
+            r, rr = imbalances[0]
+            limitante = f"relación {r} {rr.estado} ({rr.valor}; ref {rr.banda_ref})"
     return FoliarResult(
-        relaciones=relaciones, niveles=niveles, alertas=alertas,
+        relaciones=relaciones, niveles=niveles, alertas=alertas, limitante=limitante,
         nota=(
             "Bandas/rangos orientativos (varían por norma/laboratorio). Un nivel ABSOLUTO bajo limita "
             "la cosecha aunque la proporción esté 'óptima'; valida con tu agrónomo y el análisis completo."

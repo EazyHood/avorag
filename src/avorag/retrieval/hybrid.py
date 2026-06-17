@@ -24,28 +24,32 @@ def _base_filters(tenant: str, country: str | None):
 
 def dense_search(
     session: Session, query_embedding: list[float], *, tenant: str, country: str | None, top_k: int
-) -> list[str]:
+) -> list[Chunk]:
+    """Top-k por similitud densa (pgvector). Devuelve los Chunk completos para evitar un segundo
+    viaje a la BD al materializarlos (antes traía solo IDs y luego recargaba)."""
     stmt = (
-        select(Chunk.id)
+        select(Chunk)
         .where(*_base_filters(tenant, country))
         .order_by(Chunk.embedding.cosine_distance(query_embedding))
         .limit(top_k)
     )
-    return [str(cid) for cid in session.scalars(stmt)]
+    return list(session.scalars(stmt))
 
 
 def lexical_search(
     session: Session, query_text: str, *, tenant: str, country: str | None, top_k: int
-) -> list[str]:
+) -> list[Chunk]:
+    """Top-k por FTS español. Devuelve Chunk completos. Tolerante a fallo: si la query FTS es
+    malformada, hace rollback y cae al lado denso devolviendo []."""
     tsq = func.websearch_to_tsquery("spanish", query_text)
     stmt = (
-        select(Chunk.id)
+        select(Chunk)
         .where(*_base_filters(tenant, country), Chunk.content_tsv.op("@@")(tsq))
         .order_by(func.ts_rank(Chunk.content_tsv, tsq).desc())
         .limit(top_k)
     )
     try:
-        return [str(cid) for cid in session.scalars(stmt)]
+        return list(session.scalars(stmt))
     except Exception as exc:
         session.rollback()
         log.warning("lexical_search_failed", error=str(exc))
@@ -87,18 +91,20 @@ def hybrid_search(
     settings = get_settings()
     top_k = top_k or settings.retrieval_top_k
 
-    dense_ids = dense_search(session, query_embedding, tenant=tenant, country=country, top_k=top_k)
-    lexical_ids = lexical_search(session, query_text, tenant=tenant, country=country, top_k=top_k)
+    dense = dense_search(session, query_embedding, tenant=tenant, country=country, top_k=top_k)
+    lexical = lexical_search(session, query_text, tenant=tenant, country=country, top_k=top_k)
 
+    dense_ids = [str(c.id) for c in dense]
+    lexical_ids = [str(c.id) for c in lexical]
     dense_rank = {cid: i for i, cid in enumerate(dense_ids)}
     lexical_rank = {cid: i for i, cid in enumerate(lexical_ids)}
+    # Los chunks fusionados son SIEMPRE subconjunto de denso ∪ léxico, que ya están materializados:
+    # se reutilizan sin un tercer viaje a la BD (`SELECT ... WHERE id IN (...)`).
+    chunks = {str(c.id): c for c in (*lexical, *dense)}
 
     fused = reciprocal_rank_fusion([dense_ids, lexical_ids], k=settings.rrf_k)[:top_k]
     if not fused:
         return []
-
-    ids = [cid for cid, _ in fused]
-    chunks = {str(c.id): c for c in session.scalars(select(Chunk).where(Chunk.id.in_(ids)))}
 
     out: list[ScoredChunk] = []
     for cid, score in fused:
