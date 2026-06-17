@@ -65,18 +65,34 @@ class FoliarIn(BaseModel):
 
 class IrrigationIn(BaseModel):
     eto_mm_dia: float = Field(..., ge=0, description="Evapotranspiración de referencia (mm/día).")
-    kc: float = Field(..., gt=0, description="Coeficiente de cultivo (etapa fenológica).")
+    kc: float | None = Field(None, gt=0, description="Coeficiente de cultivo. Si se omite, se deriva de `etapa`.")
+    etapa: str | None = Field(
+        None, description="Etapa fenológica (reposo/floracion/cuaje/desarrollo/llenado) para derivar Kc."
+    )
     precip_efectiva_mm_dia: float = Field(0.0, ge=0, description="Lluvia efectiva (mm/día).")
     eficiencia: float = Field(0.9, gt=0, le=1, description="Eficiencia del sistema de riego (0-1).")
     area_ha: float | None = Field(None, gt=0, description="Área (ha) para calcular volumen.")
+    fraccion_lavado: float = Field(0.0, ge=0, lt=1, description="Fracción de lavado por sales (0-1).")
+    capacidad_campo_pct: float | None = Field(None, gt=0, description="Capacidad de campo (% volumétrico).")
+    pmp_pct: float | None = Field(None, ge=0, description="Punto de marchitez permanente (% volumétrico).")
+    densidad_aparente: float | None = Field(None, gt=0, description="Densidad aparente (g/cm³).")
+    profundidad_radical_cm: float | None = Field(None, gt=0, description="Profundidad radical efectiva (cm).")
+    agotamiento_permisible: float = Field(0.4, gt=0, le=1, description="Agotamiento permisible p (0-1).")
 
 
 class SalinityIn(BaseModel):
     ce_agua_dsm: float = Field(..., ge=0, description="Conductividad eléctrica del agua (dS/m).")
-    ce_umbral_suelo_dsm: float = Field(agro_calc.HASS_CE_THRESHOLD_DSM, gt=0, description="CEe umbral del Hass.")
+    ce_umbral_suelo_dsm: float | None = Field(
+        None, gt=0, description="CEe umbral del suelo. Si se omite, se deriva del portainjerto (Hass ~1,3)."
+    )
+    portainjerto: str | None = Field(
+        None, description="Portainjerto (mexicano/guatemalteco/antillano) para ajustar el umbral CEe."
+    )
     na_meq_l: float | None = Field(None, ge=0, description="Sodio del agua (meq/L), para SAR.")
     ca_meq_l: float | None = Field(None, ge=0, description="Calcio del agua (meq/L), para SAR.")
     mg_meq_l: float | None = Field(None, ge=0, description="Magnesio del agua (meq/L), para SAR.")
+    hco3_meq_l: float | None = Field(None, ge=0, description="Bicarbonato del agua (meq/L), para RSC.")
+    co3_meq_l: float | None = Field(None, ge=0, description="Carbonato del agua (meq/L), para RSC.")
 
 
 class GddIn(BaseModel):
@@ -84,10 +100,16 @@ class GddIn(BaseModel):
     t_base: float = Field(agro_calc.AVOCADO_TBASE_DEFAULT, description="Temperatura base (°C).")
     t_tope: float | None = Field(None, description="Tope superior opcional (°C).")
     objetivo_gdd: float | None = Field(None, gt=0, description="GDD objetivo (para % de progreso).")
+    metodo: str = Field("seno", description="Método: 'seno' (seno simple, recomendado) o 'media'.")
 
 
 class CaliberIn(BaseModel):
     peso_g: float = Field(..., gt=0, description="Peso del fruto (g).")
+    caja_kg: float = Field(4.0, gt=0, description="Peso de la caja de referencia (kg). UE = 4.")
+
+
+class CaliberSampleIn(BaseModel):
+    pesos_g: list[float] = Field(..., min_length=1, description="Pesos de fruto (g) de la muestra/calibradora.")
     caja_kg: float = Field(4.0, gt=0, description="Peso de la caja de referencia (kg). UE = 4.")
 
 
@@ -148,9 +170,17 @@ def relaciones_foliares(body: FoliarIn) -> dict:
 @router.post("/riego")
 def riego(body: IrrigationIn) -> dict:
     try:
+        kc = body.kc
+        if kc is None:
+            if body.etapa is None:
+                raise ValueError("Aporta `kc` o una `etapa` fenológica para derivarlo.")
+            kc = agro_calc.kc_aguacate(body.etapa)
         r = agro_calc.irrigation_requirement(
-            eto_mm_dia=body.eto_mm_dia, kc=body.kc, precip_efectiva_mm_dia=body.precip_efectiva_mm_dia,
-            eficiencia=body.eficiencia, area_ha=body.area_ha,
+            eto_mm_dia=body.eto_mm_dia, kc=kc, precip_efectiva_mm_dia=body.precip_efectiva_mm_dia,
+            eficiencia=body.eficiencia, area_ha=body.area_ha, fraccion_lavado=body.fraccion_lavado,
+            capacidad_campo_pct=body.capacidad_campo_pct, pmp_pct=body.pmp_pct,
+            densidad_aparente=body.densidad_aparente, profundidad_radical_cm=body.profundidad_radical_cm,
+            agotamiento_permisible=body.agotamiento_permisible,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -162,7 +192,8 @@ def salinidad(body: SalinityIn) -> dict:
     try:
         r = agro_calc.salinity_assessment(
             ce_agua_dsm=body.ce_agua_dsm, ce_umbral_suelo_dsm=body.ce_umbral_suelo_dsm,
-            na_meq_l=body.na_meq_l, ca_meq_l=body.ca_meq_l, mg_meq_l=body.mg_meq_l,
+            portainjerto=body.portainjerto, na_meq_l=body.na_meq_l, ca_meq_l=body.ca_meq_l,
+            mg_meq_l=body.mg_meq_l, hco3_meq_l=body.hco3_meq_l, co3_meq_l=body.co3_meq_l,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -174,7 +205,7 @@ def grados_dia(body: GddIn) -> dict:
     try:
         r = agro_calc.growing_degree_days(
             [tuple(t) for t in body.temps], t_base=body.t_base, t_tope=body.t_tope,
-            objetivo_gdd=body.objetivo_gdd,
+            objetivo_gdd=body.objetivo_gdd, metodo=body.metodo,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -185,6 +216,15 @@ def grados_dia(body: GddIn) -> dict:
 def calibre(body: CaliberIn) -> dict:
     try:
         r = agro_calc.fruit_caliber(body.peso_g, caja_kg=body.caja_kg)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return asdict(r)
+
+
+@router.post("/calibre-muestra")
+def calibre_muestra(body: CaliberSampleIn) -> dict:
+    try:
+        r = agro_calc.fruit_caliber_sample(body.pesos_g, caja_kg=body.caja_kg)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return asdict(r)

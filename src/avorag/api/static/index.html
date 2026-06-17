@@ -286,7 +286,7 @@
     .calc-pane{display:none} .calc-pane.on{display:block}
     .calc-row{display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:.6rem}
     .calc-f{flex:1 1 110px; display:flex; flex-direction:column; font-size:.78rem; color:var(--ink-2); gap:.22rem}
-    .calc-f input{font:inherit; font-size:.95rem; padding:.45rem .55rem; border:1px solid var(--line); border-radius:9px; background:#fff}
+    .calc-f input,.calc-f select{font:inherit; font-size:.95rem; padding:.45rem .55rem; border:1px solid var(--line); border-radius:9px; background:#fff}
     .calc-go{font:inherit; font-weight:600; background:var(--leaf); color:#fff; border:none; border-radius:var(--r-pill);
       padding:.5rem 1.1rem; cursor:pointer; margin-top:.2rem}
     .calc-out{margin-top:.85rem; font-size:.9rem; line-height:1.55; color:var(--ink)}
@@ -754,19 +754,29 @@
               +(Object.keys(j.niveles).length?`<div style="margin-top:.5rem"><b>Niveles absolutos</b></div><div>${lv(j.niveles)}</div>`:'')
               +alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
         } else if(k==='riego'){
-          call('/api/calc/riego', {eto_mm_dia:num('r_eto'), kc:num('r_kc'), precip_efectiva_mm_dia:num('r_lluvia')||0, eficiencia:num('r_ef')||0.9, area_ha:num('r_area')}, 'riego_out',
-            j=>`<div>ETc: <span class="v">${j.etc_mm_dia} mm/día</span></div><div>Lámina neta ${j.lamina_neta_mm_dia} · bruta <span class="v">${j.lamina_bruta_mm_dia} mm/día</span></div>`+(j.volumen_m3_ha_dia!=null?`<div>Volumen: <span class="v">${j.volumen_m3_ha_dia} m³/ha·día</span></div>`:'')+`<div class="note">${esc(j.nota)}</div>`);
+          const etapa=((document.getElementById('r_etapa')||{}).value||'');
+          const p={eto_mm_dia:num('r_eto'), precip_efectiva_mm_dia:num('r_lluvia')||0, eficiencia:num('r_ef')||0.9, area_ha:num('r_area'), fraccion_lavado:num('r_lf')||0, capacidad_campo_pct:num('r_cc'), pmp_pct:num('r_pmp'), densidad_aparente:num('r_dens'), profundidad_radical_cm:num('r_prof'), agotamiento_permisible:num('r_p')||0.4};
+          if(num('r_kc')!=null) p.kc=num('r_kc'); else if(etapa) p.etapa=etapa;
+          call('/api/calc/riego', p, 'riego_out',
+            j=>`<div>ETc: <span class="v">${j.etc_mm_dia} mm/día</span></div><div>Lámina neta ${j.lamina_neta_mm_dia} · bruta <span class="v">${j.lamina_bruta_mm_dia} mm/día</span></div>`+(j.volumen_m3_ha_dia!=null?`<div>Volumen: <span class="v">${j.volumen_m3_ha_dia} m³/ha·día</span></div>`:'')+(j.intervalo_riego_dias!=null?`<div>TAW ${j.taw_mm} · RAW ${j.raw_mm} mm · regar cada <span class="v">${j.intervalo_riego_dias} día(s)</span></div>`:'')+`<div class="note">${esc(j.nota)}</div>`);
         } else if(k==='sal'){
-          call('/api/calc/salinidad', {ce_agua_dsm:num('s_ce'), ce_umbral_suelo_dsm:num('s_umbral')||1.3, na_meq_l:num('s_na'), ca_meq_l:num('s_ca'), mg_meq_l:num('s_mg')}, 'sal_out',
-            j=>`<div>Fracción de lavado: <span class="v">${j.fraccion_lavado!=null?j.fraccion_lavado:'—'}</span>${j.sar!=null?` · SAR <span class="v">${j.sar}</span>`:''}</div>`+alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
+          call('/api/calc/salinidad', {ce_agua_dsm:num('s_ce'), ce_umbral_suelo_dsm:num('s_umbral'), portainjerto:((document.getElementById('s_porta')||{}).value||null), na_meq_l:num('s_na'), ca_meq_l:num('s_ca'), mg_meq_l:num('s_mg'), hco3_meq_l:num('s_hco3'), co3_meq_l:num('s_co3')}, 'sal_out',
+            j=>`<div>Fracción de lavado: <span class="v">${j.fraccion_lavado!=null?j.fraccion_lavado:'—'}</span>${j.sar!=null?` · SAR <span class="v">${j.sar}</span>`:''}${j.rsc_meq_l!=null?` · RSC <span class="v">${j.rsc_meq_l}</span> meq/L`:''}</div><div class="note" style="display:block">Umbral CEe ${j.ce_umbral_suelo_dsm} dS/m${j.portainjerto?` (portainjerto ${esc(j.portainjerto)})`:''}</div>`+alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
         } else if(k==='calibre'){
-          call('/api/calc/calibre', {peso_g:num('cb_peso'), caja_kg:num('cb_caja')||4}, 'cb_out',
-            j=>`<div>Calibre UE: <span class="v">${j.calibre}</span> (${j.frutos_por_caja} frutos por caja de ${j.caja_kg} kg)</div><div class="note">${esc(j.nota)}</div>`);
+          const muestra=((document.getElementById('cb_muestra')||{}).value||'').trim();
+          if(muestra){
+            const pesos=muestra.split(/[\s,;]+/).map(parseFloat).filter(x=>!isNaN(x));
+            call('/api/calc/calibre-muestra', {pesos_g:pesos, caja_kg:num('cb_caja')||4}, 'cb_out',
+              j=>`<div>Calibre dominante: <span class="v">${j.calibre_dominante}</span> · homogeneidad <span class="v">${j.homogeneidad_pct}%</span> (n=${j.n}${j.cv_pct!=null?`, CV ${j.cv_pct}%`:''})</div><div class="note" style="display:block">Distribución: ${Object.entries(j.distribucion).map(([c,n])=>`${c}:${n}`).join(' · ')}</div><div class="note">${esc(j.nota)}</div>`);
+          } else {
+            call('/api/calc/calibre', {peso_g:num('cb_peso'), caja_kg:num('cb_caja')||4}, 'cb_out',
+              j=>`<div>Calibre UE: <span class="v">${j.calibre}</span> (${j.frutos_por_caja} frutos por caja de ${j.caja_kg} kg)</div><div class="note">${esc(j.nota)}</div>`);
+          }
         } else if(k==='gdd'){
           const raw=((document.getElementById('g_temps')||{}).value||'').trim();
           const temps=raw.split(/[,;\n]+/).map(p=>p.trim().split(/[\/\s]+/).map(parseFloat).filter(x=>!isNaN(x))).filter(a=>a.length>=2);
-          call('/api/calc/grados-dia', {temps, t_base:num('g_base')||10, objetivo_gdd:num('g_obj')}, 'gdd_out',
-            j=>`<div>Grados-día: <span class="v">${j.gdd_acumulado}</span> en ${j.n_dias} día(s)${j.progreso_pct!=null?` · <span class="v">${j.progreso_pct}%</span> del objetivo`:''}</div><div class="note">${esc(j.nota)}</div>`);
+          call('/api/calc/grados-dia', {temps, t_base:num('g_base')||10, objetivo_gdd:num('g_obj'), metodo:((document.getElementById('g_metodo')||{}).value||'seno')}, 'gdd_out',
+            j=>`<div>Grados-día: <span class="v">${j.gdd_acumulado}</span> en ${j.n_dias} día(s)${j.progreso_pct!=null?` · <span class="v">${j.progreso_pct}%</span> del objetivo`:''} <span class="note" style="display:inline">(${esc(j.metodo)})</span></div><div class="note">${esc(j.nota)}</div>`);
         } else if(k==='mip'){
           call('/api/calc/umbral-mip', {conteo_total:num('m_conteo'), n_unidades:num('m_unid'), umbral:num('m_umbral'), unidad:((document.getElementById('m_tipo')||{}).value||'trampa')}, 'mip_out',
             j=>`<div><span class="calc-badge ${j.decision==='intervenir'?'b-warn':'b-ok'}">${esc(j.decision)}</span> media ${j.media_por_unidad} vs umbral ${j.umbral}</div><div class="note">${esc(j.nota)}</div>`);
@@ -837,37 +847,53 @@
         <div class="calc-out" id="fol_out"></div>
       </div>
       <div class="calc-pane" data-pane="riego">
-        <div class="calc-help">Requerimiento de riego: ETc = ETo·Kc. La ETo viene del clima del día y el Kc de la etapa (cuaje/llenado &gt; reposo).</div>
+        <div class="calc-help">Requerimiento de riego: ETc = ETo·Kc. Da el Kc o elige la etapa (cuaje/llenado &gt; reposo) y se deriva solo. Con agua salina añade fracción de lavado; con CC/PMP/densidad/profundidad calcula el intervalo (cada cuánto regar).</div>
         <div class="calc-row">
           <label class="calc-f">ETo (mm/día)<input id="r_eto" type="number" step="any" min="0" inputmode="decimal"></label>
-          <label class="calc-f">Kc<input id="r_kc" type="number" step="any" min="0" placeholder="0,6–1,0" inputmode="decimal"></label>
-          <label class="calc-f">Lluvia efectiva (mm/día)<input id="r_lluvia" type="number" step="any" min="0" value="0" inputmode="decimal"></label>
+          <label class="calc-f">Kc<input id="r_kc" type="number" step="any" min="0" placeholder="o usa etapa →" inputmode="decimal"></label>
+          <label class="calc-f">Etapa (deriva Kc)<select id="r_etapa"><option value="">—</option><option value="reposo">Reposo</option><option value="floracion">Floración</option><option value="cuaje">Cuaje</option><option value="desarrollo">Desarrollo</option><option value="llenado">Llenado</option></select></label>
         </div>
         <div class="calc-row">
+          <label class="calc-f">Lluvia efectiva (mm/día)<input id="r_lluvia" type="number" step="any" min="0" value="0" inputmode="decimal"></label>
           <label class="calc-f">Eficiencia (0-1)<input id="r_ef" type="number" step="any" min="0" max="1" value="0.9" inputmode="decimal"></label>
+          <label class="calc-f">Fracción lavado (0-1)<input id="r_lf" type="number" step="any" min="0" max="0.99" value="0" placeholder="agua salina" inputmode="decimal"></label>
           <label class="calc-f">Área (ha, opcional)<input id="r_area" type="number" step="any" min="0" inputmode="decimal"></label>
+        </div>
+        <div class="calc-help" style="margin:.2rem 0 .4rem">Balance del suelo (opcional, para el intervalo de riego):</div>
+        <div class="calc-row">
+          <label class="calc-f">Cap. campo (%)<input id="r_cc" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">PMP (%)<input id="r_pmp" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Densidad (g/cm³)<input id="r_dens" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Prof. radical (cm)<input id="r_prof" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Agotamiento p (0-1)<input id="r_p" type="number" step="any" min="0" max="1" value="0.4" inputmode="decimal"></label>
         </div>
         <button class="calc-go" data-calc="riego">Calcular</button>
         <div class="calc-out" id="riego_out"></div>
       </div>
       <div class="calc-pane" data-pane="sal">
-        <div class="calc-help">Riesgo salino del agua: fracción de lavado y SAR. El Hass es muy sensible a Cl⁻/Na⁺ (umbral CEe ≈1,3 dS/m).</div>
+        <div class="calc-help">Riesgo salino del agua: fracción de lavado, SAR y RSC. El Hass es muy sensible a Cl⁻/Na⁺ y la tolerancia depende del portainjerto (antillano tolera más, mexicano menos). En agua con bicarbonatos, el RSC manda sobre el SAR clásico.</div>
         <div class="calc-row">
           <label class="calc-f">CE agua (dS/m)<input id="s_ce" type="number" step="any" min="0" inputmode="decimal"></label>
-          <label class="calc-f">CEe umbral<input id="s_umbral" type="number" step="any" value="1.3" inputmode="decimal"></label>
+          <label class="calc-f">Portainjerto (umbral)<select id="s_porta"><option value="">Hass (≈1,3)</option><option value="mexicano">Mexicano (≈1,0)</option><option value="guatemalteco">Guatemalteco (≈1,3)</option><option value="antillano">Antillano (≈2,0)</option></select></label>
+          <label class="calc-f">CEe umbral (manual)<input id="s_umbral" type="number" step="any" placeholder="opcional" inputmode="decimal"></label>
         </div>
         <div class="calc-row">
           <label class="calc-f">Na (meq/L)<input id="s_na" type="number" step="any" min="0" inputmode="decimal"></label>
           <label class="calc-f">Ca (meq/L)<input id="s_ca" type="number" step="any" min="0" inputmode="decimal"></label>
           <label class="calc-f">Mg (meq/L)<input id="s_mg" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">HCO₃ (meq/L)<input id="s_hco3" type="number" step="any" min="0" placeholder="para RSC" inputmode="decimal"></label>
+          <label class="calc-f">CO₃ (meq/L)<input id="s_co3" type="number" step="any" min="0" inputmode="decimal"></label>
         </div>
         <button class="calc-go" data-calc="sal">Calcular</button>
         <div class="calc-out" id="sal_out"></div>
       </div>
       <div class="calc-pane" data-pane="calibre">
-        <div class="calc-help">Calibre/count size: calibre UE = nº de frutos por caja de 4 kg. Otros mercados usan otra caja.</div>
+        <div class="calc-help">Calibre/count size: calibre UE = nº de frutos por caja de 4 kg. Para clasificar un LOTE, pega los pesos de la calibradora abajo y verás la distribución y la homogeneidad (lo que evita reclamos por mezcla). Para un solo fruto, usa el peso individual.</div>
         <div class="calc-row">
-          <label class="calc-f">Peso del fruto (g)<input id="cb_peso" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f" style="flex:1 1 100%">Pesos de la muestra (g, separa con comas)<input id="cb_muestra" type="text" inputmode="decimal" placeholder="205, 210, 195, 220, 200…"></label>
+        </div>
+        <div class="calc-row">
+          <label class="calc-f">o Peso de 1 fruto (g)<input id="cb_peso" type="number" step="any" min="0" inputmode="decimal"></label>
           <label class="calc-f">Caja (kg)<input id="cb_caja" type="number" step="any" value="4" inputmode="decimal"></label>
         </div>
         <button class="calc-go" data-calc="calibre">Calcular</button>
@@ -881,6 +907,7 @@
         <div class="calc-row">
           <label class="calc-f">T base (°C)<input id="g_base" type="number" step="any" value="10" inputmode="decimal"></label>
           <label class="calc-f">GDD objetivo (opcional)<input id="g_obj" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Método<select id="g_metodo"><option value="seno">Seno simple (recom.)</option><option value="media">Promedio simple</option></select></label>
         </div>
         <button class="calc-go" data-calc="gdd">Calcular</button>
         <div class="calc-out" id="gdd_out"></div>

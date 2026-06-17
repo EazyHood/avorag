@@ -315,3 +315,141 @@ def test_api_salinidad_ok() -> None:
     r = _client().post("/api/calc/salinidad", json={"ce_agua_dsm": 1.0})
     assert r.status_code == 200
     assert r.json()["fraccion_lavado"] is not None
+
+
+# ── Cluster B: GDD seno vs media, salinidad RSC/portainjerto, riego balance, calibre muestra ──────
+
+
+def test_gdd_seno_vs_media_noche_fria() -> None:
+    # Noche fría (Tmin < T_base): el promedio simple INFRAESTIMA porque la noche fría arrastra hacia
+    # abajo el calor del día; el seno simple solo anula el tramo bajo la base y acumula MÁS GDD.
+    temps = [(20.0, 5.0)] * 10  # Tmin 5 < base 10, Tmax 20 > base
+    seno = agro_calc.growing_degree_days(temps, metodo="seno")
+    media = agro_calc.growing_degree_days(temps, metodo="media")
+    assert seno.metodo == "seno"
+    assert seno.gdd_acumulado > media.gdd_acumulado  # corrige el sesgo de noche fría
+
+
+def test_gdd_metodos_coinciden_sin_noche_fria() -> None:
+    # Si Tmin >= T_base ambos métodos dan lo mismo.
+    temps = [(25.0, 15.0)] * 5
+    seno = agro_calc.growing_degree_days(temps, metodo="seno")
+    media = agro_calc.growing_degree_days(temps, metodo="media")
+    assert seno.gdd_acumulado == media.gdd_acumulado
+
+
+def test_gdd_metodo_invalido() -> None:
+    with pytest.raises(ValueError):
+        agro_calc.growing_degree_days([(20.0, 10.0)], metodo="lineal")
+
+
+def test_salinidad_portainjerto_ajusta_umbral() -> None:
+    mex = agro_calc.salinity_assessment(ce_agua_dsm=1.2, portainjerto="mexicano")
+    ant = agro_calc.salinity_assessment(ce_agua_dsm=1.2, portainjerto="antillano")
+    assert mex.ce_umbral_suelo_dsm == 1.0  # raza mexicana: más sensible
+    assert ant.ce_umbral_suelo_dsm == 2.0  # antillano: más tolerante
+    # Con el mismo agua, el mexicano la supera y el antillano no.
+    assert any("supera el umbral" in a for a in mex.alertas)
+    assert not any("supera el umbral" in a for a in ant.alertas)
+
+
+def test_salinidad_rsc_bicarbonatos() -> None:
+    # HCO3 alto frente a Ca+Mg bajo -> RSC alto -> agua no apta sin enmienda.
+    r = agro_calc.salinity_assessment(
+        ce_agua_dsm=0.8, ca_meq_l=1.0, mg_meq_l=0.5, hco3_meq_l=5.0
+    )
+    assert r.rsc_meq_l == 3.5  # (5+0) - (1+0.5)
+    assert any("RSC" in a for a in r.alertas)
+
+
+def test_riego_fraccion_lavado_sube_bruta() -> None:
+    sin = agro_calc.irrigation_requirement(eto_mm_dia=5, kc=0.8)
+    con = agro_calc.irrigation_requirement(eto_mm_dia=5, kc=0.8, fraccion_lavado=0.2)
+    assert con.lamina_bruta_mm_dia > sin.lamina_bruta_mm_dia  # el lavado exige más lámina
+
+
+def test_riego_balance_suelo_intervalo() -> None:
+    r = agro_calc.irrigation_requirement(
+        eto_mm_dia=5, kc=0.8, capacidad_campo_pct=30, pmp_pct=15,
+        densidad_aparente=1.2, profundidad_radical_cm=40,
+    )
+    assert r.taw_mm is not None and r.raw_mm is not None
+    assert r.intervalo_riego_dias is not None
+    assert r.raw_mm < r.taw_mm  # RAW = p·TAW con p<1
+
+
+def test_kc_aguacate_por_etapa() -> None:
+    assert agro_calc.kc_aguacate("llenado") > agro_calc.kc_aguacate("reposo")
+    with pytest.raises(ValueError):
+        agro_calc.kc_aguacate("inexistente")
+
+
+def test_foliar_micro_contaminacion() -> None:
+    # Fe foliar alto -> alerta de posible contaminación superficial (no clorosis).
+    r = agro_calc.foliar_ratios(fe=500)
+    assert any("contamina" in a.lower() or "residuo" in a.lower() for a in r.alertas)
+
+
+def test_calibre_muestra_distribucion() -> None:
+    pesos = [200, 205, 210, 195, 400]  # 4 frutos ~calibre similar + 1 grande
+    r = agro_calc.fruit_caliber_sample(pesos)
+    assert r.n == 5
+    assert sum(r.distribucion.values()) == 5
+    assert r.calibre_dominante in r.distribucion
+
+
+def test_calibre_muestra_heterogeneo_alerta() -> None:
+    pesos = [150, 300, 600, 200, 450]  # muy disperso
+    r = agro_calc.fruit_caliber_sample(pesos)
+    assert r.homogeneidad_pct < 70
+    assert "heterog" in r.nota.lower()
+
+
+def test_calibre_muestra_vacio() -> None:
+    with pytest.raises(ValueError):
+        agro_calc.fruit_caliber_sample([])
+
+
+def test_materia_seca_nota_aceite() -> None:
+    r = agro_calc.dry_matter_sample([23, 24, 23, 25])
+    assert "aceite" in r.nota.lower()
+
+
+# ── Cluster B: API de los nuevos parámetros ──────────────────────────────────────────────────────
+
+
+def test_api_riego_por_etapa() -> None:
+    r = _client().post("/api/calc/riego", json={"eto_mm_dia": 5, "etapa": "llenado"})
+    assert r.status_code == 200
+    assert r.json()["etc_mm_dia"] == 4.0  # 5 * 0.8
+
+
+def test_api_riego_sin_kc_ni_etapa() -> None:
+    r = _client().post("/api/calc/riego", json={"eto_mm_dia": 5})
+    assert r.status_code == 400
+
+
+def test_api_grados_dia_metodo() -> None:
+    r = _client().post(
+        "/api/calc/grados-dia", json={"temps": [[20, 5], [20, 5]], "metodo": "seno"}
+    )
+    assert r.status_code == 200
+    assert r.json()["metodo"] == "seno"
+
+
+def test_api_salinidad_portainjerto() -> None:
+    r = _client().post(
+        "/api/calc/salinidad", json={"ce_agua_dsm": 1.2, "portainjerto": "mexicano"}
+    )
+    assert r.status_code == 200
+    assert r.json()["ce_umbral_suelo_dsm"] == 1.0
+
+
+def test_api_calibre_muestra() -> None:
+    r = _client().post(
+        "/api/calc/calibre-muestra", json={"pesos_g": [200, 210, 205, 195]}
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["n"] == 4
+    assert "calibre_dominante" in body
