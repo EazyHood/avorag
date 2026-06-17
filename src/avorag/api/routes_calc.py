@@ -28,7 +28,10 @@ class DryMatterIn(BaseModel):
     muestras: list[float] | None = Field(
         None, description="%MS por fruto (muestreo de 10-20 frutos). Si se da, prevalece sobre los pesos."
     )
-    umbral_pct: float = Field(agro_calc.DRY_MATTER_EXPORT_DEFAULT, gt=0, le=100, description="Umbral de corte (%).")
+    umbral_pct: float | None = Field(None, gt=0, le=100, description="Umbral de corte (%); por defecto 23.")
+    objetivo: str | None = Field(
+        None, description="Objetivo nombrado: minimo_legal | exportacion | premium (si se da, fija el umbral)."
+    )
 
 
 class LimingIn(BaseModel):
@@ -98,10 +101,11 @@ class MipThresholdIn(BaseModel):
 @router.post("/materia-seca")
 def materia_seca(body: DryMatterIn) -> dict:
     try:
+        umbral = body.umbral_pct if body.umbral_pct is not None else agro_calc.resolve_dry_matter_target(body.objetivo)
         if body.muestras:
-            r = agro_calc.dry_matter_sample(body.muestras, umbral_pct=body.umbral_pct)
+            r = agro_calc.dry_matter_sample(body.muestras, umbral_pct=umbral)
         elif body.peso_fresco_g and body.peso_seco_g:
-            r = agro_calc.dry_matter(body.peso_fresco_g, body.peso_seco_g, umbral_pct=body.umbral_pct)
+            r = agro_calc.dry_matter(body.peso_fresco_g, body.peso_seco_g, umbral_pct=umbral)
         else:
             raise ValueError("Aporta `muestras` (%MS por fruto) o `peso_fresco_g` + `peso_seco_g`.")
     except ValueError as exc:

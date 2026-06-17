@@ -640,6 +640,10 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     qw = guardrails.quarantine_warning(question + "\n" + raw)
     if qw:
         warnings = [*warnings, qw]
+    # KCl: el Hass es sensible al cloruro; avisar aunque la dosis sea de magnitud "normal".
+    cw = guardrails.chloride_warning(raw)
+    if cw:
+        warnings = [*warnings, cw]
 
     if forbidden:
         # Producto prohibido/restringido (ICA) o NO autorizado en el mercado de destino: la respuesta

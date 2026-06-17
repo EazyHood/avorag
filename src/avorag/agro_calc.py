@@ -24,6 +24,24 @@ from dataclasses import dataclass, field
 DRY_MATTER_LEGAL_MIN = 20.8
 DRY_MATTER_EXPORT_DEFAULT = 23.0
 DRY_MATTER_MIN_SAMPLE = 10  # frutos recomendados para un muestreo representativo
+# Objetivos de %MS ORIENTATIVOS por exigencia/mercado. NO hay un único "corte de exportación": el
+# mínimo de madurez legal ronda 20,8% (CODEX/California) pero el comprador suele exigir más; mercados
+# lejanos o premium (Japón, UE premium) piden 24-25%+. El número exacto lo fija TU comprador/programa.
+DRY_MATTER_TARGETS: dict[str, float] = {
+    "minimo_legal": DRY_MATTER_LEGAL_MIN,
+    "exportacion": DRY_MATTER_EXPORT_DEFAULT,
+    "premium": 25.0,
+}
+
+
+def resolve_dry_matter_target(objetivo: str | None) -> float:
+    """Umbral de %MS según un objetivo nombrado (minimo_legal/exportacion/premium). None → exportación."""
+    if objetivo is None:
+        return DRY_MATTER_EXPORT_DEFAULT
+    key = objetivo.strip().lower()
+    if key not in DRY_MATTER_TARGETS:
+        raise ValueError(f"Objetivo desconocido «{objetivo}». Usa uno de: {', '.join(DRY_MATTER_TARGETS)}.")
+    return DRY_MATTER_TARGETS[key]
 
 
 @dataclass
@@ -95,6 +113,11 @@ def dry_matter_sample(
         cv = round(sd / (sum(vals) / n) * 100, 1) if media else None
     minimo = round(min(vals), 1)
     veredicto, nota = _dry_matter_verdict(media, umbral_pct, minimo=minimo, cv=cv, n=n)
+    if umbral_pct == DRY_MATTER_EXPORT_DEFAULT:
+        nota += (
+            " Umbral 23% orientativo (corte comercial habitual): tu comprador/mercado puede exigir "
+            "24-25%+ (Japón/UE premium) o aceptar el mínimo legal ~20,8%."
+        )
     return DryMatterResult(
         materia_seca_pct=media, umbral_pct=umbral_pct, veredicto=veredicto, nota=nota,
         n_muestras=n, cv_pct=cv, minimo_muestra_pct=minimo,

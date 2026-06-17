@@ -290,6 +290,14 @@ def test_resistance_reminder_nudge_mip() -> None:
     assert rem2 and "biológico" not in rem2.lower()
 
 
+def test_chloride_warning_kcl() -> None:
+    from avorag.rag.guardrails import chloride_warning
+
+    assert chloride_warning("Aplica 600 kg/ha de KCl (cloruro de potasio).")
+    assert chloride_warning("Para el potasio usa muriato de potasio.")
+    assert chloride_warning("Aplica sulfato de potasio (K2SO4).") is None
+
+
 def test_quarantine_warning_stenoma() -> None:
     from avorag.rag.guardrails import quarantine_warning
 
