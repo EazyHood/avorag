@@ -76,6 +76,25 @@ class SalinityIn(BaseModel):
     mg_meq_l: float | None = Field(None, ge=0, description="Magnesio del agua (meq/L), para SAR.")
 
 
+class GddIn(BaseModel):
+    temps: list[tuple[float, float]] = Field(..., description="Lista de (Tmax, Tmin) diarias desde cuaje.")
+    t_base: float = Field(agro_calc.AVOCADO_TBASE_DEFAULT, description="Temperatura base (°C).")
+    t_tope: float | None = Field(None, description="Tope superior opcional (°C).")
+    objetivo_gdd: float | None = Field(None, gt=0, description="GDD objetivo (para % de progreso).")
+
+
+class CaliberIn(BaseModel):
+    peso_g: float = Field(..., gt=0, description="Peso del fruto (g).")
+    caja_kg: float = Field(4.0, gt=0, description="Peso de la caja de referencia (kg). UE = 4.")
+
+
+class MipThresholdIn(BaseModel):
+    conteo_total: float = Field(..., ge=0, description="Conteo total observado (suma de las unidades).")
+    n_unidades: int = Field(..., gt=0, description="Número de unidades de monitoreo (trampas/plantas).")
+    umbral: float = Field(..., ge=0, description="Umbral de acción por unidad (de TU protocolo).")
+    unidad: str = Field("trampa", description="Unidad de monitoreo (trampa/planta/rama).")
+
+
 @router.post("/materia-seca")
 def materia_seca(body: DryMatterIn) -> dict:
     try:
@@ -139,6 +158,38 @@ def salinidad(body: SalinityIn) -> dict:
         r = agro_calc.salinity_assessment(
             ce_agua_dsm=body.ce_agua_dsm, ce_umbral_suelo_dsm=body.ce_umbral_suelo_dsm,
             na_meq_l=body.na_meq_l, ca_meq_l=body.ca_meq_l, mg_meq_l=body.mg_meq_l,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return asdict(r)
+
+
+@router.post("/grados-dia")
+def grados_dia(body: GddIn) -> dict:
+    try:
+        r = agro_calc.growing_degree_days(
+            [tuple(t) for t in body.temps], t_base=body.t_base, t_tope=body.t_tope,
+            objetivo_gdd=body.objetivo_gdd,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return asdict(r)
+
+
+@router.post("/calibre")
+def calibre(body: CaliberIn) -> dict:
+    try:
+        r = agro_calc.fruit_caliber(body.peso_g, caja_kg=body.caja_kg)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return asdict(r)
+
+
+@router.post("/umbral-mip")
+def umbral_mip(body: MipThresholdIn) -> dict:
+    try:
+        r = agro_calc.mip_action_threshold(
+            body.conteo_total, body.n_unidades, body.umbral, unidad=body.unidad
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

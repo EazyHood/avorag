@@ -420,3 +420,114 @@ def salinity_assessment(
             "el Cl⁻ foliar; prefiere fuentes de K sin cloruro. Umbrales orientativos."
         ),
     )
+
+
+# ── 6) Grados-día (tiempo térmico) — apoyo a la ventana de cosecha ──────────────────────────────
+# No predice el corte (eso exige una curva %MS-vs-GDD calibrada local), pero acumula el TIEMPO TÉRMICO
+# desde cuaje, que es el marco fenológico que faltaba. Tú calibras la T_base y el objetivo con tus
+# registros (varían por zona/cultivar). Confirma la cosecha SIEMPRE con materia seca.
+AVOCADO_TBASE_DEFAULT = 10.0
+
+
+@dataclass
+class GddResult:
+    gdd_acumulado: float
+    n_dias: int
+    gdd_medio_dia: float
+    t_base: float
+    progreso_pct: float | None
+    nota: str
+
+
+def growing_degree_days(
+    temps: list[tuple[float, float]], *, t_base: float = AVOCADO_TBASE_DEFAULT,
+    t_tope: float | None = None, objetivo_gdd: float | None = None,
+) -> GddResult:
+    """Grados-día acumulados: por día GDD = max(0, (Tmax+Tmin)/2 − T_base) (con tope opcional). `temps`
+    es la lista de (Tmax, Tmin) diarias desde cuaje. Si das `objetivo_gdd`, devuelve el progreso."""
+    if not temps:
+        raise ValueError("Aporta al menos un día de temperaturas (Tmax, Tmin).")
+    total = 0.0
+    for tmax, tmin in temps:
+        if tmax < tmin:
+            raise ValueError("Tmax no puede ser menor que Tmin.")
+        media = (tmax + tmin) / 2
+        if t_tope is not None:
+            media = min(media, t_tope)
+        total += max(0.0, media - t_base)
+    n = len(temps)
+    gdd = round(total, 1)
+    prog = round(gdd / objetivo_gdd * 100, 1) if objetivo_gdd and objetivo_gdd > 0 else None
+    return GddResult(
+        gdd_acumulado=gdd, n_dias=n, gdd_medio_dia=round(gdd / n, 2), t_base=t_base, progreso_pct=prog,
+        nota=(
+            f"Grados-día base {t_base} °C acumulados desde cuaje. NO predice el corte por sí solo: "
+            "calibra la T_base y el GDD objetivo con TUS registros (varían por zona/cultivar) y "
+            "confirma SIEMPRE la cosecha con materia seca."
+        ),
+    )
+
+
+# ── 7) Calibre / count size para exportación ────────────────────────────────────────────────────
+# Calibre UE = nº de frutos que caben en una caja de 4 kg (calibre = frutos/caja). Otros mercados
+# (EE.UU., México) usan otra caja/conteo. Orientativo: el grado comercial real lo define tu cliente.
+CALIBRES_UE: tuple[int, ...] = (8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32)
+
+
+@dataclass
+class CaliberResult:
+    calibre: int
+    frutos_por_caja: float
+    caja_kg: float
+    nota: str
+
+
+def fruit_caliber(peso_g: float, *, caja_kg: float = 4.0) -> CaliberResult:
+    """Calibre/count size a partir del peso del fruto: frutos por caja = caja_kg·1000/peso; se ajusta
+    al calibre estándar UE más cercano. Mercados con otra caja → otro conteo (pasa `caja_kg`)."""
+    if peso_g <= 0 or caja_kg <= 0:
+        raise ValueError("El peso del fruto y la caja deben ser positivos.")
+    frutos = caja_kg * 1000 / peso_g
+    calibre = min(CALIBRES_UE, key=lambda c: abs(c - frutos))
+    return CaliberResult(
+        calibre=calibre, frutos_por_caja=round(frutos, 1), caja_kg=caja_kg,
+        nota=(
+            f"Calibre UE ≈ {calibre} (frutos por caja de {caja_kg:g} kg). El número de calibre baja al "
+            "subir el peso del fruto. Orientativo: otros mercados usan otra caja/conteo y el grado "
+            "comercial (calidad, mezcla de madurez) lo define tu cliente."
+        ),
+    )
+
+
+# ── 8) Umbral de acción MIP (decisión aplicar/monitorear) ───────────────────────────────────────
+# El sistema NO inventa el umbral (sería peligroso): lo pones TÚ (de tu protocolo/agrónomo). Aquí va
+# la aritmética del monitoreo (media por unidad) y la decisión contra ese umbral.
+@dataclass
+class MipThresholdResult:
+    media_por_unidad: float
+    umbral: float
+    decision: str  # "intervenir" | "monitorear"
+    nota: str
+
+
+def mip_action_threshold(
+    conteo_total: float, n_unidades: int, umbral: float, *, unidad: str = "trampa"
+) -> MipThresholdResult:
+    """Decisión de manejo MIP: media por unidad de monitoreo (= conteo/unidades) frente a TU umbral de
+    acción. `unidad` = trampa/planta/rama. El umbral lo define tu protocolo, no la app."""
+    if n_unidades <= 0 or umbral < 0 or conteo_total < 0:
+        raise ValueError("conteo ≥ 0, unidades > 0, umbral ≥ 0.")
+    media = conteo_total / n_unidades
+    intervenir = media >= umbral
+    return MipThresholdResult(
+        media_por_unidad=round(media, 2), umbral=umbral,
+        decision="intervenir" if intervenir else "monitorear",
+        nota=(
+            f"{round(media, 2)} por {unidad} vs umbral {umbral}. "
+            + ("Supera el umbral: interviene, pero prioriza control biológico/cultural antes del "
+               "químico (MIP) y rota modos de acción."
+               if intervenir else
+               "Por debajo del umbral: sigue monitoreando, no apliques aún.")
+            + " El umbral lo define tu protocolo/agrónomo y la plaga; la app no lo inventa."
+        ),
+    )

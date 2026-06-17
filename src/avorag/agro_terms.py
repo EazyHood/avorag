@@ -309,3 +309,20 @@ def beneficials_in(text: str) -> set[str]:
 def mentions_biocontrol(text: str) -> bool:
     """True si el texto menciona control biológico (parasitoides/depredadores/entomopatógenos)."""
     return bool(beneficials_in(text))
+
+
+# Plagas de CONTROL OFICIAL / cuarentenarias del aguacate en Colombia (Resolución ICA 1507/2016).
+# Su régimen es de TOLERANCIA CERO / admisibilidad (monitoreo + reporte al ICA + control de
+# movilización + área libre para exportar), NO un umbral económico. Reconocerlas para avisar del régimen.
+QUARANTINE_PESTS: tuple[str, ...] = (
+    "stenoma catenifer", "stenoma", "heilipus lauri", "heilipus trifasciatus", "heilipus",
+    "barrenador del fruto", "barrenador de la semilla",
+)
+
+
+def quarantine_pests_in(text: str) -> list[str]:
+    """Plagas de control oficial (cuarentenarias) mencionadas en el texto (sin tildes, por subcadena)."""
+    low = _noacc(text)
+    hits = [p for p in QUARANTINE_PESTS if p in low]
+    # Evita redundancia "heilipus" + "heilipus lauri": deja el nombre más específico.
+    return [p for p in hits if not any(p != o and p in o for o in hits)]

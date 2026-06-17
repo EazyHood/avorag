@@ -15,6 +15,7 @@ from avorag.agro_terms import (
     extract_active_ingredient,
     mentions_biocontrol,
     mode_of_action_groups,
+    quarantine_pests_in,
 )
 from avorag.logging import get_logger
 from avorag.providers import get_judge_llm_provider
@@ -535,6 +536,21 @@ def resistance_reminder(answer_text: str) -> str | None:
     return (
         "Anti-resistencia: rota los modos de acción (grupos IRAC/FRAC) entre aplicaciones; "
         "no repitas el mismo ingrediente/grupo en ciclos consecutivos." + mip
+    )
+
+
+def quarantine_warning(text: str) -> str | None:
+    """Aviso si el texto menciona una plaga de control oficial (cuarentenaria, Res. ICA 1507/2016):
+    su régimen es de TOLERANCIA CERO / admisibilidad, no de umbral económico."""
+    pests = quarantine_pests_in(text)
+    if not pests:
+        return None
+    nombres = ", ".join(pests[:2])
+    return (
+        f"Plaga de CONTROL OFICIAL (cuarentenaria, Res. ICA 1507/2016): {nombres}. NO se maneja por "
+        "umbral económico: implica monitoreo, REPORTE al ICA, control de movilización del material y "
+        "trabajo bajo área libre / sistema de mitigación para exportar (tolerancia cero en mercados "
+        "con admisibilidad como EE.UU.). Verifica el protocolo vigente con el ICA."
     )
 
 

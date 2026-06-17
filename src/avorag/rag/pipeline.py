@@ -636,6 +636,10 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
             "Verifica la VIGENCIA del registro ICA en SimplifICA antes de aplicar: el listado de "
             "insumos del corpus es un extracto (PQUA, mar-2022) y el ICA cancela/suspende registros.",
         ]
+    # Cuarentenaria de control oficial (Stenoma/Heilipus): régimen de tolerancia cero, no de umbral.
+    qw = guardrails.quarantine_warning(question + "\n" + raw)
+    if qw:
+        warnings = [*warnings, qw]
 
     if forbidden:
         # Producto prohibido/restringido (ICA) o NO autorizado en el mercado de destino: la respuesta

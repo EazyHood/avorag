@@ -290,6 +290,14 @@ def test_resistance_reminder_nudge_mip() -> None:
     assert rem2 and "biológico" not in rem2.lower()
 
 
+def test_quarantine_warning_stenoma() -> None:
+    from avorag.rag.guardrails import quarantine_warning
+
+    w = quarantine_warning("¿Cómo manejo el Stenoma catenifer en mi huerto?")
+    assert w and "tolerancia cero" in w.lower() and "1507" in w
+    assert quarantine_warning("¿Cómo manejo el trips?") is None
+
+
 def test_resistance_reminder_frac_alto_riesgo() -> None:
     # QoI (FRAC 11) es monositio de alto riesgo: el aviso lo distingue del multisitio (agró #24).
     rem = resistance_reminder("Aplica azoxistrobina 0,5 L/ha contra la antracnosis.")
