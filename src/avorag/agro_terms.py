@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import re
+import unicodedata
+
+
+def _noacc(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s.lower()) if unicodedata.category(c) != "Mn")
 
 # Ingredientes activos reconocidos para la detección de los guardarraíles (NO es una lista de
 # productos registrados ni autoriza su uso; el registro/vigencia los define el ICA en SimplifICA).
@@ -280,3 +285,27 @@ def active_ingredients_in(text: str) -> set[str]:
 def mode_of_action_groups(text: str) -> dict[str, str]:
     """Mapa {i.a. -> grupo IRAC/FRAC} de los activos reconocidos en el texto (los que tienen grupo)."""
     return {ia: MODE_OF_ACTION_GROUP[ia] for ia in active_ingredients_in(text) if ia in MODE_OF_ACTION_GROUP}
+
+
+# Agentes de CONTROL BIOLÓGICO (parasitoides, depredadores, entomopatógenos) — pilar del MIP de
+# exportación, que el comprador (GlobalGAP) exige y el motor químico-céntrico ignoraba. Se reconocen
+# para NO tratarlos como químicos y para nudge "biológico/cultural antes del químico". NO exhaustivo.
+BENEFICIAL_AGENTS: tuple[str, ...] = (
+    "trichogramma", "amblyseius", "neoseiulus", "phytoseiulus", "galendromus", "typhlodromus",
+    "chrysoperla", "orius", "encarsia", "eretmocerus", "cryptolaemus", "stethorus",
+    "beauveria", "metarhizium", "bacillus thuringiensis", "paecilomyces", "lecanicillium",
+    "isaria", "cordyceps", "steinernema", "heterorhabditis",
+    "parasitoide", "depredador", "entomopatogeno", "control biologico", "biocontrol",
+    "acaro depredador", "avispa parasitica", "fauna auxiliar", "enemigo natural",
+)
+
+
+def beneficials_in(text: str) -> set[str]:
+    """Agentes de control biológico mencionados en el texto (sin tildes, por subcadena)."""
+    low = _noacc(text)
+    return {b for b in BENEFICIAL_AGENTS if b in low}
+
+
+def mentions_biocontrol(text: str) -> bool:
+    """True si el texto menciona control biológico (parasitoides/depredadores/entomopatógenos)."""
+    return bool(beneficials_in(text))

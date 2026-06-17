@@ -48,6 +48,24 @@ def test_lmr_estricto_avisa_sin_bloquear() -> None:
     assert w and "imidacloprid" in w[0].lower()
 
 
+def test_lmr_estricto_molecula_moderna() -> None:
+    # Antes solo imidacloprid; ahora una molécula moderna de uso real avisa (agró #16/#25, exp #37).
+    assert D.strict_lmr_for_destination("apliqué fluopyram para la pudrición", market="ue")
+    assert D.strict_lmr_for_destination("usé ciantraniliprol contra el trips", market="eeuu")
+
+
+def test_destino_resuelve_marca_comercial() -> None:
+    # Lorsban=clorpirifos (no aprobado UE) y Vertimec=abamectina (LMR estricto) deben dispararse por la MARCA (exp #35).
+    assert D.unauthorized_for_destination("recomiendo Lorsban", market="ue")
+    assert D.strict_lmr_for_destination("aplica Vertimec", market="ue")
+
+
+def test_config_defaults_privacidad_y_pais() -> None:
+    s = Settings()
+    assert s.audit_store_text is False  # privacidad por defecto (exp #26)
+    assert s.country == "CO"  # único país con corpus (exp #18)
+
+
 def test_available_markets_incluye_ue() -> None:
     assert "ue" in D.available_markets()
 

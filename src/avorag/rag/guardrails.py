@@ -13,6 +13,7 @@ from avorag.agro_terms import (
     active_ingredients_in,
     commercial_actives_in,
     extract_active_ingredient,
+    mentions_biocontrol,
     mode_of_action_groups,
 )
 from avorag.logging import get_logger
@@ -512,15 +513,20 @@ def resistance_reminder(answer_text: str) -> str | None:
     if not recommends_pesticide(answer_text):
         return None
     groups = mode_of_action_groups(answer_text)
+    # Nudge MIP: el control biológico/cultural va PRIMERO (lo exige GlobalGAP); solo se añade si la
+    # respuesta no lo menciona ya.
+    mip = "" if mentions_biocontrol(answer_text) else (
+        " Prioriza monitoreo + control biológico/cultural (MIP) antes del químico."
+    )
     if groups:
         gtxt = ", ".join(f"{ia} ({g})" for ia, g in list(groups.items())[:3])
         return (
             f"Anti-resistencia: rota modos de acción entre aplicaciones — aquí {gtxt}. "
-            "No repitas el mismo grupo IRAC/FRAC en ciclos consecutivos."
+            "No repitas el mismo grupo IRAC/FRAC en ciclos consecutivos." + mip
         )
     return (
         "Anti-resistencia: rota los modos de acción (grupos IRAC/FRAC) entre aplicaciones; "
-        "no repitas el mismo ingrediente/grupo en ciclos consecutivos."
+        "no repitas el mismo ingrediente/grupo en ciclos consecutivos." + mip
     )
 
 

@@ -4,13 +4,146 @@
   "actualizado": "2026-06-16",
   "_AVISO": "OJO — EE.UU. funciona por TOLERANCIAS, no por lista de prohibidos. La verdad VINCULANTE es la tolerancia por par activo-cultivo en 40 CFR Parte 180: bajo la FFDCA §408, todo residuo en un alimento es ilegal salvo que exista una tolerancia vigente para ESE activo en AGUACATE. Esta lista de 8 es un guardarraíl de MÍNIMOS (activos cancelados por la EPA o sin tolerancia alguna). NO captura el rechazo más común: un activo legal en otro cultivo usado en aguacate SIN tolerancia para aguacate → residuo violatorio. Que un activo NO esté aquí NO significa que tenga tolerancia para aguacate; y 'no registrado en EE.UU.' ≠ 'prohibido' (puede tener tolerancia de importación). Verificar siempre la entrada de 'avocado' en 40 CFR 180.XXX. Ej.: paraquat y azoxystrobin SÍ tienen tolerancia para aguacate (no van en esta lista). Fuente: https://www.ecfr.gov/current/title-40/part-180",
   "no_autorizados": [
-    {"ingrediente_activo": "clorpirifos", "estado": "sin_tolerancia", "motivo": "El aguacate no está entre los 11 usos retenidos por la EPA; desde el 1-jul-2025 está prohibido cualquier uso fuera de esos 11 cultivos y el aguacate está ausente de 40 CFR 180.342 → residuo violatorio.", "fuente": "EPA Chlorpyrifos; FR 2024-28332; 40 CFR 180.342 — https://www.law.cornell.edu/cfr/text/40/180.342"},
-    {"ingrediente_activo": "metamidofos", "estado": "cancelado_epa", "motivo": "Todos los registros cancelados voluntariamente (orden EPA 23-sep-2009); nunca tuvo tolerancia para aguacate (ausente de 40 CFR 180.315) → residuo violatorio.", "fuente": "EPA 738-F-02-008; FR E9-26603 (2009)"},
-    {"ingrediente_activo": "carbofurano", "estado": "cancelado_epa", "motivo": "Registros cancelados y tolerancias domésticas revocadas (74 FR 23046); solo 4 tolerancias de importación (banano, café, arroz, caña) en 40 CFR 180.254, sin aguacate → violatorio.", "fuente": "40 CFR 180.254 — https://www.law.cornell.edu/cfr/text/40/180.254"},
-    {"ingrediente_activo": "aldicarb", "estado": "cancelado_epa", "motivo": "Registros cancelados/terminados (acuerdo EPA-Bayer, 2009 y 2012); 40 CFR 180.269 lista 18 cultivos y el aguacate está ausente → violatorio.", "fuente": "40 CFR 180.269; FR 2012-11072"},
-    {"ingrediente_activo": "endosulfan", "estado": "cancelado_epa", "motivo": "Cancelación voluntaria de todos los usos (75 FR 69065, último uso 31-jul-2016) y tolerancias revocadas; ausente de 40 CFR 180.182 → violatorio.", "fuente": "FR 2010-28138; FR 2011-23515"},
-    {"ingrediente_activo": "metil paration", "estado": "cancelado_epa", "motivo": "Tolerancia en aguacate revocada (efectiva 3-sep-2002) y todos los registros cancelados (uso legal terminó 31-dic-2013) → sin tolerancia para aguacate.", "fuente": "EPA archive methylparathion; FR 02-13519"},
-    {"ingrediente_activo": "azinfos-metilo", "estado": "cancelado_epa", "motivo": "Registros cancelados (uso prohibido tras 30-sep-2012) y sección de tolerancias 40 CFR 180.154 eliminada (efectiva 28-nov-2016); el aguacate nunca tuvo tolerancia → violatorio.", "fuente": "FR E8-3112; FR 2016-12723"},
-    {"ingrediente_activo": "monocrotofos", "estado": "sin_tolerancia", "motivo": "Cero entradas en 40 CFR Parte 180 (sin tolerancia); organofosforado WHO Clase Ib cancelado, sin uso registrado en cultivos alimentarios → cualquier residuo en aguacate es violatorio.", "fuente": "eCFR Parte 180 (sin resultados); FR 98-1356"}
-  ]
+    {
+      "ingrediente_activo": "clorpirifos",
+      "estado": "sin_tolerancia",
+      "motivo": "El aguacate no está entre los 11 usos retenidos por la EPA; desde el 1-jul-2025 está prohibido cualquier uso fuera de esos 11 cultivos y el aguacate está ausente de 40 CFR 180.342 → residuo violatorio.",
+      "fuente": "EPA Chlorpyrifos; FR 2024-28332; 40 CFR 180.342 — https://www.law.cornell.edu/cfr/text/40/180.342"
+    },
+    {
+      "ingrediente_activo": "metamidofos",
+      "estado": "cancelado_epa",
+      "motivo": "Todos los registros cancelados voluntariamente (orden EPA 23-sep-2009); nunca tuvo tolerancia para aguacate (ausente de 40 CFR 180.315) → residuo violatorio.",
+      "fuente": "EPA 738-F-02-008; FR E9-26603 (2009)"
+    },
+    {
+      "ingrediente_activo": "carbofurano",
+      "estado": "cancelado_epa",
+      "motivo": "Registros cancelados y tolerancias domésticas revocadas (74 FR 23046); solo 4 tolerancias de importación (banano, café, arroz, caña) en 40 CFR 180.254, sin aguacate → violatorio.",
+      "fuente": "40 CFR 180.254 — https://www.law.cornell.edu/cfr/text/40/180.254"
+    },
+    {
+      "ingrediente_activo": "aldicarb",
+      "estado": "cancelado_epa",
+      "motivo": "Registros cancelados/terminados (acuerdo EPA-Bayer, 2009 y 2012); 40 CFR 180.269 lista 18 cultivos y el aguacate está ausente → violatorio.",
+      "fuente": "40 CFR 180.269; FR 2012-11072"
+    },
+    {
+      "ingrediente_activo": "endosulfan",
+      "estado": "cancelado_epa",
+      "motivo": "Cancelación voluntaria de todos los usos (75 FR 69065, último uso 31-jul-2016) y tolerancias revocadas; ausente de 40 CFR 180.182 → violatorio.",
+      "fuente": "FR 2010-28138; FR 2011-23515"
+    },
+    {
+      "ingrediente_activo": "metil paration",
+      "estado": "cancelado_epa",
+      "motivo": "Tolerancia en aguacate revocada (efectiva 3-sep-2002) y todos los registros cancelados (uso legal terminó 31-dic-2013) → sin tolerancia para aguacate.",
+      "fuente": "EPA archive methylparathion; FR 02-13519"
+    },
+    {
+      "ingrediente_activo": "azinfos-metilo",
+      "estado": "cancelado_epa",
+      "motivo": "Registros cancelados (uso prohibido tras 30-sep-2012) y sección de tolerancias 40 CFR 180.154 eliminada (efectiva 28-nov-2016); el aguacate nunca tuvo tolerancia → violatorio.",
+      "fuente": "FR E8-3112; FR 2016-12723"
+    },
+    {
+      "ingrediente_activo": "monocrotofos",
+      "estado": "sin_tolerancia",
+      "motivo": "Cero entradas en 40 CFR Parte 180 (sin tolerancia); organofosforado WHO Clase Ib cancelado, sin uso registrado en cultivos alimentarios → cualquier residuo en aguacate es violatorio.",
+      "fuente": "eCFR Parte 180 (sin resultados); FR 98-1356"
+    }
+  ],
+  "lmr_estricto": [
+    {
+      "ingrediente_activo": "acetamiprid",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "ciantraniliprol",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "clorantraniliprol",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "spinetoram",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "spinosad",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "abamectina",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "sulfoxaflor",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "flonicamida",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "fluopyram",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "fluxapiroxad",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "boscalid",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "azoxistrobina",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "piraclostrobina",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "mandipropamida",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "dimetomorf",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "difenoconazol",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "propiconazol",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    },
+    {
+      "ingrediente_activo": "emamectina",
+      "nota": "EE.UU. (FFDCA/40 CFR Parte 180) funciona por TOLERANCIA por par activo-cultivo: verifica que EXISTA una tolerancia para 'avocado'. Sin tolerancia para aguacate = residuo violatorio, aunque el activo sea legal en otro cultivo. Este aviso NO confirma ni niega la tolerancia; consúltala en 40 CFR 180.",
+      "fuente": "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-E/part-180"
+    }
+  ],
+  "_lmr_estricto_nota": "Activos modernos añadidos: avisan (AMARILLO) de verificar el LMR/tolerancia del DESTINO; no son prohibiciones. La verdad vinculante está en la fuente oficial."
 }

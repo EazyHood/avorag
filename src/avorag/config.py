@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     embedding_model: str = "bge-m3"
 
     # --- Reranker ---
+    # OJO: las métricas publicadas (groundedness, latencia) se midieron con rerank='local'. Con
+    # 'none' la calidad de recuperación baja (las portadas/encabezados ganan). Para reproducir el
+    # caso de estudio, usa 'local' (carga el cross-encoder, requiere GPU/CPU). Default 'none' = arranca
+    # sin descargar modelo, pero es la versión DÉBIL frente a lo medido.
     rerank_provider: str = "none"  # none | cohere | local
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
     rerank_max_chars: int = 900  # trunca cada candidato antes del cross-encoder (CPU más rápido)
@@ -74,7 +78,10 @@ class Settings(BaseSettings):
     # --- Guardarraíles ---
     faithfulness_judge: bool = True
     dose_guardrail: bool = True
-    country: str = "CO"  # CO | ES (país de PRODUCCIÓN: registro ICA, prohibidos locales)
+    # País de PRODUCCIÓN (registro ICA, prohibidos locales). HOY el corpus es 100% Colombia: con
+    # country="ES" (u otro) el geofiltro recupera VACÍO (no hay chunks de ese país) y el sistema
+    # abstendría en todo. No lo cambies a otro país sin cargar antes su corpus regulatorio.
+    country: str = "CO"  # CO (único con corpus). ES/MX/PE requieren su propio corpus.
     # País de DESTINO de exportación: bloquea recomendar activos no autorizados allí (LMR/rechazos).
     # Vacío = apagado. Valores con datos: "ue" (ver data/destinos/). Ej.: EXPORT_MARKET=ue
     export_market: str = ""
@@ -102,8 +109,10 @@ class Settings(BaseSettings):
 
     # --- Auditoría / privacidad (Habeas Data) ---
     audit_enabled: bool = True
-    # False = solo hash + metadatos (minimización de datos personales).
-    audit_store_text: bool = True
+    # Privacidad por defecto: solo hash + metadatos (minimización de datos personales). Pon True
+    # SOLO con base legal y política de retención; en un canal multiusuario, guardar el texto en
+    # claro es riesgo Habeas Data/GDPR. (Antes el default era True: guardaba todo en claro de fábrica.)
+    audit_store_text: bool = False
 
     # --- Caché de respuestas ---
     cache_enabled: bool = True
