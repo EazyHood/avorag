@@ -44,3 +44,43 @@ perder una venta a que alguien tome una decisión cara confiando de más.
 
 > En una frase: úsalo como **bibliotecario citador y red de seguridad**, con el agrónomo en el bucle.
 > No como cerebro de decisión ni para firmar una receta. Ahí coincidimos con la crítica.
+
+---
+
+## Segunda revisión (80 hallazgos con anclas a `file:line`)
+
+Una revisión técnica profunda (agrónomo de exportación + dueño de exportadora) listó 80 puntos. Lo
+**arreglable se arregló** (PRs #19–#22, con tests); lo **estructural** se documenta aquí en vez de
+fingirse. Resumen honesto:
+
+### ✅ Arreglado en esta ronda (con tests)
+- **Guardarraíles:** se cerró el *bypass del refutador* (una respuesta que avalaba "duplicar la dosis"
+  y mencionaba "resistencia" apagaba el ROJO — ya no); premisas nuevas (encharcar/saturar el suelo,
+  asperjar insecticida en floración, cobre+aceite, escalado parafraseado); **marcas comerciales**
+  (Gramoxone→paraquat, Furadan→carbofurán…) ahora disparan prohibidos/destino.
+- **Calculadoras:** foliar con **B, Zn, Cl, Na** y **niveles absolutos** (un árbol famélico con buena
+  proporción ya no sale "óptimo"); **materia seca con muestreo** (media/n/CV/mínimo; un fruto avisa);
+  **encalado con densidad/andisol**; nuevas de **riego (ETc)** y **salinidad (fracción de lavado + SAR)**.
+- **Regulatorio/honestidad:** privacidad por defecto (`audit_store_text=False`); aviso **siempre** de
+  verificar vigencia ICA al recomendar plaguicida; **+18 moléculas modernas** en destino UE/EE.UU.;
+  riesgo **FRAC 11/7 (monositio) vs multisitio**; nudge **MIP/biocontrol** primero; daño por frío (~2-5 °C).
+
+### 🔴 Estructural — NO se "arregla" con código (es lo que es en un v0.1)
+| Tema (puntos de la revisión) | Por qué es estructural | Postura honesta |
+|---|---|---|
+| **Datos en vivo:** vigencia ICA, LMR/tolerancias (UE/EE.UU. 40 CFR 180), clima (IDEAM), precios | No hay feeds; el PQUA es extracto **mar-2022** | El sistema **avisa "verifica en SimplifICA"** y marca LMR de destino, pero **no consulta el estado vivo**. Es una foto, no un servicio regulatorio en tiempo real. |
+| **ICA Res. 1507/2016** (plagas de control oficial) | El PDF es **escaneado → 0 chunks sin OCR** | Pendiente de OCR antes de ingerir. Las cuarentenarias sí están cubiertas por otras fuentes (85 chunks). |
+| **Cuarentenarias tolerancia-cero** (Stenoma) | Requiere lógica de protocolo de finca/área libre, no umbral económico | Hoy se responde con el molde RAG general; el régimen de tolerancia-cero NO está modelado. |
+| **Fenología / ventana de cosecha** (grados-día, %MS vs días de cuaje) | Necesita un modelo calibrado con datos locales | No existe; la MS se interpreta como lectura ya tomada, no se predice **cuándo** llegará al corte. |
+| **Umbrales/monitoreo MIP** ("X trips/trampa, ¿aplico?") y **calibre/vida verde** | Necesitan motores de umbral/calidad con datos | No hay; son texto recuperable, no cálculo. |
+| **Diagnóstico molecular** (qPCR antracnosis, RT-PCR de sunblotch) | Es un ensayo de **laboratorio** | La app explica la biología y cita, pero **no diagnostica** ni acerca el ensayo. |
+| **Foto-patología** (llava:7b débil; Claude rompe offline/soberanía) | Trade-off real modelo-local vs nube | El VLM local es flojo en lesiones sutiles; la vía precisa (Claude) **sale a internet y factura**. Hoy lo único portable offline es **madurez**. |
+| **Historial de aplicaciones** (anti-resistencia real) | Requiere integrar tu cuaderno de campo | El aviso IRAC/FRAC es **genérico**: no sabe qué aplicaste la semana pasada. |
+| **Unidad por matriz** (foliar/suelo/drench) | El sentido agronómico de la unidad está diferido | El guardarraíl normaliza kg↔g pero **no distingue** foliar de drench: puede dar por "rastreable" una dosis correcta para foliar aplicada a drench. |
+| **Multipaís** (corpus 17/18 CO; `COUNTRY=ES` sin corpus) | Cada jurisdicción necesita su corpus regulatorio | Fuera de Colombia, registro/carencia/prohibidos **no aplican**. El bundle offline congela conocimiento **CO**. |
+| **Multi-tenant / RLS fail-open / auth por API-key** | Implementado pero **sin activar ni probar en carga**; RLS permisiva si una sesión no fija el tenant | Hoy **1 tenant**; no separa fincas/clientes ni usuarios. No desplegar multiusuario sin activar y probar RLS (fail-closed). |
+| **Integraciones** (ERP, packing, GlobalGAP, lab, WhatsApp) | No existen; WhatsApp es Ruta 🅱️ | La recomendación **no baja a tu traza**; el canal de campo está por construir. |
+| **Métricas:** tabla n=64 **pre-fix**, juez **autoevaluándose**, corrección sobre **3** preguntas, config medida (rerank `local`) ≠ default (`none`) | Falta re-correr el eval y un 2º evaluador humano | El groundedness 0.79 mide **respaldo de cita, no exactitud agronómica**. Para afirmación comercial: ≥200 preguntas + juez independiente + humano. La fuga "1 en verde" está cerrada **por construcción** (test), aunque la **tabla** aún es previa. |
+| **Madurez/soporte** (v0.1, autor único, sin SLA, bus factor 1) | Es un PoC/portafolio | No apto para operación crítica sin acuerdo de soporte. |
+
+> Nada de lo anterior se esconde: cada punto tiene su ancla en el repo. La honestidad es el producto.
