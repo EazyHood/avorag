@@ -87,3 +87,36 @@ fingirse. Resumen honesto:
 | **Madurez/soporte** (v0.1, autor único, sin SLA, bus factor 1) | Es un PoC/portafolio | No apto para operación crítica sin acuerdo de soporte. |
 
 > Nada de lo anterior se esconde: cada punto tiene su ancla en el repo. La honestidad es el producto.
+
+## Tercera revisión (post PRs #19–#28: agrónomo + dueño de exportadora)
+
+Una tercera ronda (42 + 41 puntos con anclas `file:line`) revisó el estado tras los fixes anteriores.
+De nuevo, lo **arreglable se arregló**; lo **estructural** se documenta aquí.
+
+### ✅ Arreglado en esta ronda (con tests, PRs #31–#34)
+- **Guardarraíles ([#31](https://github.com/EazyHood/avorag/pull/31)):** el aviso anti-resistencia ahora
+  cubre **insecticidas** (no solo fungicidas) y más grupos monositio (FRAC 3/4/9/11/12/40, IRAC 1A/1B/3A/4A/5/6/21A/23/28);
+  la **carencia (PHI)** se liga al **producto** del fragmento (no a un número suelto); el guardarraíl de
+  **floración** caza la premisa real partida entre pregunta y respuesta; marcas ambiguas (Score/Tilt/Switch…)
+  saltan **solo en contexto de aplicación**.
+- **Fenología y agua ([#32](https://github.com/EazyHood/avorag/pull/32)):** GDD por **seno simple** (corrige el sesgo de
+  noches frías del altiplano); riego con **Kc por etapa**, **acople de la fracción de lavado** y **balance del
+  suelo** (TAW/RAW + **intervalo de riego**); salinidad por **portainjerto** (CEe ajustado) y **RSC** (bicarbonatos);
+  foliar avisa de **contaminación de micros (Fe/Cu/Mn)** y de que el **Ca de hoja ≠ Ca de fruto**; **calibre por
+  muestra** (distribución/homogeneidad, no un fruto); nota MS↔aceite (proxy, no 1:1).
+- **Nutrición ([#34](https://github.com/EazyHood/avorag/pull/34)):** nueva calculadora de **fraccionamiento de nitrógeno**
+  por fenología (con antipatrón de N alto en floración).
+- **Honestidad de métricas ([#33](https://github.com/EazyHood/avorag/pull/33)):** se aclara que el `passed=false` del re-run
+  adversario (n=20) es **esperado por diseño** (subconjunto 100% trampas → 0 citas/respaldo es lo correcto);
+  que `unsafe_handled`=(ROJO **o** abstención) incluye abstenciones (`rojo_rate`=0,25, `over_abstention`=0,40);
+  y se **reconcilia** el 1,00 del README con el 0,90 (pre-fix) del caso de estudio.
+
+### 🔴 Estructural nuevo — sigue siendo lo que es en un v0.1
+| Tema (puntos de la 3.ª revisión) | Por qué es estructural | Postura honesta |
+|---|---|---|
+| **Integración calc↔RAG** (no hay router de intención; #24/#40/#41) | El chat (`rag/pipeline.py`) y las 9 calculadoras (`routes_calc.py`) son superficies separadas; no hay clasificador que detecte "esto es un cálculo de MS/encalado/salinidad" y dispare la herramienta | **Reconocido:** hoy el usuario elige y teclea. Un router de intención calc↔RAG es **roadmap**, no defecto de un cálculo; añadirlo mal (disparar la calculadora equivocada) sería peor que no tenerlo. |
+| **Licencia del corpus vs software propietario** (#39/dueño #9) | 11/18 fuentes son **CC-BY-NC** (no comercial) y el software es **propietario**: uso comercial chocaría con una u otra | **Declarado** en `data/corpus_manifest.json` (licencia por documento). Para uso **no comercial** (portafolio/finca propia) es viable; para **comercializar** habría que sustituir/relicenciar las fuentes NC. No se finge que el corpus sea comercialmente libre. |
+| **Caché multi-worker** (dueño #12) | `_RESPONSE_CACHE` es un dict **por proceso**; con varios workers cada uno cachea aparte | **Reconocido en el código** ("Multi-worker requeriría Redis"). Hoy es un nodo único; la alta concurrencia de un packing en cosecha no está arquitectada. |
+| **Materia seca no destructiva** (agrónomo #3) | Una vía sin estufa exige **NIR**/calibración instrumental | El cálculo sigue requiriendo peso fresco/seco o %MS ya medido; no se acerca el método no destructivo. |
+
+> La 3.ª revisión confirmó la pauta: el valor está en arreglar lo arreglable **y** no fingir lo demás.
