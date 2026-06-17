@@ -535,7 +535,9 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
 
     if settings.dose_guardrail:
         doses_ok, unsupported = guardrails.dose_product_grounded(raw, final)
-        phi_ok, phi_unsupported = guardrails.phi_grounded(raw, contexts_text)
+        # PHI ligado al i.a. (no solo número-unidad suelto): la carencia debe co-ocurrir con el
+        # producto recomendado en una fuente, no pegarse de otro producto del contexto.
+        phi_ok, phi_unsupported = guardrails.phi_product_grounded(raw, final)
         banned = guardrails.banned_ingredients_in_answer(question + "\n" + raw, country)
         offlabel = guardrails.is_offlabel(raw, final)
         registro_required = guardrails.recommends_pesticide(raw)
