@@ -777,6 +777,9 @@
           const temps=raw.split(/[,;\n]+/).map(p=>p.trim().split(/[\/\s]+/).map(parseFloat).filter(x=>!isNaN(x))).filter(a=>a.length>=2);
           call('/api/calc/grados-dia', {temps, t_base:num('g_base')||10, objetivo_gdd:num('g_obj'), metodo:((document.getElementById('g_metodo')||{}).value||'seno')}, 'gdd_out',
             j=>`<div>Grados-día: <span class="v">${j.gdd_acumulado}</span> en ${j.n_dias} día(s)${j.progreso_pct!=null?` · <span class="v">${j.progreso_pct}%</span> del objetivo`:''} <span class="note" style="display:inline">(${esc(j.metodo)})</span></div><div class="note">${esc(j.nota)}</div>`);
+        } else if(k==='nitro'){
+          call('/api/calc/nitrogeno', {n_total_kg_ha:num('nt_total'), arboles_por_ha:num('nt_arb')}, 'nitro_out',
+            j=>`<div>Reparto de <span class="v">${j.n_total_kg_ha} kg N/ha</span> por etapa:</div><div style="margin:.3rem 0">${Object.keys(j.reparto_kg_ha).map(e=>`<span class="calc-badge b-ok" style="margin:.12rem .1rem;display:inline-block">${esc(e)}: ${j.reparto_kg_ha[e]} kg/ha (${j.reparto_pct[e]}%)${j.n_arbol_g?` · ${j.n_arbol_g[e]} g/árbol`:''}</span>`).join(' ')}</div>`+alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
         } else if(k==='mip'){
           call('/api/calc/umbral-mip', {conteo_total:num('m_conteo'), n_unidades:num('m_unid'), umbral:num('m_umbral'), unidad:((document.getElementById('m_tipo')||{}).value||'trampa')}, 'mip_out',
             j=>`<div><span class="calc-badge ${j.decision==='intervenir'?'b-warn':'b-ok'}">${esc(j.decision)}</span> media ${j.media_por_unidad} vs umbral ${j.umbral}</div><div class="note">${esc(j.nota)}</div>`);
@@ -796,6 +799,7 @@
         <button class="calc-tab" data-pane="sal">Salinidad</button>
         <button class="calc-tab" data-pane="calibre">Calibre</button>
         <button class="calc-tab" data-pane="gdd">Grados-día</button>
+        <button class="calc-tab" data-pane="nitro">Nitrógeno</button>
         <button class="calc-tab" data-pane="mip">Umbral MIP</button>
       </div>
       <div class="calc-pane on" data-pane="ms">
@@ -911,6 +915,15 @@
         </div>
         <button class="calc-go" data-calc="gdd">Calcular</button>
         <div class="calc-out" id="gdd_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="nitro">
+        <div class="calc-help">Fraccionamiento del N por fenología: el aguacate demanda fuerte en cuaje/llenado y poco en plena flor (el exceso de N en floración tira la flor). Da el N total anual y reparte con un esquema orientativo; el plan fino lo fija tu agrónomo con análisis foliar+suelo.</div>
+        <div class="calc-row">
+          <label class="calc-f">N total (kg/ha·año)<input id="nt_total" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Árboles/ha (opcional)<input id="nt_arb" type="number" step="any" min="0" placeholder="para g/árbol" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="nitro">Calcular</button>
+        <div class="calc-out" id="nitro_out"></div>
       </div>
       <div class="calc-pane" data-pane="mip">
         <div class="calc-help">Decisión MIP: media por unidad de monitoreo vs TU umbral de acción (de tu protocolo/agrónomo; la app no lo inventa).</div>

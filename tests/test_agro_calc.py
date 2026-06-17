@@ -453,3 +453,44 @@ def test_api_calibre_muestra() -> None:
     body = r.json()
     assert body["n"] == 4
     assert "calibre_dominante" in body
+
+
+# ── Cluster B: fraccionamiento de nitrógeno ──────────────────────────────────────────────────────
+
+
+def test_nitrogeno_reparto_por_defecto() -> None:
+    r = agro_calc.nitrogen_split(100.0)
+    assert abs(sum(r.reparto_kg_ha.values()) - 100.0) < 0.5  # reparte el total
+    assert abs(sum(r.reparto_pct.values()) - 100.0) < 0.5
+    assert r.n_arbol_g is None
+
+
+def test_nitrogeno_g_por_arbol() -> None:
+    r = agro_calc.nitrogen_split(100.0, arboles_por_ha=400)
+    assert r.n_arbol_g is not None
+    # 100 kg/ha · 0.25 (cuaje) · 1000 / 400 = 62.5 g/árbol
+    assert r.n_arbol_g["cuaje"] == 62.5
+
+
+def test_nitrogeno_alerta_floracion_alta() -> None:
+    r = agro_calc.nitrogen_split(100.0, fracciones={"floracion": 0.5, "cuaje": 0.5})
+    assert any("floración" in a.lower() for a in r.alertas)
+
+
+def test_nitrogeno_normaliza_fracciones() -> None:
+    # Fracciones que no suman 1 se normalizan.
+    r = agro_calc.nitrogen_split(100.0, fracciones={"cuaje": 2, "llenado": 2})
+    assert r.reparto_kg_ha["cuaje"] == 50.0
+
+
+def test_nitrogeno_fracciones_invalidas() -> None:
+    with pytest.raises(ValueError):
+        agro_calc.nitrogen_split(100.0, fracciones={"cuaje": 0})
+
+
+def test_api_nitrogeno() -> None:
+    r = _client().post("/api/calc/nitrogeno", json={"n_total_kg_ha": 120, "arboles_por_ha": 400})
+    assert r.status_code == 200
+    body = r.json()
+    assert "reparto_kg_ha" in body
+    assert body["n_arbol_g"] is not None

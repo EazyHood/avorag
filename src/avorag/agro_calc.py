@@ -746,3 +746,75 @@ def mip_action_threshold(
             + " El umbral lo define tu protocolo/agrónomo y la plaga; la app no lo inventa."
         ),
     )
+
+
+# ── 9) Fraccionamiento de nitrógeno por fenología ───────────────────────────────────────────────
+# La decisión nutricional MÁS operativa del año en Hass no es cuánto N total, sino CUÁNDO repartirlo:
+# el N en plena floración promueve crecimiento vegetativo y caída de flor (el Hass es dicógamo), la
+# demanda real pesa en cuaje/llenado, y se exporta N en postcosecha. En suelos volcánicos/lluviosos de
+# altura hay que fraccionar para no lixiviar nitrato. NO existe un reparto canónico único: depende de
+# meta de rendimiento, edad, suelo, clima y análisis. La app reparte la cifra que TÚ das con un esquema
+# ORIENTATIVO (editable) y avisa de los antipatrones; el plan fino lo fija tu agrónomo.
+N_SPLIT_DEFAULT: dict[str, float] = {
+    "reposo": 0.15,      # postcosecha/reposo: reposición de reservas
+    "floracion": 0.10,   # BAJO en plena flor (evita caída y exceso vegetativo)
+    "cuaje": 0.25,       # alta demanda al fijar fruto
+    "desarrollo": 0.30,  # expansión del fruto: el pico de demanda
+    "llenado": 0.20,     # cierre de llenado
+}
+
+
+@dataclass
+class NitrogenSplitResult:
+    n_total_kg_ha: float
+    reparto_kg_ha: dict[str, float]   # etapa -> kg/ha
+    reparto_pct: dict[str, float]     # etapa -> % del total
+    n_arbol_g: dict[str, float] | None  # g/árbol si se da la densidad
+    nota: str
+    alertas: list[str] = field(default_factory=list)
+
+
+def nitrogen_split(
+    n_total_kg_ha: float, *, fracciones: dict[str, float] | None = None,
+    arboles_por_ha: float | None = None,
+) -> NitrogenSplitResult:
+    """Reparte el N total anual (kg/ha) entre etapas fenológicas. Si no das `fracciones`, usa un esquema
+    ORIENTATIVO (editable; se normaliza si no suma 1). Avisa de los antipatrones (N alto en floración,
+    dosis sin fraccionar) y, si das `arboles_por_ha`, traduce a g/árbol. NO es un plan cerrado: el
+    reparto fino lo fija tu agrónomo con análisis foliar + suelo."""
+    if n_total_kg_ha < 0:
+        raise ValueError("El N total debe ser ≥ 0.")
+    fr = dict(fracciones) if fracciones else dict(N_SPLIT_DEFAULT)
+    if not fr:
+        raise ValueError("Aporta al menos una etapa con su fracción.")
+    if any(v < 0 for v in fr.values()):
+        raise ValueError("Las fracciones no pueden ser negativas.")
+    s = sum(fr.values())
+    if s <= 0:
+        raise ValueError("La suma de fracciones debe ser > 0.")
+    fr = {k: v / s for k, v in fr.items()}  # normaliza por si no suman 1
+    reparto = {k: round(n_total_kg_ha * v, 1) for k, v in fr.items()}
+    reparto_pct = {k: round(v * 100, 1) for k, v in fr.items()}
+    n_arbol = None
+    if arboles_por_ha and arboles_por_ha > 0:
+        n_arbol = {k: round(n_total_kg_ha * v * 1000 / arboles_por_ha, 1) for k, v in fr.items()}
+    alertas: list[str] = []
+    if fr.get("floracion", 0.0) > 0.20:
+        alertas.append(
+            "N alto en floración (>20%): el Hass es dicógamo y el exceso de N en plena flor promueve "
+            "crecimiento vegetativo y caída de flor/cuaje; baja esa fracción."
+        )
+    if sum(1 for v in fr.values() if v > 0) < 3 and n_total_kg_ha > 0:
+        alertas.append(
+            "Pocas aplicaciones (<3): fracciona más para reducir lixiviación de nitrato (clave en suelos "
+            "volcánicos/lluviosos de altura) y acompasar la demanda fenológica."
+        )
+    nota = (
+        "Reparto ORIENTATIVO del N por fenología (editable): el aguacate demanda fuerte en cuaje/llenado, "
+        "poco en plena flor, y repone reservas en postcosecha. No hay un esquema único — depende de meta "
+        "de rendimiento, edad, suelo, clima y análisis foliar+suelo. Confírmalo con tu agrónomo."
+    )
+    return NitrogenSplitResult(
+        n_total_kg_ha=n_total_kg_ha, reparto_kg_ha=reparto, reparto_pct=reparto_pct,
+        n_arbol_g=n_arbol, nota=nota, alertas=alertas,
+    )
