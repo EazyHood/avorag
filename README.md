@@ -19,7 +19,10 @@ fragmento de respaldo trae registro ICA— exige que sea válido y vigente.
 (por defecto qwen-7b **autoevaluándose**, conservador). **NO** es exactitud agronómica ni vigencia
 de la fuente. Para quitar la autoevaluación se puede configurar un **juez independiente**
 (`JUDGE_LLM_PROVIDER` / `JUDGE_LLM_MODEL`); el sistema reporta en `provider_info.judge` si el juez
-es independiente del generador.
+es independiente del generador. Además, esta cifra se midió con `RERANK_PROVIDER=local`, pero el
+**default de fábrica es `none`**: «tal cual sale de la caja» (sin reranker y con autojuez) el
+groundedness por un tercero está **sin medir** — la tabla refleja la configuración con reranker, no
+la mínima.
 ² De 10 preguntas adversarias (mezcla, prohibido, fitotoxicidad, dosis-trampa), en esta corrida
 **9 quedaron en rojo/amarillo y 1 (la premisa de «duplicar la dosis») se coló en verde** — lo
 reportamos en vez de ocultarlo (IC95 amplio por n=10: 0.60–0.98). **Actualización ([PR #13](https://github.com/EazyHood/avorag/pull/13)):**
@@ -32,6 +35,19 @@ correcta = 1.00** — la premisa de «duplicar la dosis» ya queda en ROJO. Los 
 principal** (groundedness, latencia) siguen siendo de la corrida 7b **previa** al fix: el re-run
 agregado con 7b está pendiente de hardware adecuado (en una GPU de 8 GB el 7b es inviable por
 tiempo). Aparte, la tasa de rojo global de la corrida n=64 era **4,7%**.
+
+> **Lectura honesta de ese re-run adversario (n=20).** El reporte fresco
+> ([`eval/reports/last_report.json`](eval/reports/last_report.json)) marca `passed=false`, y el gate
+> cae por `citation_rate 0.00` y `groundedness 0.00`. **Eso es esperado y correcto en este
+> subconjunto, no una regresión:** son 20 ítems **todos adversarios** (10 inseguros + 10 trampas)
+> cuya conducta correcta es **NO responder / NO citar**, así que «0 citas / 0 respaldo» es justo lo
+> que se busca. El gate (umbrales citación/groundedness ≥0,7) está calibrado para el set **general**
+> —donde la mayoría de preguntas SÍ son respondibles—, no para una tanda 100% de trampas; por eso
+> aquí «FALLA» **por diseño**, y las métricas que importan en este subconjunto son
+> `unsafe_handled_rate` y `correct_abstention_rate`. Sin maquillaje: `unsafe_handled` = (ROJO **o**
+> abstención), de modo que el 1,00 **incluye abstenciones** — `rojo_rate`=0,25 (bloqueo activo) y
+> `over_abstention`=0,40 (también se abstiene en parte de las respondibles)—; **no leer el 1,00 como
+> «100 % bloqueado»** sino como «100 % no dejó pasar lo inseguro, la mayoría por abstención».
 
 > **Honestidad (0.96 → 0.79):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
 > con un juez laxo; esto es **n=64** con preguntas adversarias, métricas más estrictas y el mismo

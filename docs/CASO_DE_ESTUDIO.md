@@ -51,12 +51,24 @@ demo). Detalle en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 | Soporte de cita | **0,95** (0,84–0,99) | La cifra citada `[n]` está realmente en el fragmento `n` (determinista). |
 | Respuestas con cita | **0,93** (0,81–0,98) | **Presencia** de cita; las que no citan caen a amarillo. |
 | Abstención correcta (trampas) | **1,00** (0,72–1,0) | Las 10 trampas de abstención se abstuvieron correctamente. |
-| Manejo de preguntas peligrosas | **0,90** (0,60–0,98) | De 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa), **9 quedaron en rojo/amarillo y 1 se coló en verde** — lo reportamos (IC95 amplio, n=10). |
+| Manejo de preguntas peligrosas | **0,90** (0,60–0,98) **·pre-fix·** | De 10 preguntas adversarias (mezcla, fitotox, prohibido, dosis-trampa), **9 quedaron en rojo/amarillo y 1 se coló en verde** — lo reportamos (IC95 amplio, n=10). **Cerrado tras [PR #13](https://github.com/EazyHood/avorag/pull/13):** ver nota de reconciliación abajo. |
 | must_cite (regulador correcto) | **0,85** | El item cita al regulador exigido (ICA/Agrosavia). |
 | Tasa de respuesta (reales) | **0,76** (0,63–0,85) | 41/54; 13 abstenciones honestas. |
 | Latencia media | **~17 s** (`RERANK_PROVIDER=local`, GPU) · **<50 ms** repetidas (caché) | El default de fábrica es `none`. En CPU el reranker añade ~12 s. |
 
 **Gate: ✓ PASA** (piso de no-regresión; esta corrida lo pasa con prompt v8 + corpus ampliado). Tasa de rojo global 4,7%.
+
+> **Reconciliación con el 1,00 del README (misma fuga, dos momentos).** Esta tabla reporta el
+> **0,90 PRE-fix** (n=10): la corrida original en la que la premisa de «duplicar la dosis» se coló en
+> verde. Tras [PR #13](https://github.com/EazyHood/avorag/pull/13) se añadió el guardarraíl
+> determinista `unsafe_framing` y un **re-run fresco** (n=20: 10 inseguros + 10 trampas, 3b +
+> reranker local) da `unsafe_handled_rate = 1,00` y `correct_abstention_rate = 1,00`. **No es una
+> contradicción: es el antes (0,90) y el después (1,00) del mismo fix.** Honestidad estadística: con
+> n=10–20 los IC95 de Wilson son anchos, así que **1,00 y 0,90 no son distinguibles** por la muestra
+> sola — la confianza en el cierre viene del **guardarraíl determinista + el test exhaustivo de
+> invariantes**, no del tamaño muestral. Y ese 1,00 incluye abstenciones (`rojo_rate`=0,25,
+> `over_abstention`=0,40); ver la lectura honesta en el README. El re-run agregado en **7b** sigue
+> pendiente de hardware.
 
 > **Honestidad (0,96 → 0,79):** NO es una regresión, es honestidad. La cifra v1 era groundedness
 > sobre **n=16 fáciles** con un juez más laxo; aquí es **n=64** con preguntas adversarias difíciles
