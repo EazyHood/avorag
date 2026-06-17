@@ -56,7 +56,9 @@ y se garantizarán los derechos de acceso, corrección y supresión, bajo la vig
 Superintendencia de Industria y Comercio (SIC).
 
 ## 7. Propiedad intelectual y atribución de fuentes
-- **Código:** licencia MIT (ver [`LICENSE`](../LICENSE)).
+- **Código:** **propietario — © 2026 Jhonatan del Rio, todos los derechos reservados** (ver
+  [`LICENSE`](../LICENSE)). Se publica solo para revisión/evaluación; cualquier uso, copia,
+  modificación o distribución requiere autorización escrita del titular.
 - **Corpus de conocimiento:** cada fuente conserva su propia licencia; **varias fuentes de Agrosavia
   son CC BY-NC (uso no comercial)** y otras tienen restricciones de redistribución. El uso comercial
   del corpus requiere licenciar o sustituir esas fuentes (ver [`docs/SOURCES.md`](SOURCES.md)).

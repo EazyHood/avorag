@@ -177,7 +177,7 @@ Transfer learning (MobileNetV3‑Large sobre ImageNet) con **label smoothing 0.1
 
 | Componente | Licencia | ¿Comercial cerrado? |
 |---|---|---|
-| Código AvoRAG | MIT | ✅ |
+| Código AvoRAG | Propietario (© J. del Rio) | ✅ (es del autor; sin copyleft) |
 | torch / torchvision | BSD‑3 | ✅ |
 | ONNX Runtime / ONNX | MIT / Apache‑2.0 | ✅ |
 | Dataset madurez (Mendeley) | CC BY 4.0 | ✅ con atribución |

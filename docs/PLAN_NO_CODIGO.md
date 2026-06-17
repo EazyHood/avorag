@@ -139,7 +139,7 @@ sin uso). **Responsable:** 💻. **Disparador:** primer despliegue multi-cliente
 - **ROI honesto:** no se vende como "reemplazo del agrónomo" (lo niega el propio producto), sino como
   **ahorro de horas del agrónomo + red de seguridad** (menos rechazos por LMR/madurez). Medir horas
   ahorradas en un **piloto** antes de afirmar cifras.
-- **Responsabilidad legal:** MIT + disclaimer + **agrónomo-en-el-bucle que firma** la receta; para la
+- **Responsabilidad legal:** licencia **propietaria** (© Jhonatan del Rio) + disclaimer + **agrónomo-en-el-bucle que firma** la receta; para la
   UE, considerar la Directiva 2024/2853 de responsabilidad por producto. **Responsable:** ⚖️/👤.
 
 ---

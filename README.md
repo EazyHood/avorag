@@ -198,8 +198,11 @@ extracción de páginas) y respeta `data/corpus_manifest.json` (fuentes, URLs y 
 
 La evaluación genera un **dashboard HTML** en `eval/reports/report.html` (captúralo para el portafolio).
 
-## Licencia
-**Código: MIT** (ver [`LICENSE`](LICENSE)) — libre de reutilizar, incluso comercialmente.
-El **corpus** NO está cubierto por MIT: se rige por la licencia de cada fuente (varias de Agrosavia
-son CC BY-NC = no comercial). Para vender el asistente, sustituir/licenciar el corpus aparte
-(ver [`docs/SOURCES.md`](docs/SOURCES.md)).
+## Licencia y derecho de autor
+**© 2026 Jhonatan del Rio — Todos los derechos reservados.** Este es software **propietario**
+(no open-source). El código se publica de forma visible **solo para revisión/evaluación** (portafolio):
+queda prohibido usarlo, copiarlo, modificarlo, distribuirlo o darle uso comercial **sin autorización
+escrita del titular** (ver [`LICENSE`](LICENSE) · contacto: jhonatandelrio9@gmail.com).
+
+El **corpus** (documentos en `data/corpus/`, no incluido en el repo) es aparte: se rige por la licencia
+de cada fuente original (varias de Agrosavia son CC BY-NC = no comercial); ver [`docs/SOURCES.md`](docs/SOURCES.md).
