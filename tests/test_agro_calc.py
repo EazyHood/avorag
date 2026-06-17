@@ -218,6 +218,20 @@ def test_umbral_mip_decide() -> None:
     assert r2.decision == "monitorear"
 
 
+def test_dry_matter_objetivo_por_mercado() -> None:
+    assert agro_calc.resolve_dry_matter_target("premium") == 25.0
+    assert agro_calc.resolve_dry_matter_target(None) == 23.0
+    with pytest.raises(ValueError):
+        agro_calc.resolve_dry_matter_target("inexistente")
+
+
+def test_api_materia_seca_objetivo_premium() -> None:
+    r = _client().post("/api/calc/materia-seca", json={"muestras": [24, 24, 24, 24, 24], "objetivo": "premium"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["umbral_pct"] == 25.0 and body["veredicto"] == "limítrofe"  # 24 < 25 (premium)
+
+
 def test_api_grados_dia_calibre_umbral() -> None:
     c = _client()
     r = c.post("/api/calc/grados-dia", json={"temps": [[20, 10], [22, 12]], "objetivo_gdd": 100})

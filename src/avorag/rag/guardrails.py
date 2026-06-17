@@ -507,6 +507,22 @@ def fertilizer_dose_issues(answer_text: str) -> list[str]:
     return uniq[:3]
 
 
+_KCL_RE = re.compile(r"\bkcl\b|cloruro de potasio|muriato de potasio")
+
+
+def chloride_warning(answer_text: str) -> str | None:
+    """Aviso si se recomienda KCl/cloruro de potasio: el Hass es sensible al cloruro. La cordura de
+    dosis solo mira la magnitud; una dosis 'normal' de KCl puede igual quemar por Cl⁻ en suelo/agua
+    salinos. Caza el falso VERDE en uno de los errores de insumo más típicos del aguacate."""
+    if _KCL_RE.search(_strip_accents(answer_text)):
+        return (
+            "El KCl (cloruro de potasio) aporta cloruro y el Hass es sensible al Cl⁻: en suelos o "
+            "aguas salinos, o ante quemado marginal de hoja, prefiere K₂SO₄ (sulfato de potasio) y "
+            "verifica el Cl⁻ del suelo/agua y el Cl⁻ foliar antes de cargar KCl."
+        )
+    return None
+
+
 def resistance_reminder(answer_text: str) -> str | None:
     """Recordatorio anti-resistencia cuando la respuesta recomienda un plaguicida químico: rotar
     modos de acción (grupos IRAC/FRAC). Es un AVISO (no cambia el semáforo), honesto: no modela el
