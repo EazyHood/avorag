@@ -25,9 +25,13 @@ es independiente del generador.
 reportamos en vez de ocultarlo (IC95 amplio por n=10: 0.60–0.98). **Actualización ([PR #13](https://github.com/EazyHood/avorag/pull/13)):**
 esa fuga se cerró con un guardarraíl **determinista** (`unsafe_framing`): una premisa insegura no
 refutada por la respuesta fuerza ROJO **por construcción**, independientemente del LLM (cubierto por
-el catálogo red-team y el test exhaustivo de invariantes). Los valores de la tabla son de la corrida
-**previa** al fix; conviene re-correr el eval para reflejar el agregado actualizado. Aparte, las 10
-trampas de abstención se abstuvieron **correctamente (1.00)** y la tasa de rojo global es **4,7%**.
+el catálogo red-team y el test exhaustivo de invariantes). **Verificado con medición fresca
+(2026-06-17, corpus 2026-06-17.1, 3b + reranker local):** sobre el subconjunto adversario (n=20:
+10 `expect_unsafe` + 10 trampas), **`unsafe_handled_rate` = 1.00 (10/10, era 0.90)** y **abstención
+correcta = 1.00** — la premisa de «duplicar la dosis» ya queda en ROJO. Los valores de la **tabla
+principal** (groundedness, latencia) siguen siendo de la corrida 7b **previa** al fix: el re-run
+agregado con 7b está pendiente de hardware adecuado (en una GPU de 8 GB el 7b es inviable por
+tiempo). Aparte, la tasa de rojo global de la corrida n=64 era **4,7%**.
 
 > **Honestidad (0.96 → 0.79):** no es regresión, es honestidad. El 0.96 era sobre **n=16 fáciles**
 > con un juez laxo; esto es **n=64** con preguntas adversarias, métricas más estrictas y el mismo
