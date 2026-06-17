@@ -1,30 +1,37 @@
-MIT License
+Copyright © 2026 Jhonatan del Rio. Todos los derechos reservados.
+(All rights reserved.)
 
-Copyright (c) 2026 Jhonatan del Rio
+Este software y su documentación asociada (el "Software") son obra y propiedad de
+Jhonatan del Rio, y están protegidos por las leyes de derecho de autor de Colombia
+(Ley 23 de 1982 y Decisión Andina 351 de 1993) y los tratados internacionales
+aplicables (Convenio de Berna).
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+PUBLICACIÓN PARA REVISIÓN. El código se publica de forma visible ÚNICAMENTE con fines
+de revisión y evaluación (por ejemplo, como portafolio profesional del autor).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+QUEDA PROHIBIDO, sin autorización previa y por escrito del titular del derecho de autor:
+  - usar el Software, en todo o en parte, con cualquier fin (incluido el comercial,
+    productivo o de prestación de servicios);
+  - reproducir, copiar o almacenar el Software, salvo la copia técnica transitoria
+    necesaria para visualizarlo en la plataforma donde se publica;
+  - modificar, adaptar, traducir o crear obras derivadas;
+  - distribuir, sublicenciar, publicar, comercializar o poner a disposición de terceros;
+  - eliminar, ocultar o alterar los avisos de derecho de autor o de autoría.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+El titular conserva todos los derechos no concedidos expresamente aquí. Para cualquier
+uso fuera de la revisión/evaluación se requiere una licencia escrita del titular:
+contacto: jhonatandelrio9@gmail.com
 
----
+SIN GARANTÍA Y SIN RESPONSABILIDAD. El Software se entrega "TAL CUAL", sin garantía de
+ningún tipo, expresa o implícita. En ningún caso el autor será responsable de reclamación,
+daño o perjuicio derivado del Software o de su uso. El Software es un APOYO DE INFORMACIÓN
+y NO sustituye el criterio de un ingeniero agrónomo colegiado; toda decisión fitosanitaria
+o agronómica es responsabilidad exclusiva de quien la toma.
 
-NOTA SOBRE EL CORPUS (no es parte del "Software"):
-La licencia MIT cubre ÚNICAMENTE el código de este repositorio. El corpus de
-documentos (en `data/corpus/`, NO incluido en el repo) se rige por la licencia de
-cada fuente. Varias fuentes de Agrosavia son CC BY-NC (uso no comercial). Para un
-uso comercial del asistente, el corpus debe sustituirse o licenciarse aparte.
-Ver `docs/SOURCES.md`.
+--------------------------------------------------------------------------------
+NOTA SOBRE EL CORPUS (no forma parte del "Software"):
+El corpus de documentos (en data/corpus/, NO incluido en el repositorio) se rige por la
+licencia de cada fuente original (varias publicaciones de Agrosavia son CC BY-NC, uso no
+comercial; las publicaciones oficiales del ICA/MinAgricultura son de acceso público). El
+derecho de autor del autor sobre ESTE Software no altera ni reclama derechos sobre esas
+fuentes de terceros. Ver docs/SOURCES.md.

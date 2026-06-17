@@ -4,6 +4,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 Estado del proyecto: **v0.1 — prueba de concepto** (sin rodaje en producción ni validación
 con usuarios reales; los números publicados son de una evaluación interna).
 
+## [No publicado] — Licencia propietaria (2026-06-17)
+- **Cambio de licencia: de MIT a PROPIETARIO.** © 2026 Jhonatan del Rio, **todos los derechos
+  reservados**. El código se publica visible **solo para revisión/evaluación** (portafolio); su uso,
+  copia, modificación, distribución o uso comercial requiere **autorización escrita del titular**.
+  Actualizados `LICENSE`, `pyproject.toml`, `README`, `TERMINOS_DE_USO`, `LIMITACIONES`,
+  `PLAN_NO_CODIGO`, `SOBERANIA_DE_DATOS` y `VISION`. (El corpus sigue rigiéndose por la licencia de
+  cada fuente, aparte.) Los documentos de revisión crítica conservan las menciones históricas a MIT
+  como registro de su fecha.
+
 ## [No publicado] — Amplificación de las 40 fortalezas (2026-06-15)
 Tras resolver los 40 problemas, se llevaron al máximo las 40 FORTALEZAS reconocidas: de
 "afirmación" a **contrato ejecutable y medible**. **122 tests verdes, ruff+mypy limpios.**

@@ -20,9 +20,11 @@
    llevas cuando quieras, sin formato propietario.
 5. **Borrable (derecho al olvido / salida).** `scripts/tenant_data.py purge --tenant <t> --yes` borra
    todos tus datos (hace un respaldo previo). Irreversible y demostrable.
-6. **Código abierto (MIT) y autohospedable.** El motor es MIT y corre en tu infraestructura: **aunque
-   el proyecto desaparezca, te quedas el software funcionando** (ver `docs/AUTOHOSPEDAJE.md`). No
-   dependes de una nube que un tercero pueda apagar (a diferencia de plataformas cerradas).
+6. **Autohospedable, sin lock-in de nube.** El motor corre en TU infraestructura (Ollama + Postgres,
+   sin llamadas a la nube): no dependes de un servicio que un tercero pueda apagar (a diferencia de
+   plataformas cerradas) — ver `docs/AUTOHOSPEDAJE.md`. **Nota de licencia:** el código es
+   **propietario** (© Jhonatan del Rio, todos los derechos reservados); el autohospedaje por un
+   cliente se realiza **bajo licencia/acuerdo con el autor** (ver `LICENSE`), no es open-source.
 
 ## Compromisos que van en el CONTRATO (pendiente: firmar + abogado)
 
