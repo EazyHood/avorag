@@ -1,6 +1,6 @@
 {
   "_comment": "Manifiesto de reproducibilidad del corpus de AvoRAG. Los PDF NO se versionan en git (data/corpus/ está en .gitignore) por licencia y peso. Este manifiesto permite que un tercero RECONSTRUYA el corpus desde las fuentes públicas oficiales y reproduzca los números del caso de estudio. Uso: `python scripts/build_corpus.py --ingest`. 'download':'auto' = descarga directa por HTTP; 'manual' = requiere abrir el enlace en navegador (landing del repositorio, o extraer páginas). Ver docs/SOURCES.md para licencias.",
-  "corpus_version": "2026-06-16.1",
+  "corpus_version": "2026-06-17.1",
   "documents": [
     {
       "filename": "agrosavia_insectos_acaros.pdf",
@@ -131,7 +131,7 @@
       "doi": null,
       "url": "https://www.ica.gov.co/getattachment/81591168-ac45-478a-b84b-f054d4e5829b/2016R1507.aspx",
       "download": "auto",
-      "note": "PDF ESCANEADO (solo imagen). 0 chunks sin OCR. Pendiente: pasar OCR antes de ingerir.",
+      "note": "PDF ESCANEADO (solo imagen): 0 chunks sin OCR. Su contenido (cuarentenarias Heilipus/Stenoma + régimen tolerancia-cero) se cubre ahora con la síntesis del texto OFICIAL en data/corpus_curado/ica_1507_2016_cuarentenarias.md (ver curated_supplements). OCR del PDF original sigue pendiente.",
       "sha256": "56d1acdf1992381a70a01271de9e4862336e32b12b3422ba469358f978754bca"
     },
     {
@@ -228,6 +228,14 @@
       "licencia": "sintesis propia - referencias citadas",
       "note": "Cierra 2 vacíos reales verificados en BD (antracnosis QUIESCENTE = 0 chunks; sunblotch/ASBVd = 0 chunks). Re-ingerir: avorag ingest data/corpus_curado/sanidad_quiescente_sunblotch.md --fuente '...' --autoridad academico --licencia 'sintesis propia - referencias citadas' --url https://ipm.ucanr.edu/agriculture/avocado/sunblotch/ --no-contextual",
       "ingested_chunks": 4
+    },
+    {
+      "path": "data/corpus_curado/ica_1507_2016_cuarentenarias.md",
+      "fuente": "ICA - Resolucion 1507 de 2016 (plagas de control oficial del aguacate) - sintesis del texto oficial",
+      "autoridad": "oficial-regulador",
+      "licencia": "norma oficial (sintesis citada)",
+      "note": "El PDF original (ica_resolucion_1507_2016.pdf) es ESCANEADO -> 0 chunks sin OCR. Se ingiere esta sintesis del texto OFICIAL (cuarentenarias Heilipus/Stenoma + regimen tolerancia-cero). Re-ingerir: avorag ingest data/corpus_curado/ica_1507_2016_cuarentenarias.md --fuente '...' --autoridad oficial-regulador --no-contextual",
+      "ingested_chunks": 2
     }
   ]
 }

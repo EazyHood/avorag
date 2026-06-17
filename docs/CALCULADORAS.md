@@ -49,6 +49,22 @@ El Hass es de los frutales **más sensibles** a Cl⁻/Na⁺ (umbral CEe ≈ 1,3 
 - **Fracción de lavado** (Rhoades: LF = CEw/(5·CEe − CEw)) + **SAR** = Na/√((Ca+Mg)/2) (meq/L), con
   alertas si el agua es demasiado salina o sódica. Umbrales orientativos.
 
+## 6) Grados-día (tiempo térmico) — marco de la ventana de cosecha
+- `POST /api/calc/grados-dia` → `{temps: [[Tmax,Tmin],…], t_base?, t_tope?, objetivo_gdd?}`.
+- Acumula GDD = Σ max(0, (Tmax+Tmin)/2 − T_base) desde cuaje. **No predice el corte** (eso exige una
+  curva %MS-vs-GDD calibrada local): da el **marco fenológico** y, si das `objetivo_gdd`, el % de
+  progreso. Calibra `t_base`/objetivo con tus registros y **confirma con materia seca**.
+
+## 7) Calibre / count size
+- `POST /api/calc/calibre` → `{peso_g, caja_kg?}`. Calibre UE = frutos por **caja de 4 kg**
+  (calibre = caja_kg·1000/peso). Otros mercados usan otra caja → otro conteo. Orientativo.
+
+## 8) Umbral de acción MIP (¿aplico o monitoreo?)
+- `POST /api/calc/umbral-mip` → `{conteo_total, n_unidades, umbral, unidad?}`. Calcula la **media por
+  unidad** (trampa/planta) y la compara con **tu** umbral de acción. El umbral lo define tu
+  protocolo/agrónomo (la app **no lo inventa**); si interviene, recuerda **MIP**: biológico/cultural
+  antes del químico.
+
 ## Por qué importa para el móvil offline
 Todo es aritmética pura: la misma lógica de `agro_calc.py` se puede portar a la app (Dart/JS) y
 funcionar **sin internet**, junto al clasificador on-device y el `knowledge_bundle.json`

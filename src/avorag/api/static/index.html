@@ -758,6 +758,17 @@
         } else if(k==='sal'){
           call('/api/calc/salinidad', {ce_agua_dsm:num('s_ce'), ce_umbral_suelo_dsm:num('s_umbral')||1.3, na_meq_l:num('s_na'), ca_meq_l:num('s_ca'), mg_meq_l:num('s_mg')}, 'sal_out',
             j=>`<div>Fracción de lavado: <span class="v">${j.fraccion_lavado!=null?j.fraccion_lavado:'—'}</span>${j.sar!=null?` · SAR <span class="v">${j.sar}</span>`:''}</div>`+alerts(j.alertas)+`<div class="note">${esc(j.nota)}</div>`);
+        } else if(k==='calibre'){
+          call('/api/calc/calibre', {peso_g:num('cb_peso'), caja_kg:num('cb_caja')||4}, 'cb_out',
+            j=>`<div>Calibre UE: <span class="v">${j.calibre}</span> (${j.frutos_por_caja} frutos por caja de ${j.caja_kg} kg)</div><div class="note">${esc(j.nota)}</div>`);
+        } else if(k==='gdd'){
+          const raw=((document.getElementById('g_temps')||{}).value||'').trim();
+          const temps=raw.split(/[,;\n]+/).map(p=>p.trim().split(/[\/\s]+/).map(parseFloat).filter(x=>!isNaN(x))).filter(a=>a.length>=2);
+          call('/api/calc/grados-dia', {temps, t_base:num('g_base')||10, objetivo_gdd:num('g_obj')}, 'gdd_out',
+            j=>`<div>Grados-día: <span class="v">${j.gdd_acumulado}</span> en ${j.n_dias} día(s)${j.progreso_pct!=null?` · <span class="v">${j.progreso_pct}%</span> del objetivo`:''}</div><div class="note">${esc(j.nota)}</div>`);
+        } else if(k==='mip'){
+          call('/api/calc/umbral-mip', {conteo_total:num('m_conteo'), n_unidades:num('m_unid'), umbral:num('m_umbral'), unidad:((document.getElementById('m_tipo')||{}).value||'trampa')}, 'mip_out',
+            j=>`<div><span class="calc-badge ${j.decision==='intervenir'?'b-warn':'b-ok'}">${esc(j.decision)}</span> media ${j.media_por_unidad} vs umbral ${j.umbral}</div><div class="note">${esc(j.nota)}</div>`);
         }
       });
     });
@@ -772,6 +783,9 @@
         <button class="calc-tab" data-pane="fol">Foliar</button>
         <button class="calc-tab" data-pane="riego">Riego</button>
         <button class="calc-tab" data-pane="sal">Salinidad</button>
+        <button class="calc-tab" data-pane="calibre">Calibre</button>
+        <button class="calc-tab" data-pane="gdd">Grados-día</button>
+        <button class="calc-tab" data-pane="mip">Umbral MIP</button>
       </div>
       <div class="calc-pane on" data-pane="ms">
         <div class="calc-help">Corte por materia seca. Lo correcto es PROMEDIAR 10-20 frutos (sol y sombra): pega los %MS abajo. Para un solo fruto, usa los dos pesos.</div>
@@ -848,6 +862,38 @@
         </div>
         <button class="calc-go" data-calc="sal">Calcular</button>
         <div class="calc-out" id="sal_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="calibre">
+        <div class="calc-help">Calibre/count size: calibre UE = nº de frutos por caja de 4 kg. Otros mercados usan otra caja.</div>
+        <div class="calc-row">
+          <label class="calc-f">Peso del fruto (g)<input id="cb_peso" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Caja (kg)<input id="cb_caja" type="number" step="any" value="4" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="calibre">Calcular</button>
+        <div class="calc-out" id="cb_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="gdd">
+        <div class="calc-help">Grados-día (tiempo térmico) desde cuaje. Pega los días como "Tmax/Tmin" separados por comas. NO predice el corte: confírmalo con materia seca.</div>
+        <div class="calc-row">
+          <label class="calc-f" style="flex:1 1 100%">Días Tmax/Tmin<input id="g_temps" type="text" placeholder="28/16, 27/15, 29/17…"></label>
+        </div>
+        <div class="calc-row">
+          <label class="calc-f">T base (°C)<input id="g_base" type="number" step="any" value="10" inputmode="decimal"></label>
+          <label class="calc-f">GDD objetivo (opcional)<input id="g_obj" type="number" step="any" min="0" inputmode="decimal"></label>
+        </div>
+        <button class="calc-go" data-calc="gdd">Calcular</button>
+        <div class="calc-out" id="gdd_out"></div>
+      </div>
+      <div class="calc-pane" data-pane="mip">
+        <div class="calc-help">Decisión MIP: media por unidad de monitoreo vs TU umbral de acción (de tu protocolo/agrónomo; la app no lo inventa).</div>
+        <div class="calc-row">
+          <label class="calc-f">Conteo total<input id="m_conteo" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Nº unidades<input id="m_unid" type="number" step="any" min="1" inputmode="decimal"></label>
+          <label class="calc-f">Umbral/unidad<input id="m_umbral" type="number" step="any" min="0" inputmode="decimal"></label>
+          <label class="calc-f">Unidad<input id="m_tipo" type="text" value="trampa"></label>
+        </div>
+        <button class="calc-go" data-calc="mip">Calcular</button>
+        <div class="calc-out" id="mip_out"></div>
       </div>
       <div class="calc-help" style="margin-top:.9rem; border-top:1px solid var(--line); padding-top:.6rem">Cálculos orientativos; los umbrales y factores varían por mercado y laboratorio. Apoyo de decisión, no sustituye al agrónomo ni al análisis de tu laboratorio.</div>
     </div>

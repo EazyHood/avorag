@@ -187,6 +187,47 @@ def test_salinidad_agua_muy_salina_alerta() -> None:
     assert r.alertas  # CE 3 > umbral 1,3 del Hass
 
 
+# ── Grados-día / calibre / umbral MIP ───────────────────────────────────────────────────────────
+
+
+def test_grados_dia_acumula_y_progreso() -> None:
+    # 3 días a (20,10): media 15, base 10 -> 5 GDD/día -> 15 acumulados.
+    r = agro_calc.growing_degree_days([(20.0, 10.0)] * 3, objetivo_gdd=30.0)
+    assert r.gdd_acumulado == 15.0 and r.n_dias == 3
+    assert r.progreso_pct == 50.0
+
+
+def test_grados_dia_no_cuenta_dias_frios() -> None:
+    # Día por debajo de la base no resta (GDD del día = 0).
+    r = agro_calc.growing_degree_days([(8.0, 4.0)])  # media 6 < base 10
+    assert r.gdd_acumulado == 0.0
+
+
+def test_calibre_por_peso() -> None:
+    # Caja de 4 kg: 250 g -> ~16 frutos/caja -> calibre 16.
+    r = agro_calc.fruit_caliber(250.0)
+    assert r.calibre == 16
+    # Fruto más grande -> número de calibre menor.
+    assert agro_calc.fruit_caliber(330.0).calibre < 16
+
+
+def test_umbral_mip_decide() -> None:
+    r = agro_calc.mip_action_threshold(40, 10, 3.0, unidad="trampa")  # media 4 >= 3
+    assert r.media_por_unidad == 4.0 and r.decision == "intervenir"
+    r2 = agro_calc.mip_action_threshold(10, 10, 3.0)  # media 1 < 3
+    assert r2.decision == "monitorear"
+
+
+def test_api_grados_dia_calibre_umbral() -> None:
+    c = _client()
+    r = c.post("/api/calc/grados-dia", json={"temps": [[20, 10], [22, 12]], "objetivo_gdd": 100})
+    assert r.status_code == 200 and r.json()["gdd_acumulado"] > 0
+    r = c.post("/api/calc/calibre", json={"peso_g": 250})
+    assert r.status_code == 200 and r.json()["calibre"] == 16
+    r = c.post("/api/calc/umbral-mip", json={"conteo_total": 40, "n_unidades": 10, "umbral": 3})
+    assert r.status_code == 200 and r.json()["decision"] == "intervenir"
+
+
 # ── API ───────────────────────────────────────────────────────────────────────────────────────
 
 
