@@ -11,6 +11,7 @@ from pathlib import Path
 
 from avorag.agro_terms import (
     active_ingredients_in,
+    commercial_actives_in,
     extract_active_ingredient,
     mode_of_action_groups,
 )
@@ -345,13 +346,41 @@ def _banned_index() -> dict[str, dict]:
     return {str(it["ingrediente_activo"]).lower(): it for it in data.get("ingredientes", [])}
 
 
+@lru_cache(maxsize=1)
+def _banned_patterns() -> list[tuple[re.Pattern[str], str, dict]]:
+    """(patrón con límite de palabra, i.a., item) por cada i.a. prohibido/restringido.
+
+    El patrón se compila sobre el nombre SIN tildes y exige límite de palabra (\\b) para NO
+    disparar por subcadena: «ddt» (3 letras) coincidía dentro de palabras ajenas ('reddtide')
+    y volvía ROJO la respuesta. El \\b inicial/final igual deja pasar formas compuestas con
+    guion —«clorpirifos-metil» contiene «clorpirifos» con límite de palabra (el guion es no-letra)—
+    y nombres con espacio como «metil paration»."""
+    return [
+        (re.compile(rf"\b{re.escape(_strip_accents(ia))}\b"), ia, item)
+        for ia, item in _banned_index().items()
+    ]
+
+
 def banned_ingredients_in_answer(answer_text: str, country: str = "CO") -> list[str]:
-    """Ingredientes activos prohibidos o restringidos mencionados en la respuesta."""
+    """Ingredientes activos prohibidos o restringidos mencionados en la respuesta.
+
+    Coincide por límite de palabra (no por subcadena) sobre el texto sin tildes: «se aplicó DDT»
+    dispara, pero 'reddtide' o 'additive' no. Conserva la insensibilidad a tildes."""
     low = _strip_accents(answer_text)
     hits: list[str] = []
-    for ia, item in _banned_index().items():
-        if _strip_accents(ia) in low:
+    seen: set[str] = set()
+    for pattern, ia, item in _banned_patterns():
+        if pattern.search(low):
             hits.append(f"{ia} ({item.get('estado', 'restringido')}: {item.get('motivo', '')})")
+            seen.add(ia)
+    # También por NOMBRE COMERCIAL: Gramoxone→paraquat, Furadan→carbofurán, Thiodan→endosulfán…
+    idx = _banned_index()
+    for ia in commercial_actives_in(answer_text):
+        ia_l = str(ia).lower()
+        if ia_l in idx and ia_l not in seen:
+            item = idx[ia_l]
+            hits.append(f"{ia_l} ({item.get('estado', 'restringido')}: {item.get('motivo', '')})")
+            seen.add(ia_l)
     return hits[:3]
 
 
@@ -374,29 +403,47 @@ def stale_data_warnings(chunks: list[ScoredChunk]) -> list[str]:
 # "cualquier insecticida sirve". Si la respuesta NO refuta la premisa con claridad → ROJO. Es la
 # fuga por la que "duplicar la dosis" se colaba en VERDE confiado.
 _UNSAFE_PREMISE_RE = re.compile(
-    r"duplic|\bel doble\b|\bdoble dosis\b|triplic|"  # escalado de dosis
+    # — escalado de dosis (incluye parafraseo) —
+    r"duplic|\bel doble\b|\bdoble dosis\b|triplic|"
     r"mas dosis|mayor dosis|aumenta(?:r|ndo)?\s+la\s+dosis|sub(?:e|ir)\s+la\s+dosis|sobredosis|"
-    r"sin\s+(?:periodo\s+de\s+)?(?:carencia|seguridad)|"  # sin carencia
+    r"le\s+subo|echar(?:le)?\s+mas|un\s+poco\s+mas\s+de\s+(?:dosis|producto|insecticida|plaguicida|fungicida)|"
+    # — sin carencia —
+    r"sin\s+(?:periodo\s+de\s+)?(?:carencia|seguridad)|"
     r"que\s+no\s+tenga\s+(?:periodo\s+de\s+)?carencia|sin\s+tiempo\s+de\s+(?:espera|reingreso)|"
-    r"cualquier\s+(?:insecticida|plaguicida|fungicida|acaricida|herbicida|agroquimic|quimic|producto)",
+    # — producto genérico / mezcla a ciegas —
+    r"cualquier\s+(?:insecticida|plaguicida|fungicida|acaricida|herbicida|agroquimic|quimic|producto)|"
+    r"mezcl(?:ar|o)\s+(?:lo que tenga|todo lo|de la bodega|lo de la bodega)|"
+    # — hídrico peligroso (asfixia radical / Phytophthora) —
+    r"encharc|inundar\s+el\s+suelo|suelo\s+(?:siempre\s+)?saturad|saturar\s+el\s+suelo|"
+    r"mantener\s+(?:el\s+suelo\s+)?(?:siempre\s+)?(?:saturad|encharcad|anegad)|no\s+drenar|riego\s+pesad|"
+    # — aplicar INSECTICIDA en floración (mata polinizadores del Hass dicógamo) —
+    r"(?:insecticida|sistemic|fumig|asperj|aspersi[oó]n).{0,30}floracion|"
+    r"floracion.{0,25}(?:insecticida|sistemic|fumig|asperj)|"
+    # — mezclas fitotóxicas (cobre/azufre + aceite, sobre todo con sol fuerte) —
+    r"(?:cobre|cuprico).{0,20}aceite|aceite.{0,20}(?:cobre|cuprico|azufre)|azufre.{0,20}aceite",
     re.IGNORECASE,
 )
-# La respuesta refuta/corrige la premisa: entonces es una respuesta CORRECTA y se deja pasar.
+# La respuesta refuta/corrige la premisa → es CORRECTA y se deja pasar. OJO: la refutación exige una
+# NEGACIÓN/CORRECCIÓN explícita; ya NO basta con que aparezca una palabra-tema suelta ('riesgo',
+# 'resistencia', 'fitotoxicidad'), porque una respuesta que AVALA la premisa y de paso menciona
+# 'resistencia' apagaba el ROJO por construcción (fuga real reportada).
 _REFUTATION_RE = re.compile(
     r"\bno\b.{0,30}(?:duplic|aument|sube|subir|mas dosis|mayor dosis|recomend|debe|seguro|sirve|"
-    r"garantiza|mejor|funciona|conviene)|"
-    r"no es (?:recomendable|seguro|cierto|correcto|buena idea|aconsejable)|no se debe|\bnunca\b|"
-    r"evita(?:r)?\b|respeta(?:r)?\s+(?:el|la|los)?\s*(?:periodo de\s+)?(?:carencia|etiqueta|dosis)|"
+    r"garantiza|mejor|funciona|conviene|apliqu|mezcl|encharc|satur|inund|fumig|asperj|riegues)|"
+    r"no es (?:recomendable|seguro|cierto|correcto|buena idea|aconsejable|conveniente)|no se debe|"
+    r"\bnunca\b|evita(?:r)?\b|\bevite\b|"
+    r"respeta(?:r)?\s+(?:el|la|los)?\s*(?:periodo de\s+)?(?:carencia|etiqueta|dosis)|"
     r"seg[uú]n\s+la\s+etiqueta|sigue\s+la\s+(?:dosis|etiqueta)|dosis\s+de\s+la\s+etiqueta|"
-    r"fitotoxic|resistencia|no\s+existe|no\s+mejora|no\s+garantiza|riesgo|puede\s+causar\s+da",
+    r"no\s+existe|asegura\s+(?:el\s+|un\s+)?(?:buen\s+)?drenaje|buen\s+drenaje|mejora\s+el\s+drenaje",
     re.IGNORECASE,
 )
 
 
 def unsafe_framing(question: str, answer_text: str) -> tuple[bool, str]:
-    """True si la premisa es insegura (duplicar dosis / sin carencia / producto genérico) y la
-    respuesta NO la refuta con claridad. Caza la trampa que se cuela en VERDE cuando no hay i.a. ni
-    dosis concretos que activen los guardarraíles de dosis."""
+    """True si la premisa es insegura (duplicar dosis / sin carencia / producto genérico / encharcar
+    / asperjar en floración / cobre+aceite) y la respuesta NO la refuta con una negación clara. Caza
+    la trampa que se cuela en VERDE cuando no hay i.a. ni dosis concretos que activen los guardarraíles
+    de dosis."""
     premise = bool(
         _UNSAFE_PREMISE_RE.search(_strip_accents(question))
         or _UNSAFE_PREMISE_RE.search(_strip_accents(answer_text))
@@ -405,7 +452,7 @@ def unsafe_framing(question: str, answer_text: str) -> tuple[bool, str]:
         return (False, "")
     if _REFUTATION_RE.search(_strip_accents(answer_text)):
         return (False, "")  # la respuesta corrige la premisa: es correcta
-    return (True, "premisa insegura no refutada (duplicar dosis / sin carencia / producto genérico)")
+    return (True, "premisa insegura no refutada (escalado de dosis / sin carencia / mezcla o riego peligrosos)")
 
 
 # ── Cordura de dosis de FERTILIZANTE (no fitosanitario) ─────────────────────────────────────────
