@@ -79,6 +79,23 @@ hoy (dataset Mendeley **CC BY 4.0**); patología es un slot **preparado** (sin d
 color indica *maduración*; el punto de corte de **exportación se decide por materia seca, no por
 color**. Detalle: [`docs/VISION.md`](docs/VISION.md).
 
+## 🧮 Calculadoras deterministas (el RAG cita, no calcula)
+Decisiones cuantitativas clave que **no deben pasar por un LLM** (alucinaría cifras) y que funcionan
+**offline**: **materia seca** (corte de exportación, con muestreo), **encalado por saturación de Al**
+(con aviso para andisoles), **diagnóstico foliar** (relaciones + **niveles absolutos** + B/Zn + estrés
+salino), **riego** (ETc=ETo·Kc), **salinidad** (fracción de lavado + SAR), **grados-día**, **calibre**
+y **umbral de acción MIP**. API `POST /api/calc/*` + botón 🧮 en la UI. Detalle:
+[`docs/CALCULADORAS.md`](docs/CALCULADORAS.md).
+
+## 🛡️ Red de seguridad fitosanitaria (determinista)
+Prohibidos/restringidos (también por **marca comercial**: Gramoxone→paraquat…) → **ROJO siempre**;
+premisas inseguras (duplicar dosis, sin carencia, encharcar, asperjar en floración) no refutadas →
+**ROJO por construcción**; activos no autorizados en el **mercado de destino** (UE/EE.UU.) → ROJO/aviso
+de LMR; cuarentenarias (Stenoma/Heilipus) → aviso de **tolerancia cero**; rotación **IRAC/FRAC** y
+nudge de control biológico. Lo que **no** se arregla con código está en
+[`docs/LIMITACIONES.md`](docs/LIMITACIONES.md) y su ruta de resolución en
+[`docs/PLAN_NO_CODIGO.md`](docs/PLAN_NO_CODIGO.md).
+
 ## 🎯 Qué demuestra
 RAG con **prácticas de producción** (recuperación híbrida + reranking + evaluación con gate,
 guardarraíles, auditoría, observabilidad), **criterio de producto** (guardarraíl de dosis
