@@ -288,3 +288,12 @@ def test_resistance_reminder_nudge_mip() -> None:
     # Si ya hay biocontrol, no repite el nudge.
     rem2 = resistance_reminder("Combina Amblyseius (depredador) con abamectina 2,5 cc/L.")
     assert rem2 and "biológico" not in rem2.lower()
+
+
+def test_resistance_reminder_frac_alto_riesgo() -> None:
+    # QoI (FRAC 11) es monositio de alto riesgo: el aviso lo distingue del multisitio (agró #24).
+    rem = resistance_reminder("Aplica azoxistrobina 0,5 L/ha contra la antracnosis.")
+    assert rem and "alto riesgo" in rem.lower() and "FRAC 11" in rem
+    # Un protector multisitio (mancozeb, FRAC M03) no dispara la alerta de alto riesgo.
+    rem2 = resistance_reminder("Aplica mancozeb 2,5 g/L como protector.")
+    assert rem2 and "alto riesgo" not in rem2.lower()

@@ -30,9 +30,12 @@ Manejo (preventivo e integrado):
 - **Protección preventiva del fruto en campo** con fungicidas protectores (p. ej. cúpricos y otros
   grupos FRAC) **según etiqueta registrada ante el ICA**, rotando modos de acción para no generar
   resistencia. *Las dosis, carencias y registros los define el ICA — verifícalos en SimplifICA.*
-- **Cadena de frío inmediata:** enfriar el fruto pronto tras cosecha (alrededor de **5 °C**) **frena**
-  la reactivación del hongo y la expresión de la lesión en tránsito (sin curar la infección ya
-  presente). El daño por frío es un riesgo aparte: respeta la temperatura mínima segura del Hass.
+- **Cadena de frío inmediata:** enfriar el fruto pronto tras cosecha **frena** la reactivación del
+  hongo y la expresión de la lesión en tránsito (sin curar la infección ya presente). **CUIDADO con
+  el daño por frío (chilling injury):** el umbral del Hass está en ~**2-5 °C** según cultivar, origen
+  y madurez; por eso el transporte marítimo suele ir a **5-7 °C** (no bajar de ~5 °C) para no provocar
+  pardeamiento de pulpa. NO tomes "5 °C" como cifra fija: define la temperatura con tu protocolo de
+  poscosecha y la madurez del lote. No existe un guardarraíl que concilie esta cifra: es tu decisión.
 - **Cosecha con poco daño** y poscosecha higiénica: las heridas y el manejo brusco aceleran la
   pudrición peduncular y la antracnosis.
 

@@ -518,11 +518,19 @@ def resistance_reminder(answer_text: str) -> str | None:
     mip = "" if mentions_biocontrol(answer_text) else (
         " Prioriza monitoreo + control biológico/cultural (MIP) antes del químico."
     )
+    # Riesgo de resistencia por grupo: QoI (FRAC 11) y SDHI (FRAC 7) son monositio de ALTO riesgo
+    # (no se tratan igual que un protector multisitio). Distinguirlo es lo que pedía la revisión.
+    high_risk = sorted({g for g in groups.values() if g in ("FRAC 11", "FRAC 7")})
+    risk = (
+        f" OJO: {'/'.join(high_risk)} es monositio de ALTO riesgo de resistencia (p. ej. mutación "
+        "G143A de antracnosis a estrobilurinas): alterna/mezcla con multisitio (cúpricos, mancozeb, "
+        "clorotalonil) y limita las aplicaciones por temporada."
+    ) if high_risk else ""
     if groups:
         gtxt = ", ".join(f"{ia} ({g})" for ia, g in list(groups.items())[:3])
         return (
             f"Anti-resistencia: rota modos de acción entre aplicaciones — aquí {gtxt}. "
-            "No repitas el mismo grupo IRAC/FRAC en ciclos consecutivos." + mip
+            "No repitas el mismo grupo IRAC/FRAC en ciclos consecutivos." + risk + mip
         )
     return (
         "Anti-resistencia: rota los modos de acción (grupos IRAC/FRAC) entre aplicaciones; "
