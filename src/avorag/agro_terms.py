@@ -205,6 +205,31 @@ MODE_OF_ACTION_GROUP: dict[str, str] = {
 }
 
 
+# Grupos MONOSITIO de ALTO riesgo de resistencia (insecticidas Y fungicidas), con la razón. Antes el
+# aviso solo marcaba FRAC 11/7; deja ciego el lado entomológico (neonics, avermectinas, diamidas) que
+# es justo donde más se queman moléculas-llave. Los multisitio (M01-M05, P07) NO entran (bajo riesgo).
+HIGH_RESISTANCE_RISK_GROUPS: dict[str, str] = {
+    # Fungicidas monositio
+    "FRAC 11": "QoI/estrobilurinas (mutación G143A documentada en antracnosis)",
+    "FRAC 7": "SDHI",
+    "FRAC 4": "fenilamidas/metalaxil (resistencia mundial en Phytophthora)",
+    "FRAC 3": "triazoles/DMI (deriva de sensibilidad)",
+    "FRAC 40": "CAA (mandipropamida/dimetomorf)",
+    "FRAC 9": "anilinopirimidinas",
+    "FRAC 12": "fenilpirroles",
+    # Insecticidas/acaricidas de riesgo (lo que faltaba)
+    "IRAC 1A": "carbamatos",
+    "IRAC 1B": "organofosforados",
+    "IRAC 3A": "piretroides",
+    "IRAC 4A": "neonicotinoides (resistencia frecuente en trips)",
+    "IRAC 5": "espinosinas (spinosad/spinetoram)",
+    "IRAC 6": "avermectinas (colapsan rápido en ácaros con presión alta)",
+    "IRAC 21A": "METI acaricidas (fenpiroximato/piridaben)",
+    "IRAC 23": "cetoenoles (spirotetramat/espirodiclofeno)",
+    "IRAC 28": "diamidas (clorantraniliprol/ciantraniliprol): MODO DE ACCIÓN CLAVE contra Stenoma — no quemarlo",
+}
+
+
 # Nombres COMERCIALES → ingrediente(s) activo(s). En finca nadie pide "clorpirifos": pide la marca
 # del almacén. Sin esto, el guardarraíl de prohibidos/destino/IRAC/cat-tox NO se activaba (la
 # detección era por subcadena del nombre químico). NO exhaustivo y los registros cambian: VERIFICA
@@ -247,8 +272,29 @@ COMMERCIAL_NAMES: dict[str, tuple[str, ...]] = {
     "revus": ("mandipropamida",),
     "kocide": ("hidroxido de cobre",),
 }
-# Nota: se omiten marcas cuyo nombre es palabra común (Basta, Muralla, Luna, Score, Match, Tilt,
-# Switch, Closer, Tracer…) para no producir falsos positivos por coincidencia léxica.
+# Marcas cuyo nombre es PALABRA COMÚN (Score, Tilt, Luna, Basta…). Antes se omitían del todo para no
+# falsear; pero son marcas muy usadas en campo, así que ahora SÍ se reconocen, pero solo cuando hay
+# CONTEXTO de aplicación cerca (aplica/fumig/producto/dosis/fungicida…), reduciendo el falso positivo
+# ("luna llena" no dispara; "apliqué Luna para la roña" sí).
+COMMERCIAL_NAMES_AMBIGUOUS: dict[str, tuple[str, ...]] = {
+    "score": ("difenoconazol",),
+    "tilt": ("propiconazol",),
+    "switch": ("ciprodinil", "fludioxonil"),
+    "closer": ("sulfoxaflor",),
+    "tracer": ("spinosad",),
+    "match": ("lufenuron",),
+    "basta": ("glufosinato",),
+    "muralla": ("imidacloprid",),
+    "luna": ("fluopyram",),
+}
+# Contexto de APLICACIÓN/producto estricto (NO incluye 'cosecha'/'plaga'/'enfermedad', que son
+# demasiado débiles: "cosechamos en luna menguante" NO debe detectar fluopyram).
+_APP_CONTEXT_RE = re.compile(
+    r"aplic|apliqu|fumig|asperj|aspersi|mezcl|\bproduct|fungicid|insecticid|acaricid|herbicid|"
+    r"plaguicid|\bdosis\b|\bcc\b|\bml\b|litro|kg\s*/\s*ha|g\s*/\s*l|cc\s*/\s*l|tanque|bomba|"
+    r"etiqueta|ingrediente\s+activo",
+    re.IGNORECASE,
+)
 
 
 def extract_active_ingredient(text: str) -> str | None:
@@ -265,12 +311,17 @@ def extract_active_ingredient(text: str) -> str | None:
 
 
 def commercial_actives_in(text: str) -> set[str]:
-    """Ingredientes activos detectados por NOMBRE COMERCIAL (marca), con límite de palabra."""
+    """Ingredientes activos detectados por NOMBRE COMERCIAL (marca), con límite de palabra. Las marcas
+    inequívocas matchean directo; las de palabra común (Score, Luna…) solo con contexto de aplicación."""
     low = text.lower()
     out: set[str] = set()
     for brand, actives in COMMERCIAL_NAMES.items():
         if re.search(rf"\b{re.escape(brand)}\b", low):
             out.update(actives)
+    if _APP_CONTEXT_RE.search(low):  # marcas-palabra-común: solo en contexto fitosanitario
+        for brand, actives in COMMERCIAL_NAMES_AMBIGUOUS.items():
+            if re.search(rf"\b{re.escape(brand)}\b", low):
+                out.update(actives)
     return out
 
 
@@ -316,7 +367,8 @@ def mentions_biocontrol(text: str) -> bool:
 # movilización + área libre para exportar), NO un umbral económico. Reconocerlas para avisar del régimen.
 QUARANTINE_PESTS: tuple[str, ...] = (
     "stenoma catenifer", "stenoma", "heilipus lauri", "heilipus trifasciatus", "heilipus",
-    "barrenador del fruto", "barrenador de la semilla",
+    "barrenador del fruto", "barrenador de la semilla", "barrenador del hueso",
+    "barrenador de la rama", "barrenador del aguacate",
 )
 
 
@@ -326,3 +378,23 @@ def quarantine_pests_in(text: str) -> list[str]:
     hits = [p for p in QUARANTINE_PESTS if p in low]
     # Evita redundancia "heilipus" + "heilipus lauri": deja el nombre más específico.
     return [p for p in hits if not any(p != o and p in o for o in hits)]
+
+
+# Plagas de importancia económica fuerte en Hass que NO son cuarentenarias de control oficial (sin
+# régimen de tolerancia cero, pero deciden calidad/calibre/cosmética del fruto exportable). Se
+# reconocen para dar contexto, sin confundirlas con el régimen cuarentenario.
+ECONOMIC_PESTS: dict[str, str] = {
+    "monalonion": "chinche/monalonion (daño cosmético severo al fruto)",
+    "chinche de encaje": "chinche de encaje (Pseudacysta)",
+    "copturus": "Copturus aguacatae (barrenador de rama, NO cuarentenario en CO)",
+    "oligonychus": "ácaro Oligonychus (cristalino/rojo): depredador como herramienta principal",
+    "trips": "trips (Frankliniella/Scirtothrips): russeting/plateado que baja calibre exportable",
+    "frankliniella": "trips Frankliniella",
+    "scirtothrips": "trips Scirtothrips",
+}
+
+
+def economic_pests_in(text: str) -> list[str]:
+    """Plagas económicas (no cuarentenarias) mencionadas en el texto."""
+    low = _noacc(text)
+    return [p for p in ECONOMIC_PESTS if p in low]

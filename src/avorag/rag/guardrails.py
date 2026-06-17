@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from avorag.agro_terms import (
+    HIGH_RESISTANCE_RISK_GROUPS,
     active_ingredients_in,
     commercial_actives_in,
     extract_active_ingredient,
@@ -258,6 +259,26 @@ def dose_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[
     return (len(unsupported) == 0, unsupported)
 
 
+def phi_product_grounded(answer_text: str, chunks: list[ScoredChunk]) -> tuple[bool, list[str]]:
+    """La carencia/PHI de la respuesta debe co-ocurrir en un fragmento que TAMBIÉN contenga el i.a.
+    que la respuesta recomienda. Cierra la fuga de pegar la carencia de un producto a OTRO: un
+    «7 días» de abamectina en el contexto ya NO valida un «7 días» inventado para spinosad."""
+    answer_actives = active_ingredients_in(answer_text)
+    unsupported: list[str] = []
+    for unit, value in _phi_values(answer_text):
+        supported = False
+        for sc in chunks:
+            chunk_phi = _phi_values(_chunk_content(sc))
+            if (unit, value) in chunk_phi and (
+                not answer_actives or (answer_actives & _chunk_actives(sc))
+            ):
+                supported = True
+                break
+        if not supported:
+            unsupported.append(f"{int(value)} {unit}")
+    return (len(unsupported) == 0, unsupported)
+
+
 def recommends_pesticide(answer_text: str) -> bool:
     """True si la respuesta recomienda un fitosanitario a dosis (no fertilizante)."""
     return (
@@ -415,14 +436,19 @@ _UNSAFE_PREMISE_RE = re.compile(
     # — producto genérico / mezcla a ciegas —
     r"cualquier\s+(?:insecticida|plaguicida|fungicida|acaricida|herbicida|agroquimic|quimic|producto)|"
     r"mezcl(?:ar|o)\s+(?:lo que tenga|todo lo|de la bodega|lo de la bodega)|"
-    # — hídrico peligroso (asfixia radical / Phytophthora) —
+    # — hídrico peligroso (asfixia radical / Phytophthora): encharcar, saturar, regar de más en pesado —
     r"encharc|inundar\s+el\s+suelo|suelo\s+(?:siempre\s+)?saturad|saturar\s+el\s+suelo|"
-    r"mantener\s+(?:el\s+suelo\s+)?(?:siempre\s+)?(?:saturad|encharcad|anegad)|no\s+drenar|riego\s+pesad|"
-    # — aplicar INSECTICIDA en floración (mata polinizadores del Hass dicógamo) —
-    r"(?:insecticida|sistemic|fumig|asperj|aspersi[oó]n).{0,30}floracion|"
-    r"floracion.{0,25}(?:insecticida|sistemic|fumig|asperj)|"
-    # — mezclas fitotóxicas (cobre/azufre + aceite, sobre todo con sol fuerte) —
-    r"(?:cobre|cuprico).{0,20}aceite|aceite.{0,20}(?:cobre|cuprico|azufre)|azufre.{0,20}aceite",
+    r"mantener\s+(?:el\s+suelo\s+)?(?:siempre\s+)?(?:saturad|encharcad|anegad|humedo)|no\s+drenar|riego\s+pesad|"
+    r"riego\s+(?:dos|2|tres|3|varias)\s+veces\s+al\s+dia\s+en\s+(?:arcill|suelo\s+pesad|tierra\s+pesad|ladera)|"
+    r"(?:arcill\w*\s+pesad|suelo\s+pesad)\D{0,30}(?:riego|reg(?:ar|o))\s+(?:dos|2|tres|frecuent|much)|"
+    # — INSECTICIDA / plaga DURANTE la floración (mata polinizadores del Hass dicógamo). Se usa
+    #   "en/plena flor / floreciendo" (NO 'floración' suelto) para no marcar "antes de la floración". —
+    r"(?:insecticida|sistemic|neonicotinoid|fumig|asperj|aspersi[oó]n)\D{0,40}(?:en\s+(?:plena\s+)?flor|plena\s+flor|floreciendo|antesis|durante\s+la\s+flor)|"
+    r"(?:en\s+(?:plena\s+)?flor|plena\s+flor|floreciendo|antesis|durante\s+la\s+flor)\D{0,40}(?:insecticida|sistemic|neonicotinoid|fumig|asperj)|"
+    r"(?:trips|chinche|monalonion|acaro|stenoma)\D{0,30}(?:en\s+(?:plena\s+)?flor|plena\s+flor|floreciendo|antesis|durante\s+la\s+flor)|"
+    # — mezclas/aplicaciones fitotóxicas: cobre/azufre+aceite, o cobre en floración/cuajado/sol fuerte —
+    r"(?:cobre|cuprico)\D{0,25}(?:aceite|pleno sol|sol fuerte|mediodia|en\s+(?:plena\s+)?flor|plena\s+flor|floreciendo|cuajado)|"
+    r"(?:aceite|pleno sol|mediodia)\D{0,25}(?:cobre|cuprico|azufre)|azufre\D{0,20}aceite",
     re.IGNORECASE,
 )
 # La respuesta refuta/corrige la premisa → es CORRECTA y se deja pasar. OJO: la refutación exige una
@@ -535,14 +561,21 @@ def resistance_reminder(answer_text: str) -> str | None:
     mip = "" if mentions_biocontrol(answer_text) else (
         " Prioriza monitoreo + control biológico/cultural (MIP) antes del químico."
     )
-    # Riesgo de resistencia por grupo: QoI (FRAC 11) y SDHI (FRAC 7) son monositio de ALTO riesgo
-    # (no se tratan igual que un protector multisitio). Distinguirlo es lo que pedía la revisión.
-    high_risk = sorted({g for g in groups.values() if g in ("FRAC 11", "FRAC 7")})
-    risk = (
-        f" OJO: {'/'.join(high_risk)} es monositio de ALTO riesgo de resistencia (p. ej. mutación "
-        "G143A de antracnosis a estrobilurinas): alterna/mezcla con multisitio (cúpricos, mancozeb, "
-        "clorotalonil) y limita las aplicaciones por temporada."
-    ) if high_risk else ""
+    # Riesgo de resistencia por grupo: alto riesgo en INSECTICIDAS y fungicidas monositio (neonics,
+    # avermectinas, diamidas, QoI, SDHI, metalaxil…), no solo FRAC 11/7. Cada uno con su razón.
+    high = {
+        g: HIGH_RESISTANCE_RISK_GROUPS[g]
+        for g in set(groups.values())
+        if g in HIGH_RESISTANCE_RISK_GROUPS
+    }
+    risk = ""
+    if high:
+        detalle = "; ".join(f"{g} = {nota}" for g, nota in list(high.items())[:2])
+        risk = (
+            f" OJO, grupo(s) monositio de ALTO riesgo de resistencia ({detalle}): alterna con un modo "
+            "de acción DISTINTO (en hongos, intercala multisitio: cúpricos/mancozeb/clorotalonil), no "
+            "repitas el mismo grupo en una misma generación y limita las aplicaciones por temporada."
+        )
     if groups:
         gtxt = ", ".join(f"{ia} ({g})" for ia, g in list(groups.items())[:3])
         return (

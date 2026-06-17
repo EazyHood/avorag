@@ -313,3 +313,58 @@ def test_resistance_reminder_frac_alto_riesgo() -> None:
     # Un protector multisitio (mancozeb, FRAC M03) no dispara la alerta de alto riesgo.
     rem2 = resistance_reminder("Aplica mancozeb 2,5 g/L como protector.")
     assert rem2 and "alto riesgo" not in rem2.lower()
+
+
+def test_resistance_alto_riesgo_insecticidas() -> None:
+    # Antes solo FRAC 11/7; ahora también insecticidas (agró #6/#7).
+    # Diamida IRAC 28 (clave contra Stenoma):
+    rem = resistance_reminder("Aplica clorantraniliprol 0,3 cc/L contra el barrenador.")
+    assert rem and "alto riesgo" in rem.lower() and "IRAC 28" in rem
+    # Neonicotinoide IRAC 4A:
+    rem2 = resistance_reminder("Aplica imidacloprid 0,5 cc/L para el trips.")
+    assert rem2 and "alto riesgo" in rem2.lower()
+    # Metalaxil (FRAC 4) monositio en Phytophthora:
+    rem3 = resistance_reminder("Aplica metalaxil 2,5 g/L para la pudrición de raíz.")
+    assert rem3 and "alto riesgo" in rem3.lower()
+
+
+def test_phi_product_grounded_liga_al_producto() -> None:
+    from avorag.rag.guardrails import phi_product_grounded
+
+    # La respuesta da '7 días' para SPINOSAD, el contexto trae '7 días' de ABAMECTINA -> NO respaldado.
+    ans = "Para el trips usa spinosad con una carencia de 7 dias."
+    ctx_otro = [mk("Abamectina: carencia de 7 dias antes de cosecha.", ingrediente_activo="abamectina")]
+    ok, unsup = phi_product_grounded(ans, ctx_otro)
+    assert ok is False and unsup
+    # Con la carencia del producto correcto en la fuente -> respaldado.
+    ctx_ok = [mk("Spinosad: carencia de 7 dias en aguacate.", ingrediente_activo="spinosad")]
+    assert phi_product_grounded(ans, ctx_ok)[0] is True
+
+
+def test_unsafe_framing_floracion_frases_reales() -> None:
+    # Frases de campo que la regex de 30 caracteres dejaba pasar (agró #8).
+    assert unsafe_framing("¿Qué aplico para el trips ahora que está floreciendo el lote?", "Aplica un insecticida sistémico [1].")[0]
+    assert unsafe_framing("Quiero bajar la chinche de encaje en plena flor", "Asperja el insecticida [1].")[0]
+    # Si la respuesta refuta, no se marca.
+    assert unsafe_framing("¿Asperjo insecticida en floración?", "No, no asperjes insecticida en floración: matas los polinizadores [1].")[0] is False
+
+
+def test_unsafe_framing_cobre_en_floracion() -> None:
+    assert unsafe_framing("¿Le echo cobre aunque esté en plena floración?", "Sí, aplica el cobre igual [1].")[0]
+
+
+def test_marca_ambigua_solo_con_contexto() -> None:
+    from avorag.agro_terms import active_ingredients_in
+
+    assert "difenoconazol" in active_ingredients_in("Apliqué Score para la roña del fruto.")
+    assert "fluopyram" in active_ingredients_in("Mezcla Luna en el tanque contra la pudrición.")
+    # Sin contexto de aplicación, la palabra común NO falsea:
+    assert "difenoconazol" not in active_ingredients_in("saqué un buen score en el examen")
+    assert "fluopyram" not in active_ingredients_in("cosechamos en luna menguante")
+
+
+def test_economic_pests_monalonion() -> None:
+    from avorag.agro_terms import economic_pests_in
+
+    assert "monalonion" in economic_pests_in("¿Cómo manejo el monalonion en mi huerto de Hass?")
+    assert economic_pests_in("el trips deja russeting") == ["trips"]
