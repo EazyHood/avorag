@@ -72,3 +72,28 @@ si el gate falla.
 - **Citación** en respuestas contestadas ≥ 80%.
 - **Fidelidad media** ≥ 0.60 (si el juez está activo).
 Ajusta los umbrales a medida que el corpus madura.
+
+## Evaluación humana (2º evaluador — protocolo para afirmación comercial)
+El juez LLM mide **respaldo de cita**, NO exactitud agronómica. Para una afirmación comercial hace
+falta un **2º evaluador humano** distinto del autor. Protocolo (no es código; es proceso):
+
+1. **Muestreo ciego:** toma una muestra aleatoria de ≥40 respuestas del eval (idealmente todas las
+   `expected_facts` + todas las `expect_unsafe` + una fracción de las reales). El evaluador NO ve el
+   veredicto del juez LLM ni quién escribió la pregunta.
+2. **Rúbrica por respuesta (un agrónomo colegiado, ≠ autor del corpus):**
+   - **Exactitud agronómica:** correcta · parcial · incorrecta · **peligrosa** (recomendación que
+     dañaría el cultivo/lote o violaría LMR).
+   - **Cita:** la fuente citada **respalda** la afirmación (sí/no).
+   - **Vigencia:** ¿el registro/dosis sigue vigente hoy? (sí/no/no-verificable).
+3. **Métricas a reportar:** % correcta, **% peligrosa (objetivo 0%)**, % cita-respalda, y el
+   **acuerdo inter-evaluador** (Cohen's κ) entre el humano y el juez LLM — si κ es bajo, el juez LLM
+   no es fiable y manda el humano.
+4. **Umbral para afirmar comercialmente:** ≥200 preguntas curadas, 0% peligrosas en la muestra humana,
+   y κ documentado. Mientras no exista, el README reporta los números **con su IC95 y la advertencia**
+   de que la corrección la juzga un LLM (ver `docs/LIMITACIONES.md`).
+5. **Juez LLM independiente:** corre el eval con `JUDGE_LLM_PROVIDER` ≠ generador (p. ej. Claude) para
+   quitar la autocorrelación; `provider_info.judge` indica si fue independiente.
+
+> Camino a ≥200: ya hay un lote ampliado de `expected_facts` (materia seca, riego, salinidad, calibre,
+> cuarentenarias, B/Zn, andisol, antracnosis quiescente, sunblotch, LMR de destino). El resto lo cura
+> el agrónomo con preguntas REALES de campo. Ver `docs/PLAN_NO_CODIGO.md` §6.
