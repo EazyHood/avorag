@@ -627,6 +627,15 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     rem = guardrails.resistance_reminder(raw)
     if rem:
         warnings = [*warnings, rem]
+    # Vigencia ICA: el guardarraíl exige registro citado pero NO consulta su estado vivo (el PQUA es
+    # un extracto mar-2022 y nada marca 'caducado' automáticamente). Siempre que se recomiende un
+    # plaguicida, recordar verificar la vigencia en SimplifICA (honesto: es aviso, no verificación).
+    if chem_pesticide:
+        warnings = [
+            *warnings,
+            "Verifica la VIGENCIA del registro ICA en SimplifICA antes de aplicar: el listado de "
+            "insumos del corpus es un extracto (PQUA, mar-2022) y el ICA cancela/suspende registros.",
+        ]
 
     if forbidden:
         # Producto prohibido/restringido (ICA) o NO autorizado en el mercado de destino: la respuesta

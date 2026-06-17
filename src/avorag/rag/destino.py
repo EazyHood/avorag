@@ -21,6 +21,7 @@ import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
+from avorag.agro_terms import commercial_actives_in
 from avorag.config import get_settings
 from avorag.logging import get_logger
 
@@ -59,8 +60,16 @@ def available_markets() -> list[str]:
 
 
 def _matches(text: str, items: list[dict]) -> list[dict]:
+    """Casa por nombre QUÍMICO (subcadena) o por MARCA comercial resuelta a su i.a. (Lorsban→
+    clorpirifos, Movento→spirotetramat…), para que un producto citado por su marca no evada el destino."""
     low = _norm(text)
-    return [it for it in items if _norm(str(it.get("ingrediente_activo", ""))) in low]
+    brand_actives = {_norm(a) for a in commercial_actives_in(text)}
+    out: list[dict] = []
+    for it in items:
+        ia = _norm(str(it.get("ingrediente_activo", "")))
+        if ia and (ia in low or ia in brand_actives):
+            out.append(it)
+    return out
 
 
 def _resolve_market(market: str | None) -> str:

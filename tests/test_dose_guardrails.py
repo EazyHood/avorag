@@ -271,3 +271,20 @@ def test_active_ingredients_por_marca() -> None:
     assert "clorantraniliprol" in active_ingredients_in("Usa Coragen para el barrenador.")
     # Marca podada por ser palabra común no debe falsear (Luna/Muralla se omiten a propósito).
     assert active_ingredients_in("Cosecha en luna menguante y revisa el muro.") == set()
+
+
+def test_reconoce_control_biologico() -> None:
+    from avorag.agro_terms import mentions_biocontrol
+
+    assert mentions_biocontrol("Suelta Amblyseius como ácaro depredador del trips.")
+    assert mentions_biocontrol("Conserva la fauna auxiliar y usa Trichogramma.")
+    assert mentions_biocontrol("Aplica abamectina 2,5 cc/L") is False
+
+
+def test_resistance_reminder_nudge_mip() -> None:
+    # Si la respuesta NO menciona control biológico, el aviso empuja MIP-primero (agró #17).
+    rem = resistance_reminder("Aplica abamectina 2,5 cc/L para el trips.")
+    assert rem and "biológico" in rem.lower()
+    # Si ya hay biocontrol, no repite el nudge.
+    rem2 = resistance_reminder("Combina Amblyseius (depredador) con abamectina 2,5 cc/L.")
+    assert rem2 and "biológico" not in rem2.lower()
