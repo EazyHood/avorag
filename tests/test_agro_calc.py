@@ -95,9 +95,96 @@ def test_foliar_ratios_detecta_desbalance() -> None:
     assert r.relaciones["K/Ca"].estado == "alto"
 
 
-def test_foliar_ratios_requiere_dos_macros() -> None:
+def test_foliar_un_elemento_da_nivel_absoluto() -> None:
+    # Antes exigía 2 macros; ahora un solo valor da su NIVEL absoluto (sin relaciones).
+    r = agro_calc.foliar_ratios(n=2.0)
+    assert "n" in r.niveles and not r.relaciones
+    assert agro_calc.foliar_ratios(n=2.0).niveles["n"].estado == "suficiente"
+
+
+def test_foliar_sin_datos_rechaza() -> None:
     with pytest.raises(ValueError):
-        agro_calc.foliar_ratios(n=2.0)  # solo uno: no se puede formar ninguna relación
+        agro_calc.foliar_ratios()
+
+
+def test_foliar_detecta_boro_y_zinc_bajos() -> None:
+    r = agro_calc.foliar_ratios(b=20.0, zn=15.0)  # ambos por debajo de suficiencia
+    assert r.niveles["b"].estado == "deficiente" and r.niveles["zn"].estado == "deficiente"
+    assert any("cuajado" in a.lower() or "boro" in a.lower() for a in r.alertas)
+
+
+def test_foliar_nivel_absoluto_caza_la_doble_deficiencia() -> None:
+    # Caso #5/#35: relaciones 'óptimas' pero árbol famélico (todo por debajo de suficiencia).
+    r = agro_calc.foliar_ratios(n=0.8, k=0.4, ca=0.4, mg=0.16)
+    assert r.relaciones["K/Ca"].estado == "óptimo"  # 0.4/0.4 = 1.0 (proporción ok)
+    assert r.niveles["n"].estado == "deficiente" and r.niveles["k"].estado == "deficiente"
+    assert r.alertas  # no da falsa tranquilidad
+
+
+def test_foliar_estres_salino_cl() -> None:
+    r = agro_calc.foliar_ratios(k=1.0, cl=0.8)  # Cl > 0.5% -> riesgo de quemado
+    assert any("cloruro" in a.lower() or "sal" in a.lower() for a in r.alertas)
+
+
+# ── Materia seca con muestreo ───────────────────────────────────────────────────────────────────
+
+
+def test_dry_matter_un_fruto_avisa_muestreo() -> None:
+    r = agro_calc.dry_matter(100.0, 24.0)
+    assert r.n_muestras == 1
+    assert "insuficiente" in r.nota.lower()  # un solo fruto no es muestreo válido
+
+
+def test_dry_matter_sample_media_y_cv() -> None:
+    # Muestra homogénea con todos los frutos ≥ umbral -> apto.
+    r = agro_calc.dry_matter_sample([24.0, 24.0, 25.0, 24.0, 23.0, 24.0, 25.0, 24.0, 24.0, 23.0])
+    assert r.n_muestras == 10
+    assert r.materia_seca_pct == 24.0 and r.cv_pct is not None
+    assert r.veredicto == "apto"
+
+
+def test_dry_matter_sample_heterogeneo_es_limitrofe() -> None:
+    # Media supera el umbral pero hay frutos por debajo -> limítrofe (parte del lote no llega).
+    r = agro_calc.dry_matter_sample([19.0, 20.0, 28.0, 29.0] * 3, umbral_pct=23.0)
+    assert r.veredicto == "limítrofe"
+    assert r.minimo_muestra_pct == 19.0
+
+
+# ── Encalado en andisol ─────────────────────────────────────────────────────────────────────────
+
+
+def test_encalado_andisol_advierte() -> None:
+    r = agro_calc.liming_by_al_saturation(al=2.0, ca=1.0, mg=0.4, k=0.2, densidad_aparente=0.7)
+    assert r.advertencia and "andisol" in r.advertencia.lower()
+
+
+# ── Riego ───────────────────────────────────────────────────────────────────────────────────────
+
+
+def test_riego_etc_y_volumen() -> None:
+    r = agro_calc.irrigation_requirement(eto_mm_dia=5.0, kc=0.8, eficiencia=0.9, area_ha=2.0)
+    assert r.etc_mm_dia == 4.0  # 5 * 0.8
+    assert r.lamina_bruta_mm_dia == round(4.0 / 0.9, 2)
+    assert r.volumen_m3_ha_dia == round(r.lamina_bruta_mm_dia * 10 * 2.0, 1)
+
+
+def test_riego_descuenta_lluvia() -> None:
+    r = agro_calc.irrigation_requirement(eto_mm_dia=5.0, kc=1.0, precip_efectiva_mm_dia=2.0)
+    assert r.lamina_neta_mm_dia == 3.0  # 5 - 2
+
+
+# ── Salinidad ───────────────────────────────────────────────────────────────────────────────────
+
+
+def test_salinidad_fraccion_lavado_y_sar() -> None:
+    r = agro_calc.salinity_assessment(ce_agua_dsm=1.0, na_meq_l=8.0, ca_meq_l=2.0, mg_meq_l=2.0)
+    assert r.fraccion_lavado == round(1.0 / (5 * 1.3 - 1.0), 3)
+    assert r.sar == round(8.0 / (((2.0 + 2.0) / 2) ** 0.5), 2)
+
+
+def test_salinidad_agua_muy_salina_alerta() -> None:
+    r = agro_calc.salinity_assessment(ce_agua_dsm=3.0)
+    assert r.alertas  # CE 3 > umbral 1,3 del Hass
 
 
 # ── API ───────────────────────────────────────────────────────────────────────────────────────
@@ -130,3 +217,29 @@ def test_api_relaciones_foliares_ok() -> None:
     r = _client().post("/api/calc/relaciones-foliares", json={"k": 1.0, "ca": 1.0})
     assert r.status_code == 200
     assert "K/Ca" in r.json()["relaciones"]
+
+
+def test_api_foliar_con_boro_zinc() -> None:
+    r = _client().post("/api/calc/relaciones-foliares", json={"b": 20, "zn": 15})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["niveles"]["b"]["estado"] == "deficiente"
+    assert body["alertas"]
+
+
+def test_api_materia_seca_muestras() -> None:
+    r = _client().post("/api/calc/materia-seca", json={"muestras": [22, 23, 24, 25, 23], "umbral_pct": 23})
+    assert r.status_code == 200
+    assert r.json()["n_muestras"] == 5
+
+
+def test_api_riego_ok() -> None:
+    r = _client().post("/api/calc/riego", json={"eto_mm_dia": 5, "kc": 0.8, "area_ha": 2})
+    assert r.status_code == 200
+    assert r.json()["etc_mm_dia"] == 4.0
+
+
+def test_api_salinidad_ok() -> None:
+    r = _client().post("/api/calc/salinidad", json={"ce_agua_dsm": 1.0})
+    assert r.status_code == 200
+    assert r.json()["fraccion_lavado"] is not None
