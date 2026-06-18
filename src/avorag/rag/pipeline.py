@@ -681,6 +681,12 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         latency_ms=int((time.perf_counter() - t0) * 1000),
         provider_info=pinfo,
     )
+    # Guardarraíl ONLINE en vivo (feeds + cruce regulatorio): gated por AVORAG_ONLINE_FEEDS; no-op si
+    # está apagado (no cambia el modo offline), fail-safe (nunca rompe la respuesta). Muta `ans` antes
+    # de persistir, así el cambio queda en la respuesta Y en la auditoría. Ver online/integration.py.
+    from avorag.online.integration import apply_online_safety_for_tenant
+
+    apply_online_safety_for_tenant(tenant, ans)
     _persist(ans, tenant)
     log.info(
         "answered",
