@@ -282,6 +282,49 @@ paths:
         "200": { description: OK, content: { application/json: { schema: { type: object } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
 
+  /hitl/pending:
+    get:
+      tags: [platform]
+      operationId: hitlPending
+      summary: Cola de respuestas ROJO del tenant pendientes de revisión del agrónomo (P-2).
+      responses:
+        "200":
+          description: Lista de consultas en cola (texto solo si audit_store_text=True).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending: { type: array, items: { $ref: "#/components/schemas/HitlItem" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /hitl/decision:
+    post:
+      tags: [platform]
+      operationId: hitlDecision
+      summary: Decisión firmada del agrónomo sobre una respuesta en cola.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HitlDecisionIn" }
+      responses:
+        "200":
+          description: Decisión registrada (con firma de tamper-evidence).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  query_id: { type: string, format: uuid }
+                  decision: { type: string, enum: [approved, rejected, edited] }
+                  signature: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: La consulta no existe o no es de tu tenant. }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
   /feedback:
     post:
       tags: [platform]
@@ -489,6 +532,26 @@ components:
         util: { type: boolean, description: "¿La respuesta fue útil?" }
         motivo: { type: string, enum: [incorrecta, incompleta, desactualizada, peligrosa, otra], nullable: true }
         comentario: { type: string, maxLength: 2000, description: "El servidor guarda HASH, no texto (P-4)." }
+    HitlItem:
+      type: object
+      properties:
+        query_id: { type: string, format: uuid }
+        tenant: { type: string }
+        semaforo: { $ref: "#/components/schemas/Semaforo" }
+        question: { type: string }
+        answer: { type: string, description: "Hash si audit_store_text=False (P-4)." }
+        review_status: { type: string }
+        corpus_version: { type: string }
+        created_at: { type: string, format: date-time }
+    HitlDecisionIn:
+      type: object
+      required: [query_id, reviewer_id, decision]
+      properties:
+        query_id: { type: string, format: uuid }
+        reviewer_id: { type: string, minLength: 1, maxLength: 64 }
+        decision: { type: string, enum: [approved, rejected, edited] }
+        edited_text: { type: string, maxLength: 8000 }
+        notes: { type: string, maxLength: 2000 }
     SyncManifest:
       type: object
       required: [offline_contract_version, artifacts, signature]
