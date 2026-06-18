@@ -42,12 +42,26 @@ def get_session_factory() -> sessionmaker[Session]:
 
 
 @contextmanager
-def get_session(tenant: str | None = None) -> Iterator[Session]:
+def get_session(tenant: str | None = None, *, system: bool = False) -> Iterator[Session]:
     """Context manager de sesión con commit/rollback automático.
 
-    Si se pasa `tenant`, activa RLS en PostgreSQL vía `app.current_tenant`
-    (ignorado en SQLite).
+    En PostgreSQL el aislamiento multi-tenant es por RLS con políticas **fail-closed** (migración
+    0004): una sesión SOLO ve/inserta filas de su `tenant`. Por eso el acceso a datos requiere
+    tenant EXPLÍCITO:
+
+    - ``get_session(tenant="acme")`` → fija ``app.current_tenant`` y acota la sesión a ese tenant.
+    - ``get_session(system=True)`` → sesión administrativa explícita (tablas SIN RLS: ``tenants``,
+      health checks). Por diseño NO ve filas de tablas con RLS (fail-closed).
+    - ``get_session()`` sin ``tenant`` ni ``system`` → **ValueError**: evita el bug silencioso de
+      operar sin tenant. Antes (políticas permisivas) ese caso veía TODOS los tenants (fail-open).
+
+    En SQLite (tests) no hay RLS: `tenant` se valida pero no se aplica.
     """
+    if tenant is None and not system:
+        raise ValueError(
+            "get_session requiere tenant=... (o system=True para operaciones administrativas sobre "
+            "tablas sin RLS). Una sesión sin tenant no accede a datos con RLS: fail-closed."
+        )
     session = get_session_factory()()
     try:
         if (

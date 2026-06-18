@@ -63,7 +63,7 @@ def ingest_document(
     digest = sha256_file(path)
 
     # Sesión corta solo para la comprobación de duplicado.
-    with get_session() as session:
+    with get_session(tenant=tenant) as session:
         existing = session.scalar(
             select(Document).where(Document.sha256 == digest, Document.tenant == tenant)
         )
@@ -124,7 +124,7 @@ def ingest_document(
 
     vectors = embedder.embed_documents(texts_to_embed)
 
-    with get_session() as session:
+    with get_session(tenant=tenant) as session:
         if force:
             stale = session.scalar(
                 select(Document).where(Document.sha256 == digest, Document.tenant == tenant)
