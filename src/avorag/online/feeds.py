@@ -39,9 +39,9 @@ class FeedFetch:
     """Resultado normalizado de consultar un feed (antes de persistir)."""
 
     feed_name: str
-    as_of: datetime              # fecha-de-dato declarada por la fuente
-    ttl_seconds: int             # SLA de frescura del feed
-    payload: dict                # contenido canónico (esquema por feed, ver más abajo)
+    as_of: datetime  # fecha-de-dato declarada por la fuente
+    ttl_seconds: int  # SLA de frescura del feed
+    payload: dict  # contenido canónico (esquema por feed, ver más abajo)
     source_url: str | None = None
 
     @property
@@ -84,12 +84,29 @@ class FakeIcaProvider(FeedProvider):
     def fetch(self, *, now: datetime | None = None) -> FeedFetch:
         payload = {
             "registros": [
-                {"ingrediente_activo": "clorpirifos", "registro_ica": "0001", "estado": "cancelado", "cultivo": "varios"},
-                {"ingrediente_activo": "abamectina", "registro_ica": "1234", "estado": "vigente", "cultivo": "hass"},
-                {"ingrediente_activo": "spinetoram", "registro_ica": "5678", "estado": "vigente", "cultivo": "hass"},
+                {
+                    "ingrediente_activo": "clorpirifos",
+                    "registro_ica": "0001",
+                    "estado": "cancelado",
+                    "cultivo": "varios",
+                },
+                {
+                    "ingrediente_activo": "abamectina",
+                    "registro_ica": "1234",
+                    "estado": "vigente",
+                    "cultivo": "hass",
+                },
+                {
+                    "ingrediente_activo": "spinetoram",
+                    "registro_ica": "5678",
+                    "estado": "vigente",
+                    "cultivo": "hass",
+                },
             ]
         }
-        return FeedFetch(self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://ica")
+        return FeedFetch(
+            self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://ica"
+        )
 
 
 class FakeLmrUeProvider(FeedProvider):
@@ -103,7 +120,9 @@ class FakeLmrUeProvider(FeedProvider):
             "lmr_mg_kg": {"abamectina": 0.01, "spinetoram": 0.03},
             "no_aprobados": ["clorpirifos"],
         }
-        return FeedFetch(self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://lmr-ue")
+        return FeedFetch(
+            self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://lmr-ue"
+        )
 
 
 class FakeTolEeuuProvider(FeedProvider):
@@ -117,7 +136,9 @@ class FakeTolEeuuProvider(FeedProvider):
             "avocado_tolerances_ppm": {"paraquat": 0.05, "azoxystrobin": 1.0, "abamectina": 0.02},
             "sin_tolerancia": ["clorpirifos", "metamidofos"],
         }
-        return FeedFetch(self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://40cfr180")
+        return FeedFetch(
+            self.feed.value, _now(now), self.default_ttl_seconds, payload, "fake://40cfr180"
+        )
 
 
 # --- Proveedores REALES (stubs marcados; activar cuando exista el conector) ----------------------
@@ -237,7 +258,10 @@ def latest_snapshot(session: Session, feed: FeedName | str) -> FeedSnapshot | No
     """Snapshot más reciente (por `as_of`) de un feed, o None."""
     name = feed.value if isinstance(feed, FeedName) else str(feed)
     return session.scalar(
-        select(FeedSnapshot).where(FeedSnapshot.feed_name == name).order_by(FeedSnapshot.as_of.desc()).limit(1)
+        select(FeedSnapshot)
+        .where(FeedSnapshot.feed_name == name)
+        .order_by(FeedSnapshot.as_of.desc())
+        .limit(1)
     )
 
 
@@ -246,10 +270,14 @@ def latest_view(session: Session, feed: FeedName | str) -> FeedSnapshotView | No
     snap = latest_snapshot(session, feed)
     if snap is None:
         return None
-    return FeedSnapshotView(feed_name=snap.feed_name, as_of=snap.as_of, ttl_seconds=snap.ttl_seconds)
+    return FeedSnapshotView(
+        feed_name=snap.feed_name, as_of=snap.as_of, ttl_seconds=snap.ttl_seconds
+    )
 
 
-def freshness_views(session: Session, feeds: set[FeedName] | set[str]) -> dict[str, FeedSnapshotView]:
+def freshness_views(
+    session: Session, feeds: set[FeedName] | set[str]
+) -> dict[str, FeedSnapshotView]:
     """Mapa {feed_name: FeedSnapshotView} listo para `freshness.verde_permitido(...)`."""
     out: dict[str, FeedSnapshotView] = {}
     for f in feeds:
@@ -260,11 +288,18 @@ def freshness_views(session: Session, feeds: set[FeedName] | set[str]) -> dict[s
     return out
 
 
-def refresh_feed(session: Session, provider: FeedProvider, *, now: datetime | None = None) -> FeedSnapshot:
+def refresh_feed(
+    session: Session, provider: FeedProvider, *, now: datetime | None = None
+) -> FeedSnapshot:
     """Punto de entrada del worker: obtiene del proveedor y hace upsert idempotente del snapshot."""
     fetch = provider.fetch(now=now)
     snap = upsert_snapshot(session, fetch)
-    log.info("feed_refreshed", feed=fetch.feed_name, sha256=fetch.sha256[:12], as_of=fetch.as_of.isoformat())
+    log.info(
+        "feed_refreshed",
+        feed=fetch.feed_name,
+        sha256=fetch.sha256[:12],
+        as_of=fetch.as_of.isoformat(),
+    )
     return snap
 
 
