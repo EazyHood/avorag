@@ -22,6 +22,9 @@ class AskRequest(BaseModel):
     country: str | None = Field(None, pattern=r"^[A-Z]{2}$")
     soil_type: str | None = Field(None, max_length=64)  # arenoso, arcilloso, franco…
     region: str | None = Field(None, max_length=80)
+    # Mercado de DESTINO para el guardarraíl de LMR/tolerancias en vivo (ue|eeuu). El guardarraíl
+    # online solo actúa si AVORAG_ONLINE_FEEDS está activo; sin esto, se usa EXPORT_MARKET de la config.
+    export_market: str | None = Field(None, pattern=r"^(ue|eeuu)$")
 
 
 def _tenant_for(req: AskRequest, auth_tenant: str) -> str:
@@ -40,6 +43,7 @@ def ask(
         country=req.country,
         soil_type=req.soil_type,
         region=req.region,
+        export_market=req.export_market,
     )
 
 
@@ -61,6 +65,7 @@ def ask_stream(
                 country=req.country,
                 soil_type=req.soil_type,
                 region=req.region,
+                export_market=req.export_market,
             ):
                 if kind == "delta":
                     yield f"data: {json.dumps({'type': 'delta', 't': payload})}\n\n"
