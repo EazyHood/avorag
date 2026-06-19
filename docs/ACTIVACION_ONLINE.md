@@ -21,6 +21,8 @@ AVORAG_FEED_LMR_UE_URL=https://tu-host/lmr.json # o JSON ya canónico (HttpJsonP
 ```
 Columnas CSV esperadas (por defecto, configurables): ICA `ingrediente_activo,registro_ica,estado,cultivo`;
 LMR_UE `ingrediente_activo,lmr_mg_kg,aprobado`; TOL_EEUU `ingrediente_activo,tolerancia_ppm,tiene_tolerancia`.
+**Plantilla de ejemplo:** [`data/feeds_example/ica_registros.csv`](../data/feeds_example/ica_registros.csv)
+(rellénala con el export oficial del ICA). Verificado e2e: un activo `cancelado` se bloquea en 🔴.
 **(residual)** Scrapers específicos de portales que no exponen export (Power BI de SimplifICA, etc.):
 hay que escribir el parser de ESE formato, o exponerlo como CSV/JSON.
 
