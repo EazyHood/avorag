@@ -50,6 +50,11 @@ DEFAULT_TTL_SECONDS: dict[FeedName, int] = {
     FeedName.PRECIOS: 24 * 3600,  # precios: diario
 }
 
+# Tolerancia de reloj para un `as_of` "del futuro". Hasta aquí lo achacamos a skew de reloj y lo
+# tratamos como fresco; más allá es sospechoso (feed re-sellado / reloj adelantado / payload
+# manipulado) y NO debe darse por vigente — si no, una fecha futura evade el gate STALE indefinidamente.
+MAX_FUTURE_SKEW_SECONDS = 2 * 3600
+
 
 class FreshnessState(StrEnum):
     OK = "ok"
@@ -89,7 +94,9 @@ def freshness_state(
     as_of = snapshot.as_of if snapshot.as_of.tzinfo else snapshot.as_of.replace(tzinfo=UTC)
     edad_s = (now - as_of).total_seconds()
     if edad_s < 0:
-        return FreshnessState.OK  # dato "del futuro" (reloj/precarga): no lo tratamos como vencido
+        # Dato "del futuro": tolera solo un skew de reloj pequeño; más allá es sospechoso y NO
+        # lo damos por fresco (si no, una fecha futura evadiría el gate STALE indefinidamente).
+        return FreshnessState.OK if -edad_s <= MAX_FUTURE_SKEW_SECONDS else FreshnessState.STALE
     return (
         FreshnessState.OK
         if edad_s <= _ttl_for(snapshot.feed_name, snapshot)
@@ -106,6 +113,11 @@ def _strip(text: str) -> str:
     )
 
 
+# Alias público: el cruce regulatorio y los lookups de feeds normalizan acentos con el MISMO criterio
+# (evita el desajuste tildes feed↔diccionario que dejaba pasar 'clorpirifós' vs 'clorpirifos').
+strip_accents = _strip
+
+
 # Señales de que la respuesta APOYA una recomendación fitosanitaria (depende de la vigencia ICA).
 _PESTICIDE_CTX = re.compile(
     r"\bregistro\b|\bica\b|simplifica|\bcarencia\b|periodo de seguridad|reingreso|"
@@ -113,6 +125,11 @@ _PESTICIDE_CTX = re.compile(
     r"\bdosis\b|cc\s?/\s?l|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l",
     re.IGNORECASE,
 )
+
+
+def mentions_pesticide_context(answer_text: str) -> bool:
+    """True si el texto APOYA una recomendación fitosanitaria (dosis/registro/carencia/i.a.)."""
+    return bool(_PESTICIDE_CTX.search(_strip(answer_text)))
 
 
 def regulatory_feeds_for(answer_text: str, *, export_market: str | None = None) -> set[FeedName]:

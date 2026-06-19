@@ -97,14 +97,25 @@ def test_for_tenant_aplica_si_flag_on(monkeypatch, fresh_ica):
     assert ans.semaforo is Semaforo.ROJO
 
 
-def test_for_tenant_failsafe_degrada_verde_a_amarillo(monkeypatch):
+def test_for_tenant_failsafe_cierra_a_rojo_si_fitosanitario(monkeypatch):
     monkeypatch.setenv("AVORAG_ONLINE_FEEDS", "1")
 
     def boom(*a, **k):
         raise RuntimeError("BD caída")
 
     monkeypatch.setattr("avorag.db.get_session", boom)
-    ans = _answer("clorpirifos 1 L/ha")  # fitosanitaria → entra al try
+    ans = _answer("clorpirifos 1 L/ha")  # fitosanitaria con dosis → entra al try
     integration.apply_online_safety_for_tenant("demo", ans, now=NOW)
-    # No rompe; degrada un verde no verificado a amarillo (Modo 2).
-    assert ans.semaforo is Semaforo.AMARILLO and ans.warnings
+    # Fail-CLOSED: un fitosanitario no verificable en vivo NO se sirve como verde/amarillo blando.
+    assert ans.semaforo is Semaforo.ROJO and ans.warnings
+
+
+def test_failsafe_sin_fitosanitario_solo_amarillo_y_respeta_rojo():
+    # Sin contexto fitosanitario, un VERDE no confiable baja a AMARILLO (no ROJO).
+    ans = _answer("El Hass florece en dicogamia protogínica.")
+    integration._degrade_unverified(ans, has_fitosanitario=False)
+    assert ans.semaforo is Semaforo.AMARILLO
+    # Y el fail-safe NUNCA toca un ROJO ya decidido.
+    rojo = _answer("x", Semaforo.ROJO)
+    integration._degrade_unverified(rojo, has_fitosanitario=True)
+    assert rojo.semaforo is Semaforo.ROJO
