@@ -118,8 +118,7 @@ _PATOLOGIA: dict[str, LabelInfo] = {
     "minador_hoja": LabelInfo(
         "Minador de la hoja",
         VisionKind.PATOLOGIA,
-        "¿Cómo se maneja el minador de la hoja en aguacate Hass y qué umbral de daño es "
-        "relevante?",
+        "¿Cómo se maneja el minador de la hoja en aguacate Hass y qué umbral de daño es relevante?",
     ),
     "mancha_foliar": LabelInfo(
         "Mancha foliar",

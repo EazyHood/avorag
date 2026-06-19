@@ -40,7 +40,9 @@ def resolve_dry_matter_target(objetivo: str | None) -> float:
         return DRY_MATTER_EXPORT_DEFAULT
     key = objetivo.strip().lower()
     if key not in DRY_MATTER_TARGETS:
-        raise ValueError(f"Objetivo desconocido «{objetivo}». Usa uno de: {', '.join(DRY_MATTER_TARGETS)}.")
+        raise ValueError(
+            f"Objetivo desconocido «{objetivo}». Usa uno de: {', '.join(DRY_MATTER_TARGETS)}."
+        )
     return DRY_MATTER_TARGETS[key]
 
 
@@ -56,8 +58,9 @@ class DryMatterResult:
     brecha_pct: float | None = None  # puntos hasta el umbral (>0 = aún por debajo; <0 = por encima)
 
 
-def _dry_matter_verdict(media: float, umbral_pct: float, *, minimo: float | None, cv: float | None,
-                        n: int) -> tuple[str, str]:
+def _dry_matter_verdict(
+    media: float, umbral_pct: float, *, minimo: float | None, cv: float | None, n: int
+) -> tuple[str, str]:
     """Veredicto sensible al muestreo: no basta con que la MEDIA supere el umbral si la muestra es
     pequeña o muy heterogénea (parte del lote puede estar por debajo)."""
     avisos: list[str] = []
@@ -67,7 +70,9 @@ def _dry_matter_verdict(media: float, umbral_pct: float, *, minimo: float | None
             "varios árboles y de sol y sombra (la MS varía 3-5 puntos dentro del mismo árbol)."
         )
     if cv is not None and cv > 8.0:
-        avisos.append(f"Alta variabilidad (CV {cv:.0f}%): lote heterogéneo, parte puede estar por debajo del corte.")
+        avisos.append(
+            f"Alta variabilidad (CV {cv:.0f}%): lote heterogéneo, parte puede estar por debajo del corte."
+        )
     # Banda "limítrofe": justo por debajo del umbral, o la media lo supera pero el lote es
     # heterogéneo / hay frutos por debajo (parte del lote no llegaría al corte).
     bajo_riesgo = minimo is not None and minimo < umbral_pct <= media
@@ -125,8 +130,13 @@ def dry_matter_sample(
         "lugar de aplicar una fórmula fija."
     )
     return DryMatterResult(
-        materia_seca_pct=media, umbral_pct=umbral_pct, veredicto=veredicto, nota=nota,
-        n_muestras=n, cv_pct=cv, minimo_muestra_pct=minimo,
+        materia_seca_pct=media,
+        umbral_pct=umbral_pct,
+        veredicto=veredicto,
+        nota=nota,
+        n_muestras=n,
+        cv_pct=cv,
+        minimo_muestra_pct=minimo,
         brecha_pct=round(umbral_pct - media, 1),
     )
 
@@ -222,23 +232,31 @@ def liming_by_al_saturation(
 
     if req <= 0:
         return LimingResult(
-            cice_cmol_kg=round(cice, 2), saturacion_al_pct=sat_al, requerimiento_cmol_kg=0.0,
-            cal_t_ha=0.0, requiere_encalado=False,
+            cice_cmol_kg=round(cice, 2),
+            saturacion_al_pct=sat_al,
+            requerimiento_cmol_kg=0.0,
+            cal_t_ha=0.0,
+            requiere_encalado=False,
             nota=(
                 f"Saturación de Al {sat_al}% ya está en o por debajo del objetivo {psa_objetivo_pct}%: "
                 "no se requiere encalado por aluminio."
             ),
-            supuestos="—", advertencia=advertencia,
+            supuestos="—",
+            advertencia=advertencia,
         )
     cal = round(req * factor / (prnt_pct / 100.0), 2)
     return LimingResult(
-        cice_cmol_kg=round(cice, 2), saturacion_al_pct=sat_al, requerimiento_cmol_kg=round(req, 2),
-        cal_t_ha=cal, requiere_encalado=True,
+        cice_cmol_kg=round(cice, 2),
+        saturacion_al_pct=sat_al,
+        requerimiento_cmol_kg=round(req, 2),
+        cal_t_ha=cal,
+        requiere_encalado=True,
         nota=(
             f"Saturación de Al {sat_al}% > objetivo {psa_objetivo_pct}%. Estimación: ~{cal} t/ha de "
             "cal. Aplica, incorpora y reanaliza antes de la próxima fertilización."
         ),
-        supuestos=supuestos, advertencia=advertencia,
+        supuestos=supuestos,
+        advertencia=advertencia,
     )
 
 
@@ -257,10 +275,17 @@ _FOLIAR_RATIOS: dict[str, tuple[str, str, float, float]] = {
 }
 # Rangos de suficiencia foliar orientativos para Hass (hoja madura). Macros en % de MS; micros en ppm.
 _FOLIAR_SUFFICIENCY: dict[str, tuple[float, float, str]] = {
-    "n": (1.6, 2.4, "%"), "p": (0.08, 0.25, "%"), "k": (0.75, 2.0, "%"),
-    "ca": (1.0, 3.0, "%"), "mg": (0.25, 0.8, "%"), "s": (0.2, 0.6, "%"),
-    "b": (40, 100, "ppm"), "zn": (30, 150, "ppm"), "fe": (50, 200, "ppm"),
-    "mn": (30, 500, "ppm"), "cu": (5, 25, "ppm"),
+    "n": (1.6, 2.4, "%"),
+    "p": (0.08, 0.25, "%"),
+    "k": (0.75, 2.0, "%"),
+    "ca": (1.0, 3.0, "%"),
+    "mg": (0.25, 0.8, "%"),
+    "s": (0.2, 0.6, "%"),
+    "b": (40, 100, "ppm"),
+    "zn": (30, 150, "ppm"),
+    "fe": (50, 200, "ppm"),
+    "mn": (30, 500, "ppm"),
+    "cu": (5, 25, "ppm"),
 }
 # Umbrales de estrés salino foliar (excesos): por encima → riesgo de quemado marginal.
 _SALT_THRESHOLDS: dict[str, float] = {"cl": 0.5, "na": 0.25}  # % de MS
@@ -286,22 +311,45 @@ class FoliarResult:
     niveles: dict[str, LevelResult] = field(default_factory=dict)
     alertas: list[str] = field(default_factory=list)
     nota: str = ""
-    limitante: str | None = None  # el factor más limitante (ley del mínimo): deficiencia o desbalance
+    limitante: str | None = (
+        None  # el factor más limitante (ley del mínimo): deficiencia o desbalance
+    )
 
 
 def foliar_ratios(
     *,
-    n: float | None = None, p: float | None = None, k: float | None = None,
-    ca: float | None = None, mg: float | None = None, s: float | None = None,
-    b: float | None = None, zn: float | None = None, fe: float | None = None,
-    mn: float | None = None, cu: float | None = None,
-    cl: float | None = None, na: float | None = None,
+    n: float | None = None,
+    p: float | None = None,
+    k: float | None = None,
+    ca: float | None = None,
+    mg: float | None = None,
+    s: float | None = None,
+    b: float | None = None,
+    zn: float | None = None,
+    fe: float | None = None,
+    mn: float | None = None,
+    cu: float | None = None,
+    cl: float | None = None,
+    na: float | None = None,
 ) -> FoliarResult:
     """Diagnóstico foliar: relaciones (K/Ca, Ca/Mg, Mg/K, N/K, K/Mg) + NIVELES absolutos de cada
     elemento dado (incluye B y Zn) + alertas de deficiencia y de estrés salino (Cl/Na). Macros en %
     de MS, micros en ppm. Bandas/rangos ORIENTATIVOS (varían por norma y laboratorio)."""
-    vals = {"n": n, "p": p, "k": k, "ca": ca, "mg": mg, "s": s, "b": b, "zn": zn,
-            "fe": fe, "mn": mn, "cu": cu, "cl": cl, "na": na}
+    vals = {
+        "n": n,
+        "p": p,
+        "k": k,
+        "ca": ca,
+        "mg": mg,
+        "s": s,
+        "b": b,
+        "zn": zn,
+        "fe": fe,
+        "mn": mn,
+        "cu": cu,
+        "cl": cl,
+        "na": na,
+    }
     for nombre, v in vals.items():
         if v is not None and v < 0:
             raise ValueError(f"{nombre.upper()} no puede ser negativo.")
@@ -323,7 +371,9 @@ def foliar_ratios(
         if a is None or bb is None or bb == 0:
             continue
         r = round(a / bb, 2)
-        relaciones[nombre] = RatioResult(valor=r, banda_ref="≥1", estado=("bajo" if r < 1.0 else "óptimo"))
+        relaciones[nombre] = RatioResult(
+            valor=r, banda_ref="≥1", estado=("bajo" if r < 1.0 else "óptimo")
+        )
 
     # Niveles absolutos (cada elemento dado vs su rango de suficiencia).
     niveles: dict[str, LevelResult] = {}
@@ -349,7 +399,9 @@ def foliar_ratios(
                 f"({'cloruro' if el == 'cl' else 'sodio'}); considera fuentes sin cloruro (p. ej. K2SO4)."
             )
             niveles[el] = LevelResult(valor=v, rango_ref=f"≤{lim} %", estado="alto/exceso")
-    if (b is not None and b < _FOLIAR_SUFFICIENCY["b"][0]) or (zn is not None and zn < _FOLIAR_SUFFICIENCY["zn"][0]):
+    if (b is not None and b < _FOLIAR_SUFFICIENCY["b"][0]) or (
+        zn is not None and zn < _FOLIAR_SUFFICIENCY["zn"][0]
+    ):
         alertas.append(
             "Boro y/o Zinc bajos: limitan cuajado (B: viabilidad del polen) y calibre/brotación (Zn) "
             "aunque las relaciones de macros estén 'óptimas'."
@@ -385,10 +437,13 @@ def foliar_ratios(
     else:
         imbalances = [(r, rr) for r, rr in relaciones.items() if rr.estado in ("bajo", "alto")]
         if imbalances:
-            r, rr = imbalances[0]
-            limitante = f"relación {r} {rr.estado} ({rr.valor}; ref {rr.banda_ref})"
+            rel_name, rel = imbalances[0]
+            limitante = f"relación {rel_name} {rel.estado} ({rel.valor}; ref {rel.banda_ref})"
     return FoliarResult(
-        relaciones=relaciones, niveles=niveles, alertas=alertas, limitante=limitante,
+        relaciones=relaciones,
+        niveles=niveles,
+        alertas=alertas,
+        limitante=limitante,
         nota=(
             "Bandas únicas y ORIENTATIVAS (NO es un DRIS/CND con norma poblacional ni la referencia de "
             "TU laboratorio). Interpretable solo con muestreo estándar (hoja de brote de primavera, "
@@ -432,10 +487,17 @@ def kc_aguacate(etapa: str) -> float:
 
 
 def irrigation_requirement(
-    *, eto_mm_dia: float, kc: float, precip_efectiva_mm_dia: float = 0.0,
-    eficiencia: float = 0.9, area_ha: float | None = None, fraccion_lavado: float = 0.0,
-    capacidad_campo_pct: float | None = None, pmp_pct: float | None = None,
-    densidad_aparente: float | None = None, profundidad_radical_cm: float | None = None,
+    *,
+    eto_mm_dia: float,
+    kc: float,
+    precip_efectiva_mm_dia: float = 0.0,
+    eficiencia: float = 0.9,
+    area_ha: float | None = None,
+    fraccion_lavado: float = 0.0,
+    capacidad_campo_pct: float | None = None,
+    pmp_pct: float | None = None,
+    densidad_aparente: float | None = None,
+    profundidad_radical_cm: float | None = None,
     agotamiento_permisible: float = 0.4,
 ) -> IrrigationResult:
     """Requerimiento de riego. ETc = ETo·Kc; neta = ETc − lluvia efectiva; bruta = neta / (Ea·(1−LF))
@@ -453,25 +515,45 @@ def irrigation_requirement(
     bruta = round(neta / (eficiencia * (1 - fraccion_lavado)), 2)
     vol = round(bruta * 10 * area_ha, 1) if area_ha and area_ha > 0 else None
     taw = raw = intervalo = None
-    if None not in (capacidad_campo_pct, pmp_pct, densidad_aparente, profundidad_radical_cm):
-        if capacidad_campo_pct <= pmp_pct:  # type: ignore[operator]
+    if (
+        capacidad_campo_pct is not None
+        and pmp_pct is not None
+        and densidad_aparente is not None
+        and profundidad_radical_cm is not None
+    ):
+        if capacidad_campo_pct <= pmp_pct:
             raise ValueError("La capacidad de campo debe ser mayor que el punto de marchitez.")
-        if densidad_aparente <= 0 or profundidad_radical_cm <= 0 or not (0 < agotamiento_permisible <= 1):  # type: ignore[operator]
+        if (
+            densidad_aparente <= 0
+            or profundidad_radical_cm <= 0
+            or not (0 < agotamiento_permisible <= 1)
+        ):
             raise ValueError("Densidad/profundidad > 0 y agotamiento permisible en (0, 1].")
-        taw = round((capacidad_campo_pct - pmp_pct) / 100 * densidad_aparente * profundidad_radical_cm * 10, 1)  # type: ignore[operator]
+        taw = round(
+            (capacidad_campo_pct - pmp_pct) / 100 * densidad_aparente * profundidad_radical_cm * 10,
+            1,
+        )
         raw = round(agotamiento_permisible * taw, 1)
         intervalo = round(raw / etc, 1) if etc > 0 else None
     nota = (
         "Kc por etapa (cuaje/llenado > reposo; usa kc_aguacate) y ETo del clima local. El Hass es muy "
         "sensible al EXCESO de agua: el intervalo (RAW/ETc) evita tanto el déficit como el encharcamiento "
-        "(asfixia radical/Phytophthora). " + (
+        "(asfixia radical/Phytophthora). "
+        + (
             f"Con fracción de lavado {fraccion_lavado} la lámina bruta ya incluye el lavado de sales."
-            if fraccion_lavado > 0 else "Sin agua salina (LF=0)."
+            if fraccion_lavado > 0
+            else "Sin agua salina (LF=0)."
         )
     )
     return IrrigationResult(
-        etc_mm_dia=etc, lamina_neta_mm_dia=neta, lamina_bruta_mm_dia=bruta, volumen_m3_ha_dia=vol,
-        taw_mm=taw, raw_mm=raw, intervalo_riego_dias=intervalo, nota=nota,
+        etc_mm_dia=etc,
+        lamina_neta_mm_dia=neta,
+        lamina_bruta_mm_dia=bruta,
+        volumen_m3_ha_dia=vol,
+        taw_mm=taw,
+        raw_mm=raw,
+        intervalo_riego_dias=intervalo,
+        nota=nota,
     )
 
 
@@ -481,9 +563,9 @@ def irrigation_requirement(
 # las mexicanas (Duke/Mexicola) son las más sensibles (~1,0). CEe del Hass genérico ~1,3 dS/m.
 HASS_CE_THRESHOLD_DSM = 1.3
 CE_THRESHOLD_BY_ROOTSTOCK: dict[str, float] = {
-    "mexicano": 1.0,       # raza mexicana: la más sensible al Cl/Na
-    "guatemalteco": 1.3,   # intermedio
-    "antillano": 2.0,      # West Indian: la más tolerante
+    "mexicano": 1.0,  # raza mexicana: la más sensible al Cl/Na
+    "guatemalteco": 1.3,  # intermedio
+    "antillano": 2.0,  # West Indian: la más tolerante
 }
 
 
@@ -500,9 +582,15 @@ class SalinityResult:
 
 
 def salinity_assessment(
-    *, ce_agua_dsm: float, ce_umbral_suelo_dsm: float | None = None, portainjerto: str | None = None,
-    na_meq_l: float | None = None, ca_meq_l: float | None = None, mg_meq_l: float | None = None,
-    hco3_meq_l: float | None = None, co3_meq_l: float | None = None,
+    *,
+    ce_agua_dsm: float,
+    ce_umbral_suelo_dsm: float | None = None,
+    portainjerto: str | None = None,
+    na_meq_l: float | None = None,
+    ca_meq_l: float | None = None,
+    mg_meq_l: float | None = None,
+    hco3_meq_l: float | None = None,
+    co3_meq_l: float | None = None,
 ) -> SalinityResult:
     """Riesgo salino del agua: fracción de lavado (Rhoades: LF = CEw/(5·CEe − CEw)), SAR = Na/√((Ca+Mg)/2)
     y RSC = (CO3+HCO3) − (Ca+Mg) (iones en meq/L). El umbral CEe se ajusta por `portainjerto`
@@ -524,7 +612,9 @@ def salinity_assessment(
             "dS/m): el lavado no es viable; considera otra fuente de agua."
         )
     elif lf > 0.3:
-        alertas.append(f"Fracción de lavado alta ({lf}): agua salina; exige drenaje y lámina extra de lavado.")
+        alertas.append(
+            f"Fracción de lavado alta ({lf}): agua salina; exige drenaje y lámina extra de lavado."
+        )
     sar = None
     if na_meq_l is not None and ca_meq_l is not None and mg_meq_l is not None:
         if na_meq_l < 0 or ca_meq_l < 0 or mg_meq_l < 0:
@@ -532,7 +622,9 @@ def salinity_assessment(
         base = (ca_meq_l + mg_meq_l) / 2
         sar = round(na_meq_l / math.sqrt(base), 2) if base > 0 else None
         if sar is not None and sar > 6:
-            alertas.append(f"SAR {sar} elevado: riesgo de sodicidad y de toxicidad por sodio (Hass sensible).")
+            alertas.append(
+                f"SAR {sar} elevado: riesgo de sodicidad y de toxicidad por sodio (Hass sensible)."
+            )
     # RSC (carbonato de sodio residual): en agua alcalina el HCO3⁻ precipita el Ca y SUBE el peligro
     # de sodio real (el SAR clásico lo subestima). RSC > 1,25 = marginal; > 2,5 = no apta sin enmienda.
     rsc = None
@@ -557,8 +649,13 @@ def salinity_assessment(
             "se maneja drenaje + lavado."
         )
     return SalinityResult(
-        fraccion_lavado=lf, sar=sar, rsc_meq_l=rsc, ce_agua_dsm=ce_agua_dsm,
-        ce_umbral_suelo_dsm=ce_umbral_suelo_dsm, portainjerto=portainjerto, alertas=alertas,
+        fraccion_lavado=lf,
+        sar=sar,
+        rsc_meq_l=rsc,
+        ce_agua_dsm=ce_agua_dsm,
+        ce_umbral_suelo_dsm=ce_umbral_suelo_dsm,
+        portainjerto=portainjerto,
+        alertas=alertas,
         nota=(
             "El Hass es muy sensible a Cl⁻/Na⁺ y la tolerancia depende del PORTAINJERTO (antillano "
             "tolerante, mexicano sensible). Verifica CEe del suelo y el Cl⁻ foliar; prefiere K sin "
@@ -599,8 +696,12 @@ def _single_sine_gdd(tmax: float, tmin: float, t_base: float) -> float:
 
 
 def growing_degree_days(
-    temps: list[tuple[float, float]], *, t_base: float = AVOCADO_TBASE_DEFAULT,
-    t_tope: float | None = None, objetivo_gdd: float | None = None, metodo: str = "seno",
+    temps: list[tuple[float, float]],
+    *,
+    t_base: float = AVOCADO_TBASE_DEFAULT,
+    t_tope: float | None = None,
+    objetivo_gdd: float | None = None,
+    metodo: str = "seno",
 ) -> GddResult:
     """Grados-día acumulados desde cuaje. `metodo`: "seno" (seno simple, recomendado — corrige el sesgo
     en noches frías) o "media" (promedio simple (Tmax+Tmin)/2 − T_base). `temps` = lista de (Tmax,
@@ -623,7 +724,11 @@ def growing_degree_days(
     gdd = round(total, 1)
     prog = round(gdd / objetivo_gdd * 100, 1) if objetivo_gdd and objetivo_gdd > 0 else None
     return GddResult(
-        gdd_acumulado=gdd, n_dias=n, gdd_medio_dia=round(gdd / n, 2), t_base=t_base, metodo=metodo,
+        gdd_acumulado=gdd,
+        n_dias=n,
+        gdd_medio_dia=round(gdd / n, 2),
+        t_base=t_base,
+        metodo=metodo,
         progreso_pct=prog,
         nota=(
             f"Grados-día base {t_base} °C ({'seno simple' if metodo == 'seno' else 'promedio simple'}) "
@@ -656,7 +761,9 @@ def fruit_caliber(peso_g: float, *, caja_kg: float = 4.0) -> CaliberResult:
     frutos = caja_kg * 1000 / peso_g
     calibre = min(CALIBRES_UE, key=lambda c: abs(c - frutos))
     return CaliberResult(
-        calibre=calibre, frutos_por_caja=round(frutos, 1), caja_kg=caja_kg,
+        calibre=calibre,
+        frutos_por_caja=round(frutos, 1),
+        caja_kg=caja_kg,
         nota=(
             f"Calibre UE ≈ {calibre} (frutos por caja de {caja_kg:g} kg). El número de calibre baja al "
             "subir el peso del fruto. Orientativo: otros mercados usan otra caja/conteo y el grado "
@@ -709,8 +816,14 @@ def fruit_caliber_sample(pesos_g: list[float], *, caja_kg: float = 4.0) -> Calib
         + f"{caja_kg:g} kg; otros mercados usan otra base."
     )
     return CaliberSampleResult(
-        calibre_dominante=dominante, distribucion=dict(sorted(dist.items())), homogeneidad_pct=homog,
-        n=n, peso_medio_g=round(media, 1), cv_pct=cv, caja_kg=caja_kg, nota=nota,
+        calibre_dominante=dominante,
+        distribucion=dict(sorted(dist.items())),
+        homogeneidad_pct=homog,
+        n=n,
+        peso_medio_g=round(media, 1),
+        cv_pct=cv,
+        caja_kg=caja_kg,
+        nota=nota,
     )
 
 
@@ -735,14 +848,17 @@ def mip_action_threshold(
     media = conteo_total / n_unidades
     intervenir = media >= umbral
     return MipThresholdResult(
-        media_por_unidad=round(media, 2), umbral=umbral,
+        media_por_unidad=round(media, 2),
+        umbral=umbral,
         decision="intervenir" if intervenir else "monitorear",
         nota=(
             f"{round(media, 2)} por {unidad} vs umbral {umbral}. "
-            + ("Supera el umbral: interviene, pero prioriza control biológico/cultural antes del "
-               "químico (MIP) y rota modos de acción."
-               if intervenir else
-               "Por debajo del umbral: sigue monitoreando, no apliques aún.")
+            + (
+                "Supera el umbral: interviene, pero prioriza control biológico/cultural antes del "
+                "químico (MIP) y rota modos de acción."
+                if intervenir
+                else "Por debajo del umbral: sigue monitoreando, no apliques aún."
+            )
             + " El umbral lo define tu protocolo/agrónomo y la plaga; la app no lo inventa."
         ),
     )
@@ -756,26 +872,28 @@ def mip_action_threshold(
 # meta de rendimiento, edad, suelo, clima y análisis. La app reparte la cifra que TÚ das con un esquema
 # ORIENTATIVO (editable) y avisa de los antipatrones; el plan fino lo fija tu agrónomo.
 N_SPLIT_DEFAULT: dict[str, float] = {
-    "reposo": 0.15,      # postcosecha/reposo: reposición de reservas
-    "floracion": 0.10,   # BAJO en plena flor (evita caída y exceso vegetativo)
-    "cuaje": 0.25,       # alta demanda al fijar fruto
+    "reposo": 0.15,  # postcosecha/reposo: reposición de reservas
+    "floracion": 0.10,  # BAJO en plena flor (evita caída y exceso vegetativo)
+    "cuaje": 0.25,  # alta demanda al fijar fruto
     "desarrollo": 0.30,  # expansión del fruto: el pico de demanda
-    "llenado": 0.20,     # cierre de llenado
+    "llenado": 0.20,  # cierre de llenado
 }
 
 
 @dataclass
 class NitrogenSplitResult:
     n_total_kg_ha: float
-    reparto_kg_ha: dict[str, float]   # etapa -> kg/ha
-    reparto_pct: dict[str, float]     # etapa -> % del total
+    reparto_kg_ha: dict[str, float]  # etapa -> kg/ha
+    reparto_pct: dict[str, float]  # etapa -> % del total
     n_arbol_g: dict[str, float] | None  # g/árbol si se da la densidad
     nota: str
     alertas: list[str] = field(default_factory=list)
 
 
 def nitrogen_split(
-    n_total_kg_ha: float, *, fracciones: dict[str, float] | None = None,
+    n_total_kg_ha: float,
+    *,
+    fracciones: dict[str, float] | None = None,
     arboles_por_ha: float | None = None,
 ) -> NitrogenSplitResult:
     """Reparte el N total anual (kg/ha) entre etapas fenológicas. Si no das `fracciones`, usa un esquema
@@ -815,6 +933,10 @@ def nitrogen_split(
         "de rendimiento, edad, suelo, clima y análisis foliar+suelo. Confírmalo con tu agrónomo."
     )
     return NitrogenSplitResult(
-        n_total_kg_ha=n_total_kg_ha, reparto_kg_ha=reparto, reparto_pct=reparto_pct,
-        n_arbol_g=n_arbol, nota=nota, alertas=alertas,
+        n_total_kg_ha=n_total_kg_ha,
+        reparto_kg_ha=reparto,
+        reparto_pct=reparto_pct,
+        n_arbol_g=n_arbol,
+        nota=nota,
+        alertas=alertas,
     )

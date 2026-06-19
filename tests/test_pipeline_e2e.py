@@ -36,7 +36,9 @@ class _RecoveringLLM:
 
     def __init__(self, broken: str) -> None:
         self._broken = broken
-        self.good = "Según la fuente, aplica un plan de manejo integrado [1].\nSEGUIMIENTO:\n- ¿Y el riego?"
+        self.good = (
+            "Según la fuente, aplica un plan de manejo integrado [1].\nSEGUIMIENTO:\n- ¿Y el riego?"
+        )
 
     def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
         if "faithful" in system.lower() or "seguro" in system.lower():
@@ -54,7 +56,9 @@ class _AbstainingLLM:
     name = "abstain"
 
     def complete(self, system, user, *, temperature=None, max_tokens=None) -> str:
-        return "NO_LO_SE\n\nSEGUIMIENTO:\n- ¿Cuál es tu tipo de suelo?\n- ¿Hiciste análisis de suelo?"
+        return (
+            "NO_LO_SE\n\nSEGUIMIENTO:\n- ¿Cuál es tu tipo de suelo?\n- ¿Hiciste análisis de suelo?"
+        )
 
     def stream(self, system, user, *, temperature=None, max_tokens=None):
         for word in self.complete(system, user).split(" "):
@@ -125,7 +129,11 @@ def test_answer_stream_conversational_solo_final(monkeypatch) -> None:
 
 def test_answer_regenera_si_deriva_a_chino(monkeypatch) -> None:
     chino = "[6] 根据计算，土壤中钾的含量为274.83 kg K/ha。建议施用钾肥。"
-    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass con potasio.")], llm=_RecoveringLLM(chino))
+    _wire(
+        monkeypatch,
+        [_chunk("Plan de fertilización del Hass con potasio.")],
+        llm=_RecoveringLLM(chino),
+    )
     ans = P.answer("¿Cuál es el plan de fertilización del Hass?")
     assert "钾" not in ans.text  # no chino en la respuesta final
     assert ans.text.strip()  # no vacía
@@ -147,7 +155,11 @@ def test_answer_stream_resetea_y_recupera_ante_deriva(monkeypatch) -> None:
 def test_answer_regenera_si_cuerpo_vacio(monkeypatch) -> None:
     # El modelo solo emite la sección SEGUIMIENTO: -> cuerpo vacío -> debe regenerar.
     solo_seguimiento = "SEGUIMIENTO:\n- ¿Cuál es tu tipo de suelo?\n- ¿Hiciste análisis de suelo?"
-    _wire(monkeypatch, [_chunk("Plan de fertilización del Hass.")], llm=_RecoveringLLM(solo_seguimiento))
+    _wire(
+        monkeypatch,
+        [_chunk("Plan de fertilización del Hass.")],
+        llm=_RecoveringLLM(solo_seguimiento),
+    )
     ans = P.answer("¿Cuál es el plan de fertilización del Hass?")
     assert len(ans.text.strip()) > 20  # ya no sale vacía
 
@@ -175,7 +187,9 @@ def test_pregunta_fijada_se_sirve_sin_recuperacion(monkeypatch) -> None:
 def test_cat_tox_no_fuerza_rojo_si_no_hay_plaguicida(monkeypatch) -> None:
     # Un fragmento con categoría toxicológica I/II NO debe volver ROJO una respuesta que NO
     # recomienda ese plaguicida (biocontrol/manejo). Antes: cat I/II del chunk -> rojo falso.
-    chunk = _chunk("El trips se maneja con monitoreo y control biológico.", categoria_toxicologica="I")
+    chunk = _chunk(
+        "El trips se maneja con monitoreo y control biológico.", categoria_toxicologica="I"
+    )
     _wire(monkeypatch, [chunk])
     ans = P.answer("¿Cómo manejo los trips en aguacate Hass?")
     assert ans.semaforo.value != "rojo"
@@ -191,9 +205,13 @@ def test_targeted_quote_limpia_ruido() -> None:
     # Quita sintaxis de tabla, números de página sueltos y une cortes de línea del PDF.
     q1 = P._targeted_quote("|Elemento|0-15<br>cm| |---|---| |pH|5,33|Fuertemente<br>ácido|")
     assert "|" not in q1 and "<br>" not in q1 and "---" not in q1
-    q2 = P._targeted_quote("32 32 32 En este escenario la fertilización es clave para el suelo del Hass.")
+    q2 = P._targeted_quote(
+        "32 32 32 En este escenario la fertilización es clave para el suelo del Hass."
+    )
     assert q2.startswith("En este escenario")
-    q3 = P._targeted_quote("La interpre- tación del análisis foliar del aguacate Hass es importante.")
+    q3 = P._targeted_quote(
+        "La interpre- tación del análisis foliar del aguacate Hass es importante."
+    )
     assert "interpretación" in q3.lower()
 
 
@@ -227,7 +245,11 @@ def test_tic_no_lo_se_no_mata_la_respuesta(monkeypatch) -> None:
             for w in self.complete(system, user).split(" "):
                 yield w + " "
 
-    _wire(monkeypatch, [_chunk("El trips se maneja con monitoreo y control biológico.")], llm=_TicLLM())
+    _wire(
+        monkeypatch,
+        [_chunk("El trips se maneja con monitoreo y control biológico.")],
+        llm=_TicLLM(),
+    )
     ans = P.answer("¿Cómo manejo los trips en aguacate Hass?")
     assert not ans.abstained
     assert "manejo integrado" in ans.text and "NO_LO_SE" not in ans.text
@@ -281,7 +303,11 @@ def test_marco_inseguro_duplicar_dosis_es_rojo(monkeypatch) -> None:
             for w in self.complete(system, user).split(" "):
                 yield w + " "
 
-    _wire(monkeypatch, [_chunk("El trips del aguacate Hass se maneja con manejo integrado.")], llm=_AgreeLLM())
+    _wire(
+        monkeypatch,
+        [_chunk("El trips del aguacate Hass se maneja con manejo integrado.")],
+        llm=_AgreeLLM(),
+    )
     ans = P.answer("Si duplico la dosis del insecticida, ¿controlo mejor el trips del aguacate?")
     assert ans.semaforo.value == "rojo"
     assert "premisa insegura" in (ans.reason or "").lower()

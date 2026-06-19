@@ -23,7 +23,12 @@ class _FakeSession:
 def test_comentario_se_guarda_hasheado():
     s = _FakeSession()
     fb = submit_feedback(
-        s, tenant="demo", response_id=uuid.uuid4(), util=False, motivo="peligrosa", comentario="texto sensible"
+        s,
+        tenant="demo",
+        response_id=uuid.uuid4(),
+        util=False,
+        motivo="peligrosa",
+        comentario="texto sensible",
     )
     assert fb.comentario_sha256 and fb.comentario_sha256 != "texto sensible"
     assert len(fb.comentario_sha256) == 64 and fb.util is False
@@ -37,4 +42,6 @@ def test_sin_comentario_hash_none():
 
 def test_motivo_invalido_lanza():
     with pytest.raises(ValueError, match="Motivo inválido"):
-        submit_feedback(_FakeSession(), tenant="d", response_id=uuid.uuid4(), util=True, motivo="meh")
+        submit_feedback(
+            _FakeSession(), tenant="d", response_id=uuid.uuid4(), util=True, motivo="meh"
+        )

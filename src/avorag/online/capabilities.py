@@ -60,9 +60,12 @@ def current_capabilities(*, now: datetime | None = None) -> dict:
     s = get_settings()
     llm_up = bool(s.llm_provider)
     reranker_up = s.rerank_provider.lower() != "none"
-    judge_independent = bool(s.judge_llm_provider) and (
-        s.judge_llm_provider != s.llm_provider
-        or (s.judge_llm_model and s.judge_llm_model != s.llm_model)
+    judge_independent = bool(
+        s.judge_llm_provider
+        and (
+            s.judge_llm_provider != s.llm_provider
+            or (s.judge_llm_model and s.judge_llm_model != s.llm_model)
+        )
     )
     feed_states: dict[FeedName, tuple[FreshnessState, datetime | None]] = {}
     try:

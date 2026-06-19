@@ -37,17 +37,29 @@ if hasattr(sys.stdout, "reconfigure"):
 
 # Mapeo verificado etapa del dataset -> clave canónica de src/avorag/vision/labels.py
 STAGE_TO_KEY: dict[str, str] = {
-    "1": "madurez_verde", "underripe": "madurez_verde", "under-ripe": "madurez_verde",
-    "2": "madurez_pinton", "breaking": "madurez_pinton",
-    "3": "madurez_maduro_inicial", "ripe first stage": "madurez_maduro_inicial",
-    "ripe (first stage)": "madurez_maduro_inicial", "first stage": "madurez_maduro_inicial",
-    "4": "madurez_maduro_optimo", "ripe second stage": "madurez_maduro_optimo",
-    "ripe (second stage)": "madurez_maduro_optimo", "second stage": "madurez_maduro_optimo",
-    "5": "madurez_sobremaduro", "overripe": "madurez_sobremaduro", "over-ripe": "madurez_sobremaduro",
+    "1": "madurez_verde",
+    "underripe": "madurez_verde",
+    "under-ripe": "madurez_verde",
+    "2": "madurez_pinton",
+    "breaking": "madurez_pinton",
+    "3": "madurez_maduro_inicial",
+    "ripe first stage": "madurez_maduro_inicial",
+    "ripe (first stage)": "madurez_maduro_inicial",
+    "first stage": "madurez_maduro_inicial",
+    "4": "madurez_maduro_optimo",
+    "ripe second stage": "madurez_maduro_optimo",
+    "ripe (second stage)": "madurez_maduro_optimo",
+    "second stage": "madurez_maduro_optimo",
+    "5": "madurez_sobremaduro",
+    "overripe": "madurez_sobremaduro",
+    "over-ripe": "madurez_sobremaduro",
 }
 CANON_KEYS = (
-    "madurez_verde", "madurez_pinton", "madurez_maduro_inicial",
-    "madurez_maduro_optimo", "madurez_sobremaduro",
+    "madurez_verde",
+    "madurez_pinton",
+    "madurez_maduro_inicial",
+    "madurez_maduro_optimo",
+    "madurez_sobremaduro",
 )
 FILENAME_HINTS = ("file", "image", "photo", "name", "archivo", "imagen", "foto")
 STAGE_HINTS = ("class", "stage", "ripen", "index", "madur", "etapa", "clasif")
@@ -76,7 +88,9 @@ def _read_rows(label_file: Path) -> list[dict[str, str]]:
     header = [_norm(c) if c is not None else "" for c in next(rows_iter)]
     out: list[dict[str, str]] = []
     for row in rows_iter:
-        out.append({header[i]: ("" if v is None else str(v)) for i, v in enumerate(row) if i < len(header)})
+        out.append(
+            {header[i]: ("" if v is None else str(v)) for i, v in enumerate(row) if i < len(header)}
+        )
     return out
 
 
@@ -89,9 +103,16 @@ def _pick_column(headers: list[str], hints: tuple[str, ...]) -> str | None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Organiza el dataset de madurez Hass en ImageFolder.")
-    ap.add_argument("--src", type=Path, required=True, help="Carpeta del dataset descargado (imágenes + planilla).")
+    ap.add_argument(
+        "--src",
+        type=Path,
+        required=True,
+        help="Carpeta del dataset descargado (imágenes + planilla).",
+    )
     ap.add_argument("--out", type=Path, default=Path("data/vision/madurez"))
-    ap.add_argument("--link", action="store_true", help="Enlaza (hardlink) en vez de copiar (ahorra disco).")
+    ap.add_argument(
+        "--link", action="store_true", help="Enlaza (hardlink) en vez de copiar (ahorra disco)."
+    )
     ap.add_argument("--dry-run", action="store_true", help="Solo cuenta; no escribe.")
     args = ap.parse_args()
 
@@ -101,7 +122,9 @@ def main() -> None:
     # 1) localizar la planilla de etiquetas
     sheets = sorted(p for p in args.src.rglob("*") if p.suffix.lower() in (".csv", ".xlsx", ".xls"))
     if not sheets:
-        sys.exit(f"No encontré planilla (.csv/.xlsx) en {args.src}. El dataset trae una con las etapas.")
+        sys.exit(
+            f"No encontré planilla (.csv/.xlsx) en {args.src}. El dataset trae una con las etapas."
+        )
     label_file = sheets[0]
     print(f"Planilla: {label_file}")
     rows = _read_rows(label_file)
@@ -160,11 +183,15 @@ def main() -> None:
     print("\nResumen por clase:")
     for key in CANON_KEYS:
         print(f"  {key:24s} {counts.get(key, 0)}")
-    print(f"Filas sin mapear (etapa/archivo): {unmapped} | imágenes referidas no encontradas: {missing}")
+    print(
+        f"Filas sin mapear (etapa/archivo): {unmapped} | imágenes referidas no encontradas: {missing}"
+    )
     if args.dry_run:
         print(f"\n(dry-run: no se escribió nada). Quita --dry-run para materializar en {args.out}")
     else:
-        print(f"\n✓ Listo en {args.out}. Ahora: uv run python scripts/train_vision.py --data-dir {args.out}")
+        print(
+            f"\n✓ Listo en {args.out}. Ahora: uv run python scripts/train_vision.py --data-dir {args.out}"
+        )
 
 
 if __name__ == "__main__":

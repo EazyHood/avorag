@@ -29,8 +29,30 @@ _PATTERNS = [
     ("greeting", _GREETING),
 ]
 _STOP = {
-    "de", "la", "el", "un", "una", "y", "o", "por", "con", "me", "te", "mi", "tu",
-    "si", "es", "las", "los", "que", "a", "en", "al", "del", "lo", "su",
+    "de",
+    "la",
+    "el",
+    "un",
+    "una",
+    "y",
+    "o",
+    "por",
+    "con",
+    "me",
+    "te",
+    "mi",
+    "tu",
+    "si",
+    "es",
+    "las",
+    "los",
+    "que",
+    "a",
+    "en",
+    "al",
+    "del",
+    "lo",
+    "su",
 }
 
 

@@ -28,7 +28,9 @@ log = get_logger(__name__)
 # Unidades agronómicas de dosis.
 # OJO: NO incluir "mm" — son milímetros de lluvia (clima), no una dosis fitosanitaria; incluirlos
 # marcaba "2.000 mm de lluvia" como dosis no respaldada y volvía ROJO respuestas de suelo/clima.
-_UNITS = r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3)"
+_UNITS = (
+    r"(?:%|ppm|cc\s?/\s?l|cc|ml|l\s?/\s?ha|kg\s?/\s?ha|g\s?/\s?l|g\s?/\s?ha|kg|gr|g|l|litros|cm3)"
+)
 # (?!\w) en lugar de \b: captura unidades que terminan en no-letra (p.ej. "1.8%").
 _DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s?" + _UNITS + r"(?!\w)", re.IGNORECASE)
 
@@ -480,7 +482,10 @@ def unsafe_framing(question: str, answer_text: str) -> tuple[bool, str]:
         return (False, "")
     if _REFUTATION_RE.search(_strip_accents(answer_text)):
         return (False, "")  # la respuesta corrige la premisa: es correcta
-    return (True, "premisa insegura no refutada (escalado de dosis / sin carencia / mezcla o riego peligrosos)")
+    return (
+        True,
+        "premisa insegura no refutada (escalado de dosis / sin carencia / mezcla o riego peligrosos)",
+    )
 
 
 # ── Cordura de dosis de FERTILIZANTE (no fitosanitario) ─────────────────────────────────────────
@@ -558,8 +563,10 @@ def resistance_reminder(answer_text: str) -> str | None:
     groups = mode_of_action_groups(answer_text)
     # Nudge MIP: el control biológico/cultural va PRIMERO (lo exige GlobalGAP); solo se añade si la
     # respuesta no lo menciona ya.
-    mip = "" if mentions_biocontrol(answer_text) else (
-        " Prioriza monitoreo + control biológico/cultural (MIP) antes del químico."
+    mip = (
+        ""
+        if mentions_biocontrol(answer_text)
+        else (" Prioriza monitoreo + control biológico/cultural (MIP) antes del químico.")
     )
     # Riesgo de resistencia por grupo: alto riesgo en INSECTICIDAS y fungicidas monositio (neonics,
     # avermectinas, diamidas, QoI, SDHI, metalaxil…), no solo FRAC 11/7. Cada uno con su razón.

@@ -101,7 +101,10 @@ def strict_lmr_for_destination(text: str, market: str | None = None) -> list[str
         return []
     nombre = data.get("nombre", m.upper())
     hits = _matches(text, data.get("lmr_estricto", []))
-    return [f"{it['ingrediente_activo']} (LMR estricto en {nombre}): {it.get('nota', '')}" for it in hits][:3]
+    return [
+        f"{it['ingrediente_activo']} (LMR estricto en {nombre}): {it.get('nota', '')}"
+        for it in hits
+    ][:3]
 
 
 def market_name(market: str | None = None) -> str:

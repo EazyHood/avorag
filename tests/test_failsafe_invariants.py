@@ -18,7 +18,15 @@ _CATII = DoseSafety(safe=True, issues=[], cat_i_ii=True)
 
 
 def _is_red(
-    *, banned, offlabel, doses_ok, phi_ok, registro_required, registro_ok, cat_tox, safety,
+    *,
+    banned,
+    offlabel,
+    doses_ok,
+    phi_ok,
+    registro_required,
+    registro_ok,
+    cat_tox,
+    safety,
     unsafe_framing,
 ):
     return (

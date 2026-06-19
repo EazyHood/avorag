@@ -26,32 +26,34 @@ from avorag.rag.schemas import Semaforo
 
 
 class FeedName(StrEnum):
-    ICA = "ica_simplifica"          # vigencia/cancelación de registros PQUA (SimplifICA)
-    IDEAM = "ideam"                 # clima (ETc/Kc/grados-día)
-    LMR_UE = "lmr_ue"               # límites máximos de residuos UE (Reg. 396/2005)
+    ICA = "ica_simplifica"  # vigencia/cancelación de registros PQUA (SimplifICA)
+    IDEAM = "ideam"  # clima (ETc/Kc/grados-día)
+    LMR_UE = "lmr_ue"  # límites máximos de residuos UE (Reg. 396/2005)
     TOL_EEUU = "tol_eeuu_40cfr180"  # tolerancias EE.UU. (40 CFR Parte 180)
-    PRECIOS = "precios"             # mercado
+    PRECIOS = "precios"  # mercado
 
 
 # Feeds cuyo dato es REGULATORIO/de-seguridad: si están no-frescos, VERDE queda PROHIBIDO.
 # IDEAM (clima) y PRECIOS NO son regulatorios: su caducidad NO debe bloquear una recomendación
 # fitosanitaria (sí degradar una de riego/precio, pero eso lo decide el dominio que los use).
-REGULATORY_FEEDS: frozenset[FeedName] = frozenset({FeedName.ICA, FeedName.LMR_UE, FeedName.TOL_EEUU})
+REGULATORY_FEEDS: frozenset[FeedName] = frozenset(
+    {FeedName.ICA, FeedName.LMR_UE, FeedName.TOL_EEUU}
+)
 
 # SLA de frescura por feed (segundos). Orientativo y configurable; debe coincidir con el
 # `ttl_seconds` del snapshot cuando exista. Un dato más viejo que esto se considera STALE.
 DEFAULT_TTL_SECONDS: dict[FeedName, int] = {
-    FeedName.ICA: 7 * 24 * 3600,       # registros ICA: revisión semanal
-    FeedName.LMR_UE: 7 * 24 * 3600,    # LMR UE: semanal
+    FeedName.ICA: 7 * 24 * 3600,  # registros ICA: revisión semanal
+    FeedName.LMR_UE: 7 * 24 * 3600,  # LMR UE: semanal
     FeedName.TOL_EEUU: 7 * 24 * 3600,  # tolerancias EE.UU.: semanal
-    FeedName.IDEAM: 6 * 3600,          # clima: horas
-    FeedName.PRECIOS: 24 * 3600,       # precios: diario
+    FeedName.IDEAM: 6 * 3600,  # clima: horas
+    FeedName.PRECIOS: 24 * 3600,  # precios: diario
 }
 
 
 class FreshnessState(StrEnum):
     OK = "ok"
-    STALE = "stale"      # hay snapshot, pero más viejo que su SLA
+    STALE = "stale"  # hay snapshot, pero más viejo que su SLA
     MISSING = "missing"  # no hay snapshot (feed nunca llegó o cayó sin caché)
 
 
@@ -77,7 +79,9 @@ def _ttl_for(feed: str, snapshot: FeedSnapshotView | None) -> int:
         return 24 * 3600  # desconocido → 1 día por defecto, conservador
 
 
-def freshness_state(snapshot: FeedSnapshotView | None, *, now: datetime | None = None) -> FreshnessState:
+def freshness_state(
+    snapshot: FeedSnapshotView | None, *, now: datetime | None = None
+) -> FreshnessState:
     """Estado de frescura de un snapshot. MISSING si no hay dato; STALE si superó su SLA; OK si no."""
     if snapshot is None or snapshot.as_of is None:
         return FreshnessState.MISSING
@@ -86,13 +90,19 @@ def freshness_state(snapshot: FeedSnapshotView | None, *, now: datetime | None =
     edad_s = (now - as_of).total_seconds()
     if edad_s < 0:
         return FreshnessState.OK  # dato "del futuro" (reloj/precarga): no lo tratamos como vencido
-    return FreshnessState.OK if edad_s <= _ttl_for(snapshot.feed_name, snapshot) else FreshnessState.STALE
+    return (
+        FreshnessState.OK
+        if edad_s <= _ttl_for(snapshot.feed_name, snapshot)
+        else FreshnessState.STALE
+    )
 
 
 # ── Detección de dependencia regulatoria de una respuesta (heurística, accent-insensitive) ──────
 def _strip(text: str) -> str:
     return "".join(
-        c for c in unicodedata.normalize("NFD", (text or "").lower()) if unicodedata.category(c) != "Mn"
+        c
+        for c in unicodedata.normalize("NFD", (text or "").lower())
+        if unicodedata.category(c) != "Mn"
     )
 
 

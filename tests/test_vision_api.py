@@ -28,7 +28,9 @@ def _enable_fake(monkeypatch) -> None:
     # `_ensure_enabled` usa get_vision_classifier; el endpoint /classify usa classify_image (que por
     # dentro va al registro real). Parcheamos ambos para que usen el fake de forma consistente.
     monkeypatch.setattr(RV, "get_vision_classifier", lambda: fake)
-    monkeypatch.setattr(RV, "classify_image", lambda data, top_k=3: fake.classify(data, top_k=top_k))
+    monkeypatch.setattr(
+        RV, "classify_image", lambda data, top_k=3: fake.classify(data, top_k=top_k)
+    )
 
 
 def test_classify_503_cuando_deshabilitado(monkeypatch) -> None:
@@ -74,9 +76,13 @@ def test_classify_413_demasiado_grande(monkeypatch) -> None:
 
 def test_diagnose_200_combina_vision_y_rag(monkeypatch) -> None:
     _enable_fake(monkeypatch)
-    top = VisionPrediction(label="trips", label_es="Trips (Thrips)", kind=VisionKind.PATOLOGIA, confidence=0.8)
+    top = VisionPrediction(
+        label="trips", label_es="Trips (Thrips)", kind=VisionKind.PATOLOGIA, confidence=0.8
+    )
     canned = VisionDiagnosis(
-        vision=VisionResult(kind=VisionKind.PATOLOGIA, top=top, predictions=[top], model_version="fake-v1"),
+        vision=VisionResult(
+            kind=VisionKind.PATOLOGIA, top=top, predictions=[top], model_version="fake-v1"
+        ),
         answer={"text": "Manejo integrado del trips [1].", "semaforo": "verde"},
     )
     captured: dict = {}

@@ -86,7 +86,9 @@ def _preprocess_np(image: bytes, size: int, mean: Any, std: Any) -> np.ndarray:
         raise ValueError("la imagen es demasiado grande; redúcela antes de subirla") from e
     except UnidentifiedImageError as e:
         hint = "" if _HEIC_OK else " Si es una foto HEIC de iPhone, conviértela a JPG."
-        raise ValueError(f"no reconozco el formato de esta imagen (usa JPG, PNG o WebP).{hint}") from e
+        raise ValueError(
+            f"no reconozco el formato de esta imagen (usa JPG, PNG o WebP).{hint}"
+        ) from e
     except OSError as e:
         raise ValueError("el archivo de imagen está incompleto o dañado; vuelve a subirlo") from e
     if img.mode in ("RGBA", "LA", "P"):  # aplana transparencia sobre blanco (evita fondo negro)
@@ -131,9 +133,7 @@ def _result_from_probs(
         for i in order
     ]
     top = preds[0] if preds else None
-    requires_review = (
-        top is None or top.confidence < min_conf or top.kind == VisionKind.DESCONOCIDO
-    )
+    requires_review = top is None or top.confidence < min_conf or top.kind == VisionKind.DESCONOCIDO
     return VisionResult(
         kind=top.kind if (top and not requires_review) else VisionKind.DESCONOCIDO,
         top=top,
@@ -168,7 +168,9 @@ class LocalVisionClassifier(VisionClassifier):
     ) -> None:
         s = get_settings()
         self._model_path = Path(model_path or s.vision_model_path)
-        self._labels_path = Path(labels_path or s.vision_labels_path or _default_labels_path(self._model_path))
+        self._labels_path = Path(
+            labels_path or s.vision_labels_path or _default_labels_path(self._model_path)
+        )
         self._device_pref = (device or s.vision_device or "auto").lower()
         self._min_conf = s.vision_min_confidence
 
@@ -225,8 +227,11 @@ class LocalVisionClassifier(VisionClassifier):
         with torch.no_grad():
             probs = torch.softmax(self._model(x), dim=1)[0]
         return _result_from_probs(
-            probs.tolist(), self._classes,
-            top_k=top_k, min_conf=self._min_conf, model_version=self.model_version,
+            probs.tolist(),
+            self._classes,
+            top_k=top_k,
+            min_conf=self._min_conf,
+            model_version=self.model_version,
         )
 
 
@@ -245,7 +250,9 @@ class OnnxVisionClassifier(VisionClassifier):
     ) -> None:
         s = get_settings()
         self._model_path = Path(model_path or s.vision_model_path)
-        self._labels_path = Path(labels_path or s.vision_labels_path or _default_labels_path(self._model_path))
+        self._labels_path = Path(
+            labels_path or s.vision_labels_path or _default_labels_path(self._model_path)
+        )
         self._min_conf = s.vision_min_confidence
 
         self._sess: Any | None = None
@@ -295,6 +302,9 @@ class OnnxVisionClassifier(VisionClassifier):
         logits = np.asarray(self._sess.run(None, {self._input_name: x})[0])[0]
         probs = _softmax(logits)
         return _result_from_probs(
-            probs.tolist(), self._classes,
-            top_k=top_k, min_conf=self._min_conf, model_version=self.model_version,
+            probs.tolist(),
+            self._classes,
+            top_k=top_k,
+            min_conf=self._min_conf,
+            model_version=self.model_version,
         )
