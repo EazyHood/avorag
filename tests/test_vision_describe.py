@@ -41,7 +41,7 @@ def test_report_from_text_vacio_es_sin_sintomas():
 
 
 def test_to_jpeg_b64_convierte_png_transparente_a_jpeg():
-    from PIL import Image
+    Image = pytest.importorskip("PIL.Image")  # extra 'vision' (Pillow); se salta en CI puro
 
     buf = io.BytesIO()
     Image.new("RGBA", (40, 30), (0, 255, 0, 128)).save(buf, format="PNG")  # con transparencia
@@ -50,5 +50,6 @@ def test_to_jpeg_b64_convierte_png_transparente_a_jpeg():
 
 
 def test_to_jpeg_b64_rechaza_archivo_no_imagen():
+    pytest.importorskip("PIL")  # _to_jpeg_b64 importa Pillow (extra 'vision'); se salta en CI puro
     with pytest.raises(ValueError):
         _to_jpeg_b64(b"esto no es una imagen")
