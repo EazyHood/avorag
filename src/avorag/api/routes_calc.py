@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from avorag import agro_calc
 from avorag.logging import get_logger
+from avorag.online import calc_norms
 
 router = APIRouter(prefix="/api/calc", tags=["calc"])
 log = get_logger(__name__)
@@ -130,8 +131,14 @@ class MipThresholdIn(BaseModel):
 
 @router.post("/materia-seca")
 def materia_seca(body: DryMatterIn) -> dict:
+    norm_v: str | None = None
     try:
-        umbral = body.umbral_pct if body.umbral_pct is not None else agro_calc.resolve_dry_matter_target(body.objetivo)
+        if body.umbral_pct is not None:
+            umbral = body.umbral_pct
+        else:
+            # Online (AVORAG_ONLINE_NORMS=1): umbral desde norm_tables; si no, el default de agro_calc.
+            umbral2, norm_v = calc_norms.resolve_ms_umbral(body.objetivo)
+            umbral = umbral2 if umbral2 is not None else agro_calc.resolve_dry_matter_target(body.objetivo)
         if body.muestras:
             r = agro_calc.dry_matter_sample(body.muestras, umbral_pct=umbral)
         elif body.peso_fresco_g and body.peso_seco_g:
@@ -140,7 +147,10 @@ def materia_seca(body: DryMatterIn) -> dict:
             raise ValueError("Aporta `muestras` (%MS por fruto) o `peso_fresco_g` + `peso_seco_g`.")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return asdict(r)
+    out = asdict(r)
+    if norm_v:
+        out["norm_version"] = norm_v
+    return out
 
 
 @router.post("/encalado")
@@ -197,15 +207,25 @@ def riego(body: IrrigationIn) -> dict:
 
 @router.post("/salinidad")
 def salinidad(body: SalinityIn) -> dict:
+    ce_umbral = body.ce_umbral_suelo_dsm
+    norm_v: str | None = None
+    if ce_umbral is None:
+        # Online: CEe umbral por portainjerto desde norm_tables; si no, agro_calc lo deriva igual.
+        ce2, norm_v = calc_norms.resolve_ce_umbral(body.portainjerto)
+        if ce2 is not None:
+            ce_umbral = ce2
     try:
         r = agro_calc.salinity_assessment(
-            ce_agua_dsm=body.ce_agua_dsm, ce_umbral_suelo_dsm=body.ce_umbral_suelo_dsm,
+            ce_agua_dsm=body.ce_agua_dsm, ce_umbral_suelo_dsm=ce_umbral,
             portainjerto=body.portainjerto, na_meq_l=body.na_meq_l, ca_meq_l=body.ca_meq_l,
             mg_meq_l=body.mg_meq_l, hco3_meq_l=body.hco3_meq_l, co3_meq_l=body.co3_meq_l,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return asdict(r)
+    out = asdict(r)
+    if norm_v:
+        out["norm_version"] = norm_v
+    return out
 
 
 @router.post("/grados-dia")
