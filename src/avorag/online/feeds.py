@@ -32,7 +32,12 @@ from sqlalchemy.orm import Session
 
 from avorag.db.models_online import FeedSnapshot
 from avorag.logging import get_logger
-from avorag.rag.freshness import DEFAULT_TTL_SECONDS, FeedName, FeedSnapshotView
+from avorag.rag.freshness import (
+    DEFAULT_TTL_SECONDS,
+    FeedName,
+    FeedSnapshotView,
+    strip_accents,
+)
 
 log = get_logger(__name__)
 
@@ -237,7 +242,13 @@ DEFAULT_CSV_MAPPING: dict[FeedName, dict[str, str]] = {
         "tiene": "tiene_tolerancia",
     },
 }
-_FALSEY = {"false", "no", "0", "n", "f", ""}
+# Tokens que afirman INEQUÍVOCAMENTE aprobación/tolerancia. Cualquier OTRO valor NO afirmativo
+# (negativo explícito, o texto libre como 'no renovado'/'revocado') se trata por el LADO SEGURO.
+# La cadena VACÍA es "dato faltante" (desconocido), NO una afirmación negativa: NO está aquí ni se
+# interpreta como 'no aprobado' (así una columna ausente no provoca un over-block masivo).
+_APROBADO_TOKENS = {"si", "sí", "true", "1", "yes", "aprobado", "approved", "y", "t", "vigente"}
+# Negativos explícitos de tolerancia EE.UU. (el ppm es la verdad vinculante; estos solo refuerzan).
+_NO_TOL_TOKENS = {"no", "false", "n", "f", "0", "sin", "none", "no tiene", "sin tolerancia"}
 
 
 def _read_csv(path: str) -> list[dict]:
@@ -268,7 +279,11 @@ def _norm_lmr_ue(rows: list[dict], m: dict) -> dict:
         ia = str(r.get(m["ia"], "")).strip().lower()
         if not ia:
             continue
-        if str(r.get(m.get("aprobado", ""), "")).strip().lower() in _FALSEY:
+        estado = strip_accents(str(r.get(m.get("aprobado", ""), "")).strip())
+        if not estado:
+            continue  # celda vacía = dato faltante ⇒ 'desconocido' (ni aprobado ni no_aprobado)
+        if estado not in _APROBADO_TOKENS:
+            # Negativo explícito o texto ambiguo ('no renovado','revocado','pendiente') ⇒ lado seguro.
             no_ap.append(ia)
             continue
         with contextlib.suppress(ValueError, TypeError):
@@ -283,14 +298,19 @@ def _norm_eeuu(rows: list[dict], m: dict) -> dict:
         ia = str(r.get(m["ia"], "")).strip().lower()
         if not ia:
             continue
-        tiene = str(r.get(m.get("tiene", ""), "")).strip().lower()
+        tiene = strip_accents(str(r.get(m.get("tiene", ""), "")).strip())
         ppm = str(r.get(m.get("ppm", ""), "")).strip()
-        if tiene in _FALSEY and not ppm:
-            sin.append(ia)
-            continue
-        try:
-            tols[ia] = float(ppm.replace(",", "."))
-        except (ValueError, TypeError):
+        val: float | None = None
+        if ppm:
+            try:
+                val = float(ppm.replace(",", "."))
+            except (ValueError, TypeError):
+                val = None
+        # Afirma tolerancia SOLO con ppm numérico > 0 y sin negativo explícito. Lo demás (0 ppm, sin
+        # ppm, 'no', vacío) ⇒ sin_tolerancia (40 CFR 180: ausencia o 0 ppm = residuo violatorio).
+        if val is not None and val > 0 and tiene not in _NO_TOL_TOKENS:
+            tols[ia] = val
+        else:
             sin.append(ia)
     return {"avocado_tolerances_ppm": tols, "sin_tolerancia": sin}
 
@@ -315,7 +335,19 @@ class CsvFileProvider(FeedProvider):
         self._mapping = mapping or DEFAULT_CSV_MAPPING[feed]
 
     def fetch(self, *, now: datetime | None = None) -> FeedFetch:
-        payload = _CSV_NORMALIZERS[self.feed](_read_csv(self._path), self._mapping)
+        rows = _read_csv(self._path)
+        if rows:
+            present = set(rows[0].keys())
+            missing = [c for c in self._mapping.values() if c and c not in present]
+            if missing:
+                # Cabecera drifteada: avisa en vez de degradar columnas en silencio (over-block/under-block).
+                log.warning(
+                    "feed_csv_columns_missing",
+                    feed=self.feed.value,
+                    missing=missing,
+                    path=self._path,
+                )
+        payload = _CSV_NORMALIZERS[self.feed](rows, self._mapping)
         return FeedFetch(
             self.feed.value, _now(now), self.default_ttl_seconds, payload, f"file://{self._path}"
         )
@@ -361,22 +393,28 @@ def get_provider(feed: FeedName, *, mode: str = "fake") -> FeedProvider:
 
 # ── Lookups canónicos (PUROS) — lo que el guardarraíl consume ──────────────────────────────────
 def ica_status(payload: dict, ingrediente_activo: str) -> str:
-    """Estado de vigencia del registro ICA de un i.a.: 'vigente' | 'cancelado' | 'desconocido'."""
-    ia = (ingrediente_activo or "").strip().lower()
+    """Estado de vigencia del registro ICA de un i.a.: 'vigente' | 'cancelado' | 'desconocido'.
+
+    Compara SIN acentos (clorpirifós == clorpirifos) para no perder cruces por tildes feed↔lookup.
+    """
+    ia = strip_accents((ingrediente_activo or "").strip())
     for r in payload.get("registros", []):
-        if str(r.get("ingrediente_activo", "")).lower() == ia:
-            return str(r.get("estado", "desconocido")).lower()
+        if strip_accents(str(r.get("ingrediente_activo", ""))) == ia:
+            return str(r.get("estado", "desconocido")).strip().lower()
     return "desconocido"
 
 
 def ue_lmr(payload: dict, ingrediente_activo: str) -> tuple[str, float | None]:
-    """LMR UE de un i.a.: ('no_aprobado'|'aprobado'|'desconocido', valor_mg_kg|None)."""
-    ia = (ingrediente_activo or "").strip().lower()
-    if ia in {x.lower() for x in payload.get("no_aprobados", [])}:
+    """LMR UE de un i.a.: ('no_aprobado'|'aprobado'|'desconocido', valor_mg_kg|None). Sin acentos."""
+    ia = strip_accents((ingrediente_activo or "").strip())
+    if ia in {strip_accents(str(x)) for x in payload.get("no_aprobados", [])}:
         return ("no_aprobado", None)
-    lmr = {k.lower(): v for k, v in payload.get("lmr_mg_kg", {}).items()}
+    lmr = {strip_accents(str(k)): v for k, v in payload.get("lmr_mg_kg", {}).items()}
     if ia in lmr:
-        return ("aprobado", float(lmr[ia]))
+        try:
+            return ("aprobado", float(lmr[ia]))
+        except (TypeError, ValueError):
+            return ("aprobado", None)
     return ("desconocido", None)
 
 
@@ -384,17 +422,46 @@ def eeuu_tolerance(payload: dict, ingrediente_activo: str) -> tuple[bool, float 
     """Tolerancia EE.UU. (40 CFR 180) del par i.a.-AGUACATE: (tiene_tolerancia, ppm|None).
 
     La verdad vinculante es la tolerancia por par activo-aguacate: sin tolerancia ⇒ residuo violatorio.
+    Una tolerancia de 0 ppm NO autoriza: en 40 CFR 180 significa que cualquier residuo detectable es
+    violatorio (sin tolerancia efectiva). Compara sin acentos.
     """
-    ia = (ingrediente_activo or "").strip().lower()
-    tols = {k.lower(): v for k, v in payload.get("avocado_tolerances_ppm", {}).items()}
+    ia = strip_accents((ingrediente_activo or "").strip())
+    tols = {strip_accents(str(k)): v for k, v in payload.get("avocado_tolerances_ppm", {}).items()}
     if ia in tols:
-        return (True, float(tols[ia]))
-    if ia in {x.lower() for x in payload.get("sin_tolerancia", [])}:
+        try:
+            val = float(tols[ia])
+        except (TypeError, ValueError):
+            return (False, None)
+        return (val > 0, val if val > 0 else None)
+    if ia in {strip_accents(str(x)) for x in payload.get("sin_tolerancia", [])}:
         return (False, None)
     return (False, None)  # ausencia ≠ autorizado: por defecto, sin tolerancia conocida
 
 
 # ── Persistencia (migración 0005) ──────────────────────────────────────────────────────────────
+# Claves mínimas del payload canónico por feed REGULATORIO. Un payload sin ellas (esquema drifteado,
+# JSON/CSV roto) NO debe servirse como un feed "presente y fresco" con lookups vacíos: se marca
+# inválido para que la frescura lo trate como MISSING y el gate degrade, en vez de afirmar vigencia.
+_REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
+    FeedName.ICA.value: ("registros",),
+    FeedName.LMR_UE.value: ("lmr_mg_kg", "no_aprobados"),
+    FeedName.TOL_EEUU.value: ("avocado_tolerances_ppm", "sin_tolerancia"),
+}
+
+
+def payload_status(feed_name: str, payload: dict) -> str:
+    """'ok' si el payload trae el esquema canónico mínimo del feed; 'schema_invalid' si no.
+
+    Los feeds no regulatorios (sin esquema requerido) se consideran 'ok' (no bloqueantes).
+    """
+    req = _REQUIRED_KEYS.get(feed_name)
+    if req is None:
+        return "ok"
+    if not isinstance(payload, dict) or any(k not in payload for k in req):
+        return "schema_invalid"
+    return "ok"
+
+
 def upsert_snapshot(session: Session, fetch: FeedFetch) -> FeedSnapshot:
     """Inserta el snapshot si su (feed_name, sha256) no existe; idempotente (P-6). Devuelve la fila."""
     existing = session.scalar(
@@ -405,12 +472,15 @@ def upsert_snapshot(session: Session, fetch: FeedFetch) -> FeedSnapshot:
     )
     if existing is not None:
         return existing
+    status = payload_status(fetch.feed_name, fetch.payload)
+    if status != "ok":
+        log.warning("feed_payload_schema_invalid", feed=fetch.feed_name, sha256=fetch.sha256[:12])
     snap = FeedSnapshot(
         feed_name=fetch.feed_name,
         source_url=fetch.source_url,
         as_of=fetch.as_of,
         ttl_seconds=fetch.ttl_seconds,
-        status="ok",
+        status=status,
         sha256=fetch.sha256,
         payload=fetch.payload,
     )
@@ -433,8 +503,10 @@ def latest_snapshot(session: Session, feed: FeedName | str) -> FeedSnapshot | No
 def latest_view(session: Session, feed: FeedName | str) -> FeedSnapshotView | None:
     """Vista de frescura del snapshot más reciente (puente a `avorag.rag.freshness`)."""
     snap = latest_snapshot(session, feed)
-    if snap is None:
-        return None
+    if snap is None or (snap.status and snap.status != "ok"):
+        return (
+            None  # sin snapshot o esquema inválido ⇒ MISSING para la frescura (no afirma vigencia)
+        )
     return FeedSnapshotView(
         feed_name=snap.feed_name, as_of=snap.as_of, ttl_seconds=snap.ttl_seconds
     )

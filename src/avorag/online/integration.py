@@ -30,6 +30,9 @@ from avorag.rag.schemas import Answer, Semaforo
 log = get_logger(__name__)
 
 _TRUE = {"1", "true", "yes", "on", "si", "sí"}
+# Destinos con feed de residuo en vivo (UE→LMR, EE.UU.→40 CFR 180). Un destino de exportación FUERA de
+# este conjunto no se puede verificar y NO debe servirse como VERDE confiable (fail-closed de destino).
+_SUPPORTED_DEST_MARKETS = {"ue", "eeuu", "us", "usa"}
 
 
 def online_safety_enabled() -> bool:
@@ -71,21 +74,54 @@ def apply_online_safety(
     )
     sem, reason, reg_av = regulatory.apply_regulatory_findings(sem, reason, findings)
 
+    # Destino de exportación SIN feed de residuo mapeado (ni UE ni EE.UU.): no se puede confirmar la
+    # admisibilidad del residuo → no es un VERDE confiable (fail-closed para destinos no soportados).
+    dest_av: list[str] = []
+    if market and market not in _SUPPORTED_DEST_MARKETS:
+        aviso = (
+            f"No hay feed de residuos para el destino «{market}»: no se puede confirmar la "
+            "admisibilidad del residuo en ese mercado. Verifica el LMR/tolerancia del país de destino."
+        )
+        dest_av.append(aviso)
+        if sem is Semaforo.VERDE:
+            sem = Semaforo.AMARILLO
+            reason = f"Destino «{market}» sin verificación de residuo en vivo. {aviso}"
+
     answer.semaforo = sem
     answer.reason = reason
-    for aviso in (*fresh_av, *reg_av):
+    for aviso in (*fresh_av, *reg_av, *dest_av):
         if aviso and aviso not in answer.warnings:
             answer.warnings.append(aviso)
 
 
-def _degrade_unverified(answer: Answer) -> None:
-    """Fail-safe Modo 2: si no se pudo verificar en vivo, un VERDE no es confiable → AMARILLO."""
-    if answer.semaforo is Semaforo.VERDE:
+def _degrade_unverified(answer: Answer, *, has_fitosanitario: bool) -> None:
+    """Fail-safe: si NO se pudo verificar en vivo, no servir un dato sin confirmar (NO fail-open).
+
+    - Con recomendación fitosanitaria presente (i.a./dosis): CIERRA a ROJO — un dato de seguridad no
+      verificable sobre un fitosanitario no debe entregarse como consejo blando (AMARILLO).
+    - Sin fitosanitario: un VERDE no confiable baja a AMARILLO.
+    Nunca toca un ROJO ya decidido.
+    """
+    if answer.semaforo is Semaforo.ROJO:
+        return
+    if has_fitosanitario:
+        answer.semaforo = Semaforo.ROJO
+        answer.reason = (
+            "Modo online: no se pudo verificar en vivo el dato regulatorio de una recomendación "
+            "fitosanitaria; se bloquea por precaución hasta confirmar en la fuente oficial."
+        )
+        aviso = (
+            "Verificación regulatoria en vivo NO disponible sobre un fitosanitario: trátalo como NO "
+            "confirmado y verifica el registro/LMR en la fuente oficial antes de aplicar."
+        )
+    elif answer.semaforo is Semaforo.VERDE:
         answer.semaforo = Semaforo.AMARILLO
         answer.reason = "Modo online: no se pudo verificar el dato regulatorio en vivo; revísalo antes de actuar."
         aviso = "Verificación regulatoria en vivo no disponible: trata el dato como NO confirmado."
-        if aviso not in answer.warnings:
-            answer.warnings.append(aviso)
+    else:
+        return
+    if aviso not in answer.warnings:
+        answer.warnings.append(aviso)
 
 
 def apply_online_safety_for_tenant(
@@ -112,5 +148,7 @@ def apply_online_safety_for_tenant(
         with get_session(tenant=tenant) as session:
             apply_online_safety(session, answer, export_market=market, now=now)
     except Exception as exc:  # noqa: BLE001 — la seguridad online NUNCA debe tumbar la respuesta
+        # Solo se llega aquí con contexto fitosanitario (regulatory_feeds_for no vacío arriba): el
+        # fail-safe debe CERRAR (ROJO), no fail-open a AMARILLO.
         log.warning("online_safety_failed", error=str(exc))
-        _degrade_unverified(answer)
+        _degrade_unverified(answer, has_fitosanitario=True)
