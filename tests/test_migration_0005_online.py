@@ -13,7 +13,9 @@ from pathlib import Path
 def _load():
     path = (
         Path(__file__).resolve().parents[1]
-        / "migrations" / "versions" / "0005_online_feeds_norms_hitl.py"
+        / "migrations"
+        / "versions"
+        / "0005_online_feeds_norms_hitl.py"
     )
     spec = importlib.util.spec_from_file_location("mig0005", path)
     assert spec is not None and spec.loader is not None
@@ -34,8 +36,14 @@ def test_0005_creates_online_tables():
     for table in ("feed_snapshots", "norm_tables", "hitl_reviews", "feedback"):
         assert f"CREATE TABLE IF NOT EXISTS {table}" in blob, table
     # Trazabilidad y idempotencia en queries (P-3/P-6).
-    for col in ("response_id", "prompt_version", "model_version", "norm_version",
-                "feed_versions", "idempotency_key"):
+    for col in (
+        "response_id",
+        "prompt_version",
+        "model_version",
+        "norm_version",
+        "feed_versions",
+        "idempotency_key",
+    ):
         assert f"ADD COLUMN IF NOT EXISTS {col}" in blob, col
 
 

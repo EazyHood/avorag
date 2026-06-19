@@ -40,7 +40,10 @@ def main() -> None:
     pending = [q for q in items if q not in done]
     _BANK.parent.mkdir(parents=True, exist_ok=True)
     sig = prewarm._signature()
-    print(f"Banco: total={len(items)} hechas={len(done)} pendientes={len(pending)} | firma={sig}", flush=True)
+    print(
+        f"Banco: total={len(items)} hechas={len(done)} pendientes={len(pending)} | firma={sig}",
+        flush=True,
+    )
 
     with _BANK.open("a", encoding="utf-8") as fh:
         for i, q in enumerate(pending, 1):
@@ -53,7 +56,7 @@ def main() -> None:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
             fh.flush()
             if i % 5 == 0 or i == len(pending):
-                print(f"  {i}/{len(pending)}  ({time.time()-t0:.0f}s)  {q[:50]}", flush=True)
+                print(f"  {i}/{len(pending)}  ({time.time() - t0:.0f}s)  {q[:50]}", flush=True)
 
 
 if __name__ == "__main__":

@@ -92,7 +92,9 @@ def test_lluvia_y_suelo_no_son_dosis() -> None:
 def test_porcentaje_de_pendiente_no_es_dosis() -> None:
     # Falso positivo real: "pendiente del 10% al 20%, menores al 40%" no es concentración de plaguicida.
     txt = "Se recomienda una pendiente entre el 10% y el 20%, y no hay problema con pendientes menores al 40%."
-    ok, unsupported = dose_product_grounded(txt, [mk("topografía y drenaje del lote", cultivo="hass")])
+    ok, unsupported = dose_product_grounded(
+        txt, [mk("topografía y drenaje del lote", cultivo="hass")]
+    )
     assert ok and not unsupported
 
 
@@ -171,13 +173,20 @@ def test_unsafe_framing_se_levanta_si_la_respuesta_refuta() -> None:
 
 
 def test_unsafe_framing_cualquier_producto_y_sin_carencia() -> None:
-    assert unsafe_framing("¿Cualquier insecticida sirve a 5 cc/L para el trips?", "Sí, sirve [1].")[0]
-    assert unsafe_framing("Dame un insecticida sin periodo de carencia", "Usa este producto [1].")[0]
+    assert unsafe_framing("¿Cualquier insecticida sirve a 5 cc/L para el trips?", "Sí, sirve [1].")[
+        0
+    ]
+    assert unsafe_framing("Dame un insecticida sin periodo de carencia", "Usa este producto [1].")[
+        0
+    ]
 
 
 def test_unsafe_framing_pregunta_normal_no_marca() -> None:
     # Sin premisa peligrosa -> nunca se marca.
-    assert unsafe_framing("¿Cuál es la dosis de abamectina para el trips?", "Aplica 2,5 cc/L [1].")[0] is False
+    assert (
+        unsafe_framing("¿Cuál es la dosis de abamectina para el trips?", "Aplica 2,5 cc/L [1].")[0]
+        is False
+    )
 
 
 def test_semaforo_unsafe_framing_es_rojo() -> None:
@@ -238,11 +247,15 @@ def test_unsafe_framing_no_se_desarma_con_palabra_tema() -> None:
 def test_unsafe_framing_premisa_hidrica() -> None:
     # Encharcar/saturar el suelo (asfixia radical / Phytophthora) sin refutar -> ROJO.
     assert unsafe_framing(
-        "¿Mantengo el suelo siempre saturado para enfriar la raíz?", "Sí, mantén el suelo saturado [1]."
+        "¿Mantengo el suelo siempre saturado para enfriar la raíz?",
+        "Sí, mantén el suelo saturado [1].",
     )[0]
     # Si la respuesta refuta (asegura drenaje) -> no se marca.
     assert (
-        unsafe_framing("¿Encharco el lote para conservar humedad?", "No, evita el encharcamiento y asegura buen drenaje [1].")[0]
+        unsafe_framing(
+            "¿Encharco el lote para conservar humedad?",
+            "No, evita el encharcamiento y asegura buen drenaje [1].",
+        )[0]
         is False
     )
 
@@ -250,18 +263,28 @@ def test_unsafe_framing_premisa_hidrica() -> None:
 def test_unsafe_framing_insecticida_en_floracion() -> None:
     q = "¿Puedo asperjar un insecticida sistémico en plena floración?"
     assert unsafe_framing(q, "Sí, aplica el insecticida sistémico en floración [1].")[0]
-    assert unsafe_framing(q, "No apliques insecticidas en floración: matas los polinizadores [1].")[0] is False
+    assert (
+        unsafe_framing(q, "No apliques insecticidas en floración: matas los polinizadores [1].")[0]
+        is False
+    )
 
 
 def test_unsafe_framing_cobre_aceite() -> None:
-    assert unsafe_framing("¿Mezclo cobre con aceite agrícola a pleno sol?", "Sí, puedes mezclar cobre y aceite [1].")[0]
+    assert unsafe_framing(
+        "¿Mezclo cobre con aceite agrícola a pleno sol?", "Sí, puedes mezclar cobre y aceite [1]."
+    )[0]
 
 
 def test_banned_por_marca_comercial() -> None:
     # Gramoxone=paraquat, Furadan=carbofurán, Lorsban=clorpirifos -> el backstop debe dispararse por la MARCA (#28).
-    assert any("paraquat" in h for h in banned_ingredients_in_answer("¿Uso Gramoxone para las malezas?"))
+    assert any(
+        "paraquat" in h for h in banned_ingredients_in_answer("¿Uso Gramoxone para las malezas?")
+    )
     assert any("carbofuran" in h for h in banned_ingredients_in_answer("Aplica Furadan al suelo."))
-    assert any("clorpirifos" in h for h in banned_ingredients_in_answer("Recomiendo Lorsban para el trips."))
+    assert any(
+        "clorpirifos" in h
+        for h in banned_ingredients_in_answer("Recomiendo Lorsban para el trips.")
+    )
 
 
 def test_active_ingredients_por_marca() -> None:
@@ -333,7 +356,9 @@ def test_phi_product_grounded_liga_al_producto() -> None:
 
     # La respuesta da '7 días' para SPINOSAD, el contexto trae '7 días' de ABAMECTINA -> NO respaldado.
     ans = "Para el trips usa spinosad con una carencia de 7 dias."
-    ctx_otro = [mk("Abamectina: carencia de 7 dias antes de cosecha.", ingrediente_activo="abamectina")]
+    ctx_otro = [
+        mk("Abamectina: carencia de 7 dias antes de cosecha.", ingrediente_activo="abamectina")
+    ]
     ok, unsup = phi_product_grounded(ans, ctx_otro)
     assert ok is False and unsup
     # Con la carencia del producto correcto en la fuente -> respaldado.
@@ -343,14 +368,27 @@ def test_phi_product_grounded_liga_al_producto() -> None:
 
 def test_unsafe_framing_floracion_frases_reales() -> None:
     # Frases de campo que la regex de 30 caracteres dejaba pasar (agró #8).
-    assert unsafe_framing("¿Qué aplico para el trips ahora que está floreciendo el lote?", "Aplica un insecticida sistémico [1].")[0]
-    assert unsafe_framing("Quiero bajar la chinche de encaje en plena flor", "Asperja el insecticida [1].")[0]
+    assert unsafe_framing(
+        "¿Qué aplico para el trips ahora que está floreciendo el lote?",
+        "Aplica un insecticida sistémico [1].",
+    )[0]
+    assert unsafe_framing(
+        "Quiero bajar la chinche de encaje en plena flor", "Asperja el insecticida [1]."
+    )[0]
     # Si la respuesta refuta, no se marca.
-    assert unsafe_framing("¿Asperjo insecticida en floración?", "No, no asperjes insecticida en floración: matas los polinizadores [1].")[0] is False
+    assert (
+        unsafe_framing(
+            "¿Asperjo insecticida en floración?",
+            "No, no asperjes insecticida en floración: matas los polinizadores [1].",
+        )[0]
+        is False
+    )
 
 
 def test_unsafe_framing_cobre_en_floracion() -> None:
-    assert unsafe_framing("¿Le echo cobre aunque esté en plena floración?", "Sí, aplica el cobre igual [1].")[0]
+    assert unsafe_framing(
+        "¿Le echo cobre aunque esté en plena floración?", "Sí, aplica el cobre igual [1]."
+    )[0]
 
 
 def test_marca_ambigua_solo_con_contexto() -> None:

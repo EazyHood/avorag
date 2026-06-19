@@ -101,7 +101,9 @@ async def diagnose_route(
 
 @router.post("/health", response_model=HealthDiagnosis)
 async def health_route(
-    file: UploadFile = File(..., description="Foto de hoja/fruto con síntomas (JPG/PNG/WebP/HEIC)."),
+    file: UploadFile = File(
+        ..., description="Foto de hoja/fruto con síntomas (JPG/PNG/WebP/HEIC)."
+    ),
     country: str | None = Form(None),
     soil_type: str | None = Form(None),
     region: str | None = Form(None),

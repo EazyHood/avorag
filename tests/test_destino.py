@@ -22,7 +22,9 @@ from avorag.retrieval.types import ScoredChunk
 
 # ---------------- unitarios del módulo ----------------
 def test_detecta_activo_no_autorizado_en_ue() -> None:
-    hits = D.unauthorized_for_destination("Para el control aplica clorpirifos 0.5 L/ha", market="ue")
+    hits = D.unauthorized_for_destination(
+        "Para el control aplica clorpirifos 0.5 L/ha", market="ue"
+    )
     assert hits and "clorpirifos" in hits[0].lower()
     assert "europ" in hits[0].lower()  # nombra el mercado de destino
 
@@ -87,7 +89,10 @@ def _fake_session(tenant=None):
 
 def _chunk(content: str) -> ScoredChunk:
     chunk = SimpleNamespace(
-        id="c1", content=content, context=None, pagina=12,
+        id="c1",
+        content=content,
+        context=None,
+        pagina=12,
         meta={"fuente": "ICA - Manejo fitosanitario", "cultivo": "hass"},
     )
     return ScoredChunk(chunk=chunk, score=3.0)
@@ -114,7 +119,9 @@ def test_pipeline_fuerza_rojo_si_no_autorizado_en_destino(monkeypatch) -> None:
     monkeypatch.setattr(P, "get_embedding_provider", lambda: FakeEmbedding())
     monkeypatch.setattr(P, "get_llm_provider", lambda: _MancozebLLM())
     monkeypatch.setattr(G, "get_judge_llm_provider", lambda: FakeLLM())
-    monkeypatch.setattr(P, "hybrid_search", lambda *a, **k: [_chunk("mancozeb 2.5 g/L para antracnosis")])
+    monkeypatch.setattr(
+        P, "hybrid_search", lambda *a, **k: [_chunk("mancozeb 2.5 g/L para antracnosis")]
+    )
     monkeypatch.setattr(P, "rerank_chunks", lambda q, c, **k: c)
     monkeypatch.setattr(P, "get_session", _fake_session)
     monkeypatch.setattr(P, "_persist", lambda *a, **k: None)
@@ -135,7 +142,9 @@ def test_pipeline_no_rojo_sin_mercado_destino(monkeypatch) -> None:
     monkeypatch.setattr(P, "get_embedding_provider", lambda: FakeEmbedding())
     monkeypatch.setattr(P, "get_llm_provider", lambda: _MancozebLLM())
     monkeypatch.setattr(G, "get_judge_llm_provider", lambda: FakeLLM())
-    monkeypatch.setattr(P, "hybrid_search", lambda *a, **k: [_chunk("mancozeb 2.5 g/L para antracnosis")])
+    monkeypatch.setattr(
+        P, "hybrid_search", lambda *a, **k: [_chunk("mancozeb 2.5 g/L para antracnosis")]
+    )
     monkeypatch.setattr(P, "rerank_chunks", lambda q, c, **k: c)
     monkeypatch.setattr(P, "get_session", _fake_session)
     monkeypatch.setattr(P, "_persist", lambda *a, **k: None)
@@ -160,14 +169,22 @@ def test_archivos_destino_bien_formados_y_usables() -> None:
         assert isinstance(items, list) and items, f"{f.name}: no_autorizados vacío o ausente"
         market = data["mercado"]
         for it in items:
-            assert it.get("ingrediente_activo") and it.get("estado") and it.get("motivo"), f"{f.name}: entrada incompleta"
-            assert it["estado"] in {"no_aprobado", "retirado", "prohibido", "cancelado_epa", "sin_tolerancia"}, \
-                f"{f.name}: estado inválido {it['estado']}"
+            assert it.get("ingrediente_activo") and it.get("estado") and it.get("motivo"), (
+                f"{f.name}: entrada incompleta"
+            )
+            assert it["estado"] in {
+                "no_aprobado",
+                "retirado",
+                "prohibido",
+                "cancelado_epa",
+                "sin_tolerancia",
+            }, f"{f.name}: estado inválido {it['estado']}"
         # Round-trip: cada activo listado DEBE detectarse en un texto que lo menciona (la lista es usable).
         for it in items:
             ia = it["ingrediente_activo"]
-            assert D.unauthorized_for_destination(f"se recomienda aplicar {ia} en el cultivo", market=market), \
-                f"{f.name}: '{ia}' está en la lista pero no se detecta"
+            assert D.unauthorized_for_destination(
+                f"se recomienda aplicar {ia} en el cultivo", market=market
+            ), f"{f.name}: '{ia}' está en la lista pero no se detecta"
 
 
 def test_ue_conserva_activos_criticos() -> None:

@@ -24,14 +24,22 @@ def _asdict_ratios(d: dict) -> dict:
 
 
 class DryMatterIn(BaseModel):
-    peso_fresco_g: float | None = Field(None, gt=0, description="Peso de pulpa fresca (g), para 1 fruto.")
-    peso_seco_g: float | None = Field(None, gt=0, description="Peso seco a peso constante (g), para 1 fruto.")
-    muestras: list[float] | None = Field(
-        None, description="%MS por fruto (muestreo de 10-20 frutos). Si se da, prevalece sobre los pesos."
+    peso_fresco_g: float | None = Field(
+        None, gt=0, description="Peso de pulpa fresca (g), para 1 fruto."
     )
-    umbral_pct: float | None = Field(None, gt=0, le=100, description="Umbral de corte (%); por defecto 23.")
+    peso_seco_g: float | None = Field(
+        None, gt=0, description="Peso seco a peso constante (g), para 1 fruto."
+    )
+    muestras: list[float] | None = Field(
+        None,
+        description="%MS por fruto (muestreo de 10-20 frutos). Si se da, prevalece sobre los pesos.",
+    )
+    umbral_pct: float | None = Field(
+        None, gt=0, le=100, description="Umbral de corte (%); por defecto 23."
+    )
     objetivo: str | None = Field(
-        None, description="Objetivo nombrado: minimo_legal | exportacion | premium (si se da, fija el umbral)."
+        None,
+        description="Objetivo nombrado: minimo_legal | exportacion | premium (si se da, fija el umbral).",
     )
 
 
@@ -44,7 +52,9 @@ class LimingIn(BaseModel):
     psa_objetivo_pct: float = Field(agro_calc.AL_SAT_TARGET_DEFAULT, ge=0, le=100)
     factor_campo: float = Field(agro_calc.LIME_FIELD_FACTOR_DEFAULT, gt=0)
     prnt_pct: float = Field(100.0, gt=0, le=100)
-    densidad_aparente: float | None = Field(None, gt=0, description="Densidad aparente (g/cm³). <1,0 ⇒ andisol.")
+    densidad_aparente: float | None = Field(
+        None, gt=0, description="Densidad aparente (g/cm³). <1,0 ⇒ andisol."
+    )
     profundidad_cm: float = Field(20.0, gt=0, description="Profundidad de incorporación (cm).")
 
 
@@ -66,38 +76,58 @@ class FoliarIn(BaseModel):
 
 class IrrigationIn(BaseModel):
     eto_mm_dia: float = Field(..., ge=0, description="Evapotranspiración de referencia (mm/día).")
-    kc: float | None = Field(None, gt=0, description="Coeficiente de cultivo. Si se omite, se deriva de `etapa`.")
+    kc: float | None = Field(
+        None, gt=0, description="Coeficiente de cultivo. Si se omite, se deriva de `etapa`."
+    )
     etapa: str | None = Field(
-        None, description="Etapa fenológica (reposo/floracion/cuaje/desarrollo/llenado) para derivar Kc."
+        None,
+        description="Etapa fenológica (reposo/floracion/cuaje/desarrollo/llenado) para derivar Kc.",
     )
     precip_efectiva_mm_dia: float = Field(0.0, ge=0, description="Lluvia efectiva (mm/día).")
     eficiencia: float = Field(0.9, gt=0, le=1, description="Eficiencia del sistema de riego (0-1).")
     area_ha: float | None = Field(None, gt=0, description="Área (ha) para calcular volumen.")
-    fraccion_lavado: float = Field(0.0, ge=0, lt=1, description="Fracción de lavado por sales (0-1).")
-    capacidad_campo_pct: float | None = Field(None, gt=0, description="Capacidad de campo (% volumétrico).")
-    pmp_pct: float | None = Field(None, ge=0, description="Punto de marchitez permanente (% volumétrico).")
+    fraccion_lavado: float = Field(
+        0.0, ge=0, lt=1, description="Fracción de lavado por sales (0-1)."
+    )
+    capacidad_campo_pct: float | None = Field(
+        None, gt=0, description="Capacidad de campo (% volumétrico)."
+    )
+    pmp_pct: float | None = Field(
+        None, ge=0, description="Punto de marchitez permanente (% volumétrico)."
+    )
     densidad_aparente: float | None = Field(None, gt=0, description="Densidad aparente (g/cm³).")
-    profundidad_radical_cm: float | None = Field(None, gt=0, description="Profundidad radical efectiva (cm).")
-    agotamiento_permisible: float = Field(0.4, gt=0, le=1, description="Agotamiento permisible p (0-1).")
+    profundidad_radical_cm: float | None = Field(
+        None, gt=0, description="Profundidad radical efectiva (cm)."
+    )
+    agotamiento_permisible: float = Field(
+        0.4, gt=0, le=1, description="Agotamiento permisible p (0-1)."
+    )
 
 
 class SalinityIn(BaseModel):
     ce_agua_dsm: float = Field(..., ge=0, description="Conductividad eléctrica del agua (dS/m).")
     ce_umbral_suelo_dsm: float | None = Field(
-        None, gt=0, description="CEe umbral del suelo. Si se omite, se deriva del portainjerto (Hass ~1,3)."
+        None,
+        gt=0,
+        description="CEe umbral del suelo. Si se omite, se deriva del portainjerto (Hass ~1,3).",
     )
     portainjerto: str | None = Field(
-        None, description="Portainjerto (mexicano/guatemalteco/antillano) para ajustar el umbral CEe."
+        None,
+        description="Portainjerto (mexicano/guatemalteco/antillano) para ajustar el umbral CEe.",
     )
     na_meq_l: float | None = Field(None, ge=0, description="Sodio del agua (meq/L), para SAR.")
     ca_meq_l: float | None = Field(None, ge=0, description="Calcio del agua (meq/L), para SAR.")
     mg_meq_l: float | None = Field(None, ge=0, description="Magnesio del agua (meq/L), para SAR.")
-    hco3_meq_l: float | None = Field(None, ge=0, description="Bicarbonato del agua (meq/L), para RSC.")
+    hco3_meq_l: float | None = Field(
+        None, ge=0, description="Bicarbonato del agua (meq/L), para RSC."
+    )
     co3_meq_l: float | None = Field(None, ge=0, description="Carbonato del agua (meq/L), para RSC.")
 
 
 class GddIn(BaseModel):
-    temps: list[tuple[float, float]] = Field(..., description="Lista de (Tmax, Tmin) diarias desde cuaje.")
+    temps: list[tuple[float, float]] = Field(
+        ..., description="Lista de (Tmax, Tmin) diarias desde cuaje."
+    )
     t_base: float = Field(agro_calc.AVOCADO_TBASE_DEFAULT, description="Temperatura base (°C).")
     t_tope: float | None = Field(None, description="Tope superior opcional (°C).")
     objetivo_gdd: float | None = Field(None, gt=0, description="GDD objetivo (para % de progreso).")
@@ -110,21 +140,30 @@ class CaliberIn(BaseModel):
 
 
 class CaliberSampleIn(BaseModel):
-    pesos_g: list[float] = Field(..., min_length=1, description="Pesos de fruto (g) de la muestra/calibradora.")
+    pesos_g: list[float] = Field(
+        ..., min_length=1, description="Pesos de fruto (g) de la muestra/calibradora."
+    )
     caja_kg: float = Field(4.0, gt=0, description="Peso de la caja de referencia (kg). UE = 4.")
 
 
 class NitrogenSplitIn(BaseModel):
     n_total_kg_ha: float = Field(..., ge=0, description="Nitrógeno total anual (kg/ha).")
     fracciones: dict[str, float] | None = Field(
-        None, description="Reparto por etapa (etapa→fracción). Si se omite, usa el esquema orientativo."
+        None,
+        description="Reparto por etapa (etapa→fracción). Si se omite, usa el esquema orientativo.",
     )
-    arboles_por_ha: float | None = Field(None, gt=0, description="Densidad de árboles (para g/árbol).")
+    arboles_por_ha: float | None = Field(
+        None, gt=0, description="Densidad de árboles (para g/árbol)."
+    )
 
 
 class MipThresholdIn(BaseModel):
-    conteo_total: float = Field(..., ge=0, description="Conteo total observado (suma de las unidades).")
-    n_unidades: int = Field(..., gt=0, description="Número de unidades de monitoreo (trampas/plantas).")
+    conteo_total: float = Field(
+        ..., ge=0, description="Conteo total observado (suma de las unidades)."
+    )
+    n_unidades: int = Field(
+        ..., gt=0, description="Número de unidades de monitoreo (trampas/plantas)."
+    )
     umbral: float = Field(..., ge=0, description="Umbral de acción por unidad (de TU protocolo).")
     unidad: str = Field("trampa", description="Unidad de monitoreo (trampa/planta/rama).")
 
@@ -138,7 +177,11 @@ def materia_seca(body: DryMatterIn) -> dict:
         else:
             # Online (AVORAG_ONLINE_NORMS=1): umbral desde norm_tables; si no, el default de agro_calc.
             umbral2, norm_v = calc_norms.resolve_ms_umbral(body.objetivo)
-            umbral = umbral2 if umbral2 is not None else agro_calc.resolve_dry_matter_target(body.objetivo)
+            umbral = (
+                umbral2
+                if umbral2 is not None
+                else agro_calc.resolve_dry_matter_target(body.objetivo)
+            )
         if body.muestras:
             r = agro_calc.dry_matter_sample(body.muestras, umbral_pct=umbral)
         elif body.peso_fresco_g and body.peso_seco_g:
@@ -157,9 +200,15 @@ def materia_seca(body: DryMatterIn) -> dict:
 def encalado(body: LimingIn) -> dict:
     try:
         r = agro_calc.liming_by_al_saturation(
-            al=body.al, ca=body.ca, mg=body.mg, k=body.k, na=body.na,
-            psa_objetivo_pct=body.psa_objetivo_pct, factor_campo=body.factor_campo,
-            prnt_pct=body.prnt_pct, densidad_aparente=body.densidad_aparente,
+            al=body.al,
+            ca=body.ca,
+            mg=body.mg,
+            k=body.k,
+            na=body.na,
+            psa_objetivo_pct=body.psa_objetivo_pct,
+            factor_campo=body.factor_campo,
+            prnt_pct=body.prnt_pct,
+            densidad_aparente=body.densidad_aparente,
             profundidad_cm=body.profundidad_cm,
         )
     except ValueError as exc:
@@ -171,8 +220,19 @@ def encalado(body: LimingIn) -> dict:
 def relaciones_foliares(body: FoliarIn) -> dict:
     try:
         r = agro_calc.foliar_ratios(
-            n=body.n, p=body.p, k=body.k, ca=body.ca, mg=body.mg, s=body.s,
-            b=body.b, zn=body.zn, fe=body.fe, mn=body.mn, cu=body.cu, cl=body.cl, na=body.na,
+            n=body.n,
+            p=body.p,
+            k=body.k,
+            ca=body.ca,
+            mg=body.mg,
+            s=body.s,
+            b=body.b,
+            zn=body.zn,
+            fe=body.fe,
+            mn=body.mn,
+            cu=body.cu,
+            cl=body.cl,
+            na=body.na,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -194,10 +254,16 @@ def riego(body: IrrigationIn) -> dict:
                 raise ValueError("Aporta `kc` o una `etapa` fenológica para derivarlo.")
             kc = agro_calc.kc_aguacate(body.etapa)
         r = agro_calc.irrigation_requirement(
-            eto_mm_dia=body.eto_mm_dia, kc=kc, precip_efectiva_mm_dia=body.precip_efectiva_mm_dia,
-            eficiencia=body.eficiencia, area_ha=body.area_ha, fraccion_lavado=body.fraccion_lavado,
-            capacidad_campo_pct=body.capacidad_campo_pct, pmp_pct=body.pmp_pct,
-            densidad_aparente=body.densidad_aparente, profundidad_radical_cm=body.profundidad_radical_cm,
+            eto_mm_dia=body.eto_mm_dia,
+            kc=kc,
+            precip_efectiva_mm_dia=body.precip_efectiva_mm_dia,
+            eficiencia=body.eficiencia,
+            area_ha=body.area_ha,
+            fraccion_lavado=body.fraccion_lavado,
+            capacidad_campo_pct=body.capacidad_campo_pct,
+            pmp_pct=body.pmp_pct,
+            densidad_aparente=body.densidad_aparente,
+            profundidad_radical_cm=body.profundidad_radical_cm,
             agotamiento_permisible=body.agotamiento_permisible,
         )
     except ValueError as exc:
@@ -216,9 +282,14 @@ def salinidad(body: SalinityIn) -> dict:
             ce_umbral = ce2
     try:
         r = agro_calc.salinity_assessment(
-            ce_agua_dsm=body.ce_agua_dsm, ce_umbral_suelo_dsm=ce_umbral,
-            portainjerto=body.portainjerto, na_meq_l=body.na_meq_l, ca_meq_l=body.ca_meq_l,
-            mg_meq_l=body.mg_meq_l, hco3_meq_l=body.hco3_meq_l, co3_meq_l=body.co3_meq_l,
+            ce_agua_dsm=body.ce_agua_dsm,
+            ce_umbral_suelo_dsm=ce_umbral,
+            portainjerto=body.portainjerto,
+            na_meq_l=body.na_meq_l,
+            ca_meq_l=body.ca_meq_l,
+            mg_meq_l=body.mg_meq_l,
+            hco3_meq_l=body.hco3_meq_l,
+            co3_meq_l=body.co3_meq_l,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -232,8 +303,11 @@ def salinidad(body: SalinityIn) -> dict:
 def grados_dia(body: GddIn) -> dict:
     try:
         r = agro_calc.growing_degree_days(
-            [tuple(t) for t in body.temps], t_base=body.t_base, t_tope=body.t_tope,
-            objetivo_gdd=body.objetivo_gdd, metodo=body.metodo,
+            [(t[0], t[1]) for t in body.temps],
+            t_base=body.t_base,
+            t_tope=body.t_tope,
+            objetivo_gdd=body.objetivo_gdd,
+            metodo=body.metodo,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

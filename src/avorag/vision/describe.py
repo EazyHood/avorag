@@ -61,7 +61,7 @@ def _to_jpeg_b64(image: bytes) -> str:
 
     Image.MAX_IMAGE_PIXELS = 60_000_000
     try:
-        img = Image.open(io.BytesIO(image))
+        img: Image.Image = Image.open(io.BytesIO(image))
         img = ImageOps.exif_transpose(img).convert("RGB")
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
         raise ValueError("no pude leer la imagen (¿formato no soportado o archivo dañado?)") from e

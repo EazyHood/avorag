@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"  # ollama | anthropic | openai
     llm_model: str = "qwen2.5:7b-instruct"
     llm_temperature: float = 0.1
-    llm_max_tokens: int = 700  # respuestas concisas = generación más rápida (se ven igual con streaming)
+    llm_max_tokens: int = (
+        700  # respuestas concisas = generación más rápida (se ven igual con streaming)
+    )
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5-20251001"
     openai_api_key: str = ""
@@ -89,11 +91,15 @@ class Settings(BaseSettings):
     # --- Visión (identificación por foto: madurez/patología) ---
     # El módulo de visión SOLO identifica; el RAG aconseja con sus guardarraíles. Ver docs/VISION.md.
     vision_provider: str = "none"  # none | fake | local (TorchScript) | onnx (onnxruntime)
-    vision_model_path: str = "models/vision/model.pt"  # .pt (extra 'vision') o .onnx (extra 'vision-onnx')
+    vision_model_path: str = (
+        "models/vision/model.pt"  # .pt (extra 'vision') o .onnx (extra 'vision-onnx')
+    )
     vision_labels_path: str = ""  # vacío = labels.json junto al modelo
     vision_device: str = "auto"  # auto | cpu | cuda
     vision_min_confidence: float = 0.55  # bajo esto → requires_review (pedir mejor foto)
-    vision_image_max_bytes: int = 25_000_000  # 25 MB (cubre fotos de móvil grandes; HEIC pesa menos)
+    vision_image_max_bytes: int = (
+        25_000_000  # 25 MB (cubre fotos de móvil grandes; HEIC pesa menos)
+    )
     # Describidor visual de síntomas (VLM) → consulta al RAG (identifica plaga/enfermedad citado):
     vision_describer_provider: str = "none"  # none | fake | ollama (VLM local) | anthropic (Claude)
     vision_describer_model: str = ""  # vacío = llava:7b (ollama) o el modelo Claude por defecto

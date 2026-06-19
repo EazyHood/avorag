@@ -38,8 +38,12 @@ def _corpus_version() -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Precalcula el conocimiento citado por clase (uso offline).")
-    ap.add_argument("--out", type=Path, default=ROOT / "models" / "vision" / "knowledge_bundle.json")
+    ap = argparse.ArgumentParser(
+        description="Precalcula el conocimiento citado por clase (uso offline)."
+    )
+    ap.add_argument(
+        "--out", type=Path, default=ROOT / "models" / "vision" / "knowledge_bundle.json"
+    )
     ap.add_argument("--tenant", default=None, help="Tenant para el RAG (def: el de la config).")
     args = ap.parse_args()
 
@@ -86,7 +90,9 @@ def main() -> None:
     kb = args.out.stat().st_size / 1024
     citadas = sum(1 for e in entries.values() if e["citas"])
     print(f"\n✓ Bundle: {args.out} ({len(entries)} clases, {citadas} con citas, {kb:.0f} KB)")
-    print("  En la app: clasificador on-device → clase → muestra clases[clase].manejo + citas (offline).")
+    print(
+        "  En la app: clasificador on-device → clase → muestra clases[clase].manejo + citas (offline)."
+    )
 
 
 if __name__ == "__main__":

@@ -242,7 +242,9 @@ def test_dry_matter_objetivo_por_mercado() -> None:
 
 
 def test_api_materia_seca_objetivo_premium() -> None:
-    r = _client().post("/api/calc/materia-seca", json={"muestras": [24, 24, 24, 24, 24], "objetivo": "premium"})
+    r = _client().post(
+        "/api/calc/materia-seca", json={"muestras": [24, 24, 24, 24, 24], "objetivo": "premium"}
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["umbral_pct"] == 25.0 and body["veredicto"] == "limítrofe"  # 24 < 25 (premium)
@@ -277,9 +279,7 @@ def test_api_materia_seca_input_invalido_400() -> None:
 
 
 def test_api_encalado_ok() -> None:
-    r = _client().post(
-        "/api/calc/encalado", json={"al": 2.0, "ca": 3.0, "mg": 1.0, "k": 0.4}
-    )
+    r = _client().post("/api/calc/encalado", json={"al": 2.0, "ca": 3.0, "mg": 1.0, "k": 0.4})
     assert r.status_code == 200
     assert r.json()["requiere_encalado"] is True
 
@@ -300,7 +300,9 @@ def test_api_foliar_con_boro_zinc() -> None:
 
 
 def test_api_materia_seca_muestras() -> None:
-    r = _client().post("/api/calc/materia-seca", json={"muestras": [22, 23, 24, 25, 23], "umbral_pct": 23})
+    r = _client().post(
+        "/api/calc/materia-seca", json={"muestras": [22, 23, 24, 25, 23], "umbral_pct": 23}
+    )
     assert r.status_code == 200
     assert r.json()["n_muestras"] == 5
 
@@ -355,9 +357,7 @@ def test_salinidad_portainjerto_ajusta_umbral() -> None:
 
 def test_salinidad_rsc_bicarbonatos() -> None:
     # HCO3 alto frente a Ca+Mg bajo -> RSC alto -> agua no apta sin enmienda.
-    r = agro_calc.salinity_assessment(
-        ce_agua_dsm=0.8, ca_meq_l=1.0, mg_meq_l=0.5, hco3_meq_l=5.0
-    )
+    r = agro_calc.salinity_assessment(ce_agua_dsm=0.8, ca_meq_l=1.0, mg_meq_l=0.5, hco3_meq_l=5.0)
     assert r.rsc_meq_l == 3.5  # (5+0) - (1+0.5)
     assert any("RSC" in a for a in r.alertas)
 
@@ -370,8 +370,12 @@ def test_riego_fraccion_lavado_sube_bruta() -> None:
 
 def test_riego_balance_suelo_intervalo() -> None:
     r = agro_calc.irrigation_requirement(
-        eto_mm_dia=5, kc=0.8, capacidad_campo_pct=30, pmp_pct=15,
-        densidad_aparente=1.2, profundidad_radical_cm=40,
+        eto_mm_dia=5,
+        kc=0.8,
+        capacidad_campo_pct=30,
+        pmp_pct=15,
+        densidad_aparente=1.2,
+        profundidad_radical_cm=40,
     )
     assert r.taw_mm is not None and r.raw_mm is not None
     assert r.intervalo_riego_dias is not None
@@ -430,25 +434,19 @@ def test_api_riego_sin_kc_ni_etapa() -> None:
 
 
 def test_api_grados_dia_metodo() -> None:
-    r = _client().post(
-        "/api/calc/grados-dia", json={"temps": [[20, 5], [20, 5]], "metodo": "seno"}
-    )
+    r = _client().post("/api/calc/grados-dia", json={"temps": [[20, 5], [20, 5]], "metodo": "seno"})
     assert r.status_code == 200
     assert r.json()["metodo"] == "seno"
 
 
 def test_api_salinidad_portainjerto() -> None:
-    r = _client().post(
-        "/api/calc/salinidad", json={"ce_agua_dsm": 1.2, "portainjerto": "mexicano"}
-    )
+    r = _client().post("/api/calc/salinidad", json={"ce_agua_dsm": 1.2, "portainjerto": "mexicano"})
     assert r.status_code == 200
     assert r.json()["ce_umbral_suelo_dsm"] == 1.0
 
 
 def test_api_calibre_muestra() -> None:
-    r = _client().post(
-        "/api/calc/calibre-muestra", json={"pesos_g": [200, 210, 205, 195]}
-    )
+    r = _client().post("/api/calc/calibre-muestra", json={"pesos_g": [200, 210, 205, 195]})
     assert r.status_code == 200
     body = r.json()
     assert body["n"] == 4

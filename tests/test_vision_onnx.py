@@ -27,8 +27,13 @@ def test_result_from_probs_top_y_orden() -> None:
 
 
 def test_result_from_probs_baja_confianza_requiere_revision() -> None:
-    r = C._result_from_probs([0.4, 0.35, 0.25], ["madurez_verde", "trips", "sano"],
-                             top_k=2, min_conf=0.55, model_version="t")
+    r = C._result_from_probs(
+        [0.4, 0.35, 0.25],
+        ["madurez_verde", "trips", "sano"],
+        top_k=2,
+        min_conf=0.55,
+        model_version="t",
+    )
     assert r.requires_review and r.kind == VisionKind.DESCONOCIDO
     assert len(r.predictions) == 2  # respeta top_k
 
@@ -57,5 +62,7 @@ def test_registry_onnx_devuelve_onnx_classifier(monkeypatch) -> None:
 
 def test_onnx_available_false_sin_modelo() -> None:
     # Instanciar NO importa onnxruntime (lazy); available solo mira el disco.
-    clf = OnnxVisionClassifier(model_path="no/existe/model.onnx", labels_path="no/existe/labels.json")
+    clf = OnnxVisionClassifier(
+        model_path="no/existe/model.onnx", labels_path="no/existe/labels.json"
+    )
     assert clf.available is False

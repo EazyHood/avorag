@@ -30,7 +30,13 @@ class _FakeSession:
 
 def test_defaults_bien_formados():
     keys = {d["norm_key"] for d in norms.DEFAULT_NORMS}
-    assert {"foliar_suficiencia", "ms_objetivo", "ce_umbral_portainjerto", "gdd_t_base", "encalado"} <= keys
+    assert {
+        "foliar_suficiencia",
+        "ms_objetivo",
+        "ce_umbral_portainjerto",
+        "gdd_t_base",
+        "encalado",
+    } <= keys
     for d in norms.DEFAULT_NORMS:
         assert d["norm_version"] and isinstance(d["params"], dict)
 
@@ -48,11 +54,17 @@ def test_get_norm_fallback_si_db_vacia():
 
 def test_get_norm_lee_de_db_si_hay_fila():
     fila = SimpleNamespace(
-        norm_key="gdd_t_base", norm_version="2026-09-01", scope={"cultivo": "hass"},
-        params={"t_base": 9.0}, fuente="calibrada Antioquia", vigente=True,
+        norm_key="gdd_t_base",
+        norm_version="2026-09-01",
+        scope={"cultivo": "hass"},
+        params={"t_base": 9.0},
+        fuente="calibrada Antioquia",
+        vigente=True,
     )
     n = norms.get_norm(_FakeSession(scalars=[fila]), "gdd_t_base", scope={"cultivo": "hass"})
-    assert n["source"] == "db" and n["params"]["t_base"] == 9.0 and n["norm_version"] == "2026-09-01"
+    assert (
+        n["source"] == "db" and n["params"]["t_base"] == 9.0 and n["norm_version"] == "2026-09-01"
+    )
 
 
 def test_get_norm_desconocida_lanza_keyerror():

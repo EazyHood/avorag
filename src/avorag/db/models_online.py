@@ -36,10 +36,10 @@ class FeedSnapshot(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     feed_name: Mapped[str] = mapped_column(String(32))  # CHECK en la migración
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True))            # fecha-de-dato de la fuente
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # fecha-de-dato de la fuente
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    ttl_seconds: Mapped[int] = mapped_column(Integer)                           # SLA de frescura
-    status: Mapped[str] = mapped_column(String(16), default="ok")              # ok|stale|error
+    ttl_seconds: Mapped[int] = mapped_column(Integer)  # SLA de frescura
+    status: Mapped[str] = mapped_column(String(16), default="ok")  # ok|stale|error
     sha256: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -51,9 +51,11 @@ class NormTable(Base):
     __tablename__ = "norm_tables"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    norm_key: Mapped[str] = mapped_column(String(64))           # foliar_suficiencia, ce_umbral_portainjerto…
+    norm_key: Mapped[str] = mapped_column(String(64))  # foliar_suficiencia, ce_umbral_portainjerto…
     norm_version: Mapped[str] = mapped_column(String(32))
-    scope: Mapped[dict] = mapped_column(JSONB, default=dict)    # {mercado,cultivar,portainjerto,laboratorio,pais}
+    scope: Mapped[dict] = mapped_column(
+        JSONB, default=dict
+    )  # {mercado,cultivar,portainjerto,laboratorio,pais}
     params: Mapped[dict] = mapped_column(JSONB, default=dict)
     fuente: Mapped[str | None] = mapped_column(Text, nullable=True)
     as_of: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -68,9 +70,11 @@ class HitlReview(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tenant: Mapped[str] = mapped_column(String(64), index=True)
-    query_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("queries.id", ondelete="CASCADE"), index=True)
+    query_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("queries.id", ondelete="CASCADE"), index=True
+    )
     reviewer_id: Mapped[str] = mapped_column(String(64))
-    decision: Mapped[str] = mapped_column(String(16))          # pending|approved|rejected|edited
+    decision: Mapped[str] = mapped_column(String(16))  # pending|approved|rejected|edited
     edited_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     signature: Mapped[str | None] = mapped_column(Text, nullable=True)  # no-repudio (hash firmado)
@@ -85,9 +89,11 @@ class Feedback(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tenant: Mapped[str] = mapped_column(String(64), index=True)
-    response_id: Mapped[uuid.UUID] = mapped_column(Uuid)        # correlaciona con queries.response_id
+    response_id: Mapped[uuid.UUID] = mapped_column(Uuid)  # correlaciona con queries.response_id
     util: Mapped[bool] = mapped_column(Boolean)
     motivo: Mapped[str | None] = mapped_column(String(16), nullable=True)  # incorrecta|incompleta|…
     comentario_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    user_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)  # id de usuario hasheado
+    user_ref: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )  # id de usuario hasheado
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

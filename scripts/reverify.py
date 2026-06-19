@@ -19,7 +19,9 @@ _IN = _ROOT / "data" / "eval" / "sweep_results.jsonl"
 
 def main() -> None:
     target = sys.argv[1] if len(sys.argv) > 1 else "rojo"
-    rows = [json.loads(line) for line in _IN.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [
+        json.loads(line) for line in _IN.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     sel = [r for r in rows if r.get("semaforo") == target and "error" not in r]
     print(f"Re-corriendo {len(sel)} preguntas que antes fueron '{target}'...", flush=True)
     out = _ROOT / "data" / "eval" / f"reverify_{target}.jsonl"

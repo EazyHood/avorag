@@ -31,7 +31,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Exporta un modelo de visión TorchScript a ONNX.")
     ap.add_argument("--model", type=Path, required=True, help="Ruta del modelo TorchScript .pt.")
     ap.add_argument("--out", type=Path, default=None, help="Salida .onnx (def: junto al .pt).")
-    ap.add_argument("--img-size", type=int, default=224, help="Solo si no hay labels.json contiguo.")
+    ap.add_argument(
+        "--img-size", type=int, default=224, help="Solo si no hay labels.json contiguo."
+    )
     ap.add_argument("--opset", type=int, default=17)
     args = ap.parse_args()
 

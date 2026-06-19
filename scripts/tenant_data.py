@@ -58,10 +58,19 @@ def _export(tenant: str, out: Path) -> dict[str, int]:
         counts["documentos"] = _jsonl(
             [
                 {
-                    "id": str(d.id), "fuente": d.fuente, "titulo": d.titulo, "pais": d.pais,
-                    "cultivo": d.cultivo, "licencia": d.licencia, "nivel_autoridad": d.nivel_autoridad,
-                    "fecha_publicacion": d.fecha_publicacion, "vigente": d.vigente, "sha256": d.sha256,
-                    "url": d.url, "doi": d.doi, "corpus_version": d.corpus_version,
+                    "id": str(d.id),
+                    "fuente": d.fuente,
+                    "titulo": d.titulo,
+                    "pais": d.pais,
+                    "cultivo": d.cultivo,
+                    "licencia": d.licencia,
+                    "nivel_autoridad": d.nivel_autoridad,
+                    "fecha_publicacion": d.fecha_publicacion,
+                    "vigente": d.vigente,
+                    "sha256": d.sha256,
+                    "url": d.url,
+                    "doi": d.doi,
+                    "corpus_version": d.corpus_version,
                     "created_at": d.created_at,
                 }
                 for d in docs
@@ -72,8 +81,13 @@ def _export(tenant: str, out: Path) -> dict[str, int]:
         counts["fragmentos"] = _jsonl(
             [
                 {
-                    "id": str(c.id), "document_id": str(c.document_id), "ordinal": c.ordinal,
-                    "pagina": c.pagina, "content": c.content, "context": c.context, "meta": c.meta,
+                    "id": str(c.id),
+                    "document_id": str(c.document_id),
+                    "ordinal": c.ordinal,
+                    "pagina": c.pagina,
+                    "content": c.content,
+                    "context": c.context,
+                    "meta": c.meta,
                 }
                 for c in chunks  # sin 'embedding': derivado, reconstruible
             ],
@@ -83,10 +97,16 @@ def _export(tenant: str, out: Path) -> dict[str, int]:
         counts["consultas"] = _jsonl(
             [
                 {
-                    "id": str(q.id), "created_at": q.created_at, "question": q.question,
-                    "answer": q.answer, "semaforo": q.semaforo, "abstained": q.abstained,
-                    "faithfulness": q.faithfulness, "citations": q.citations,
-                    "corpus_version": q.corpus_version, "latency_ms": q.latency_ms,
+                    "id": str(q.id),
+                    "created_at": q.created_at,
+                    "question": q.question,
+                    "answer": q.answer,
+                    "semaforo": q.semaforo,
+                    "abstained": q.abstained,
+                    "faithfulness": q.faithfulness,
+                    "citations": q.citations,
+                    "corpus_version": q.corpus_version,
+                    "latency_ms": q.latency_ms,
                 }
                 for q in queries
             ],
@@ -94,9 +114,14 @@ def _export(tenant: str, out: Path) -> dict[str, int]:
         )
     (out / "MANIFIESTO.json").write_text(
         json.dumps(
-            {"tenant": tenant, "exportado": datetime.now().isoformat(), "conteos": counts,
-             "nota": "Datos del tenant en JSONL abierto. Los embeddings no se incluyen (derivados)."},
-            ensure_ascii=False, indent=2,
+            {
+                "tenant": tenant,
+                "exportado": datetime.now().isoformat(),
+                "conteos": counts,
+                "nota": "Datos del tenant en JSONL abierto. Los embeddings no se incluyen (derivados).",
+            },
+            ensure_ascii=False,
+            indent=2,
         ),
         "utf-8",
     )
@@ -111,21 +136,21 @@ def _purge(tenant: str) -> dict[str, int]:
 
     counts: dict[str, int] = {}
     with get_session(tenant=tenant) as s:
-        counts["fragmentos"] = s.scalar(
-            select(func.count()).select_from(Chunk).where(Chunk.tenant == tenant)
-        ) or 0
+        counts["fragmentos"] = (
+            s.scalar(select(func.count()).select_from(Chunk).where(Chunk.tenant == tenant)) or 0
+        )
         counts["documentos"] = s.execute(
             delete(Document).where(Document.tenant == tenant)
         ).rowcount  # los fragmentos caen por ON DELETE CASCADE
-        counts["consultas"] = s.execute(
-            delete(QueryLog).where(QueryLog.tenant == tenant)
-        ).rowcount
+        counts["consultas"] = s.execute(delete(QueryLog).where(QueryLog.tenant == tenant)).rowcount
         s.commit()
     return counts
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Exporta o borra los datos de un tenant (soberanía de datos).")
+    ap = argparse.ArgumentParser(
+        description="Exporta o borra los datos de un tenant (soberanía de datos)."
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
     pe = sub.add_parser("export", help="Vuelca los datos del tenant a JSONL abierto.")
     pe.add_argument("--tenant", required=True)
@@ -142,8 +167,10 @@ def main() -> None:
 
     if args.cmd == "export":
         counts = _export(args.tenant, args.out)
-        print(f"✓ Exportado tenant «{args.tenant}» a {args.out}: " +
-              ", ".join(f"{v} {k}" for k, v in counts.items()))
+        print(
+            f"✓ Exportado tenant «{args.tenant}» a {args.out}: "
+            + ", ".join(f"{v} {k}" for k, v in counts.items())
+        )
         return
 
     # purge
@@ -154,8 +181,7 @@ def main() -> None:
         _export(args.tenant, backup)
         print(f"  (respaldo previo en {backup})")
     counts = _purge(args.tenant)
-    print(f"✓ Borrado tenant «{args.tenant}»: " +
-          ", ".join(f"{v} {k}" for k, v in counts.items()))
+    print(f"✓ Borrado tenant «{args.tenant}»: " + ", ".join(f"{v} {k}" for k, v in counts.items()))
 
 
 if __name__ == "__main__":

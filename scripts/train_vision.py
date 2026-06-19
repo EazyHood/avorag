@@ -87,19 +87,23 @@ def _loaders(data_dir: Path, img_size: int, batch_size: int, val_split: float):
     from torchvision import transforms
     from torchvision.datasets import ImageFolder
 
-    train_tf = transforms.Compose([
-        transforms.Resize(int(img_size * 1.15)),
-        transforms.RandomResizedCrop(img_size, scale=(0.7, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(_MEAN, _STD),
-    ])
-    eval_tf = transforms.Compose([
-        transforms.Resize(img_size),
-        transforms.CenterCrop(img_size),
-        transforms.ToTensor(),
-        transforms.Normalize(_MEAN, _STD),
-    ])
+    train_tf = transforms.Compose(
+        [
+            transforms.Resize(int(img_size * 1.15)),
+            transforms.RandomResizedCrop(img_size, scale=(0.7, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(_MEAN, _STD),
+        ]
+    )
+    eval_tf = transforms.Compose(
+        [
+            transforms.Resize(img_size),
+            transforms.CenterCrop(img_size),
+            transforms.ToTensor(),
+            transforms.Normalize(_MEAN, _STD),
+        ]
+    )
 
     # Dos vistas del MISMO dataset: train con augmentation, val sin ella, con idéntica división de
     # índices. (Antes se mutaba el transform compartido y el train acababa SIN augmentation.)
@@ -147,17 +151,25 @@ def _evaluate(model, loader, device) -> float:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Entrena el clasificador de visión de AvoRAG.")
-    ap.add_argument("--data-dir", type=Path, required=True, help="Raíz ImageFolder (carpetas=clases).")
+    ap.add_argument(
+        "--data-dir", type=Path, required=True, help="Raíz ImageFolder (carpetas=clases)."
+    )
     ap.add_argument("--out", type=Path, default=ROOT / "models" / "vision")
-    ap.add_argument("--arch", default="mobilenet_v3_large",
-                    choices=["mobilenet_v3_large", "mobilenet_v3_small", "efficientnet_b0"])
+    ap.add_argument(
+        "--arch",
+        default="mobilenet_v3_large",
+        choices=["mobilenet_v3_large", "mobilenet_v3_small", "efficientnet_b0"],
+    )
     ap.add_argument("--epochs", type=int, default=15)
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--img-size", type=int, default=224)
     ap.add_argument("--val-split", type=float, default=0.15)
-    ap.add_argument("--no-pretrained", action="store_true",
-                    help="Entrena desde cero (sin pesos ImageNet) para limpieza total de licencia.")
+    ap.add_argument(
+        "--no-pretrained",
+        action="store_true",
+        help="Entrena desde cero (sin pesos ImageNet) para limpieza total de licencia.",
+    )
     args = ap.parse_args()
 
     import torch
@@ -167,13 +179,17 @@ def main() -> None:
         raise SystemExit(f"No existe {args.data_dir}. Ver docs/VISION.md para preparar el dataset.")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_dl, val_dl, classes = _loaders(args.data_dir, args.img_size, args.batch_size, args.val_split)
+    train_dl, val_dl, classes = _loaders(
+        args.data_dir, args.img_size, args.batch_size, args.val_split
+    )
     print(f"Dispositivo: {device} | clases ({len(classes)}): {classes}")
 
     model = _build_model(args.arch, len(classes), pretrained=not args.no_pretrained).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)  # calibra (-sobreconfianza) y suaviza fronteras adyacentes
+    loss_fn = nn.CrossEntropyLoss(
+        label_smoothing=0.1
+    )  # calibra (-sobreconfianza) y suaviza fronteras adyacentes
 
     args.out.mkdir(parents=True, exist_ok=True)
     best_acc = 0.0
@@ -190,7 +206,9 @@ def main() -> None:
             running += loss.item() * x.size(0)
         acc = _evaluate(model, val_dl, device)
         lr_now = opt.param_groups[0]["lr"]
-        print(f"época {epoch:02d}/{args.epochs} | loss {running / len(train_dl.dataset):.4f} | val_acc {acc:.3f} | lr {lr_now:.2e}")
+        print(
+            f"época {epoch:02d}/{args.epochs} | loss {running / len(train_dl.dataset):.4f} | val_acc {acc:.3f} | lr {lr_now:.2e}"
+        )
         if acc >= best_acc:
             best_acc = acc
             scripted = torch.jit.script(model.eval().cpu())

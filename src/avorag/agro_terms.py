@@ -7,7 +7,10 @@ import unicodedata
 
 
 def _noacc(s: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFD", s.lower()) if unicodedata.category(c) != "Mn")
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s.lower()) if unicodedata.category(c) != "Mn"
+    )
+
 
 # Ingredientes activos reconocidos para la detección de los guardarraíles (NO es una lista de
 # productos registrados ni autoriza su uso; el registro/vigencia los define el ICA en SimplifICA).
@@ -335,19 +338,47 @@ def active_ingredients_in(text: str) -> set[str]:
 
 def mode_of_action_groups(text: str) -> dict[str, str]:
     """Mapa {i.a. -> grupo IRAC/FRAC} de los activos reconocidos en el texto (los que tienen grupo)."""
-    return {ia: MODE_OF_ACTION_GROUP[ia] for ia in active_ingredients_in(text) if ia in MODE_OF_ACTION_GROUP}
+    return {
+        ia: MODE_OF_ACTION_GROUP[ia]
+        for ia in active_ingredients_in(text)
+        if ia in MODE_OF_ACTION_GROUP
+    }
 
 
 # Agentes de CONTROL BIOLÓGICO (parasitoides, depredadores, entomopatógenos) — pilar del MIP de
 # exportación, que el comprador (GlobalGAP) exige y el motor químico-céntrico ignoraba. Se reconocen
 # para NO tratarlos como químicos y para nudge "biológico/cultural antes del químico". NO exhaustivo.
 BENEFICIAL_AGENTS: tuple[str, ...] = (
-    "trichogramma", "amblyseius", "neoseiulus", "phytoseiulus", "galendromus", "typhlodromus",
-    "chrysoperla", "orius", "encarsia", "eretmocerus", "cryptolaemus", "stethorus",
-    "beauveria", "metarhizium", "bacillus thuringiensis", "paecilomyces", "lecanicillium",
-    "isaria", "cordyceps", "steinernema", "heterorhabditis",
-    "parasitoide", "depredador", "entomopatogeno", "control biologico", "biocontrol",
-    "acaro depredador", "avispa parasitica", "fauna auxiliar", "enemigo natural",
+    "trichogramma",
+    "amblyseius",
+    "neoseiulus",
+    "phytoseiulus",
+    "galendromus",
+    "typhlodromus",
+    "chrysoperla",
+    "orius",
+    "encarsia",
+    "eretmocerus",
+    "cryptolaemus",
+    "stethorus",
+    "beauveria",
+    "metarhizium",
+    "bacillus thuringiensis",
+    "paecilomyces",
+    "lecanicillium",
+    "isaria",
+    "cordyceps",
+    "steinernema",
+    "heterorhabditis",
+    "parasitoide",
+    "depredador",
+    "entomopatogeno",
+    "control biologico",
+    "biocontrol",
+    "acaro depredador",
+    "avispa parasitica",
+    "fauna auxiliar",
+    "enemigo natural",
 )
 
 
@@ -366,9 +397,16 @@ def mentions_biocontrol(text: str) -> bool:
 # Su régimen es de TOLERANCIA CERO / admisibilidad (monitoreo + reporte al ICA + control de
 # movilización + área libre para exportar), NO un umbral económico. Reconocerlas para avisar del régimen.
 QUARANTINE_PESTS: tuple[str, ...] = (
-    "stenoma catenifer", "stenoma", "heilipus lauri", "heilipus trifasciatus", "heilipus",
-    "barrenador del fruto", "barrenador de la semilla", "barrenador del hueso",
-    "barrenador de la rama", "barrenador del aguacate",
+    "stenoma catenifer",
+    "stenoma",
+    "heilipus lauri",
+    "heilipus trifasciatus",
+    "heilipus",
+    "barrenador del fruto",
+    "barrenador de la semilla",
+    "barrenador del hueso",
+    "barrenador de la rama",
+    "barrenador del aguacate",
 )
 
 
