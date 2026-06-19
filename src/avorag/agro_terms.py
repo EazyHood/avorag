@@ -247,6 +247,11 @@ COMMERCIAL_NAMES: dict[str, tuple[str, ...]] = {
     "lorsban": ("clorpirifos",),
     "pyrinex": ("clorpirifos",),
     "lannate": ("metomilo",),
+    "tamaron": ("metamidofos",),  # metamidofos (prohibido); marca clásica que evadía el backstop
+    "nuvacron": ("monocrotofos",),
+    "azodrin": ("monocrotofos",),
+    "temik": ("aldicarb",),
+    "folidol": ("metil paration",),
     # Insecticidas/acaricidas modernos por marca
     "engeo": ("tiametoxam", "lambda-cialotrina"),
     "actara": ("tiametoxam",),
@@ -289,6 +294,9 @@ COMMERCIAL_NAMES_AMBIGUOUS: dict[str, tuple[str, ...]] = {
     "basta": ("glufosinato",),
     "muralla": ("imidacloprid",),
     "luna": ("fluopyram",),
+    "monitor": (
+        "metamidofos",
+    ),  # marca de metamidofos (prohibido); 'monitor/monitorear' es palabra común
 }
 # Contexto de APLICACIÓN/producto estricto (NO incluye 'cosecha'/'plaga'/'enfermedad', que son
 # demasiado débiles: "cosechamos en luna menguante" NO debe detectar fluopyram).
@@ -316,7 +324,9 @@ def extract_active_ingredient(text: str) -> str | None:
 def commercial_actives_in(text: str) -> set[str]:
     """Ingredientes activos detectados por NOMBRE COMERCIAL (marca), con límite de palabra. Las marcas
     inequívocas matchean directo; las de palabra común (Score, Luna…) solo con contexto de aplicación."""
-    low = text.lower()
+    low = _noacc(
+        text
+    )  # sin acentos: 'Tamarón'/'Folidól' casan con sus claves ASCII (tamaron/folidol)
     out: set[str] = set()
     for brand, actives in COMMERCIAL_NAMES.items():
         if re.search(rf"\b{re.escape(brand)}\b", low):

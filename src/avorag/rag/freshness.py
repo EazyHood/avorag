@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from avorag.markets import normalize_market
 from avorag.rag.schemas import Semaforo
 
 
@@ -143,10 +144,10 @@ def regulatory_feeds_for(answer_text: str, *, export_market: str | None = None) 
     out: set[FeedName] = set()
     if _PESTICIDE_CTX.search(_strip(answer_text)):
         out.add(FeedName.ICA)
-        m = (export_market or "").strip().lower()
+        m = normalize_market(export_market)
         if m == "ue":
             out.add(FeedName.LMR_UE)
-        elif m in ("eeuu", "us", "usa"):
+        elif m == "eeuu":
             out.add(FeedName.TOL_EEUU)
     return out
 
