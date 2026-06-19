@@ -74,10 +74,13 @@ class _FakeSession:
     def __init__(self, existing=None):
         self._existing = existing
         self.added: list = []
+
     def scalar(self, _stmt):
         return self._existing
+
     def add(self, obj):
         self.added.append(obj)
+
     def flush(self):
         pass
 
@@ -100,7 +103,11 @@ def test_upsert_es_idempotente_si_ya_existe():
 def test_latest_view_envuelve_el_snapshot():
     f = feeds.FakeIcaProvider().fetch(now=NOW)
     snap = feeds.FeedSnapshot(
-        feed_name=f.feed_name, as_of=f.as_of, ttl_seconds=f.ttl_seconds, sha256=f.sha256, payload=f.payload
+        feed_name=f.feed_name,
+        as_of=f.as_of,
+        ttl_seconds=f.ttl_seconds,
+        sha256=f.sha256,
+        payload=f.payload,
     )
     view = feeds.latest_view(_FakeSession(existing=snap), FeedName.ICA)
     assert isinstance(view, FeedSnapshotView)

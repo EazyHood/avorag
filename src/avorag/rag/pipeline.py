@@ -169,7 +169,9 @@ def _clean_for_quote(content: str) -> str:
     t = _QUOTE_NOISE.sub(" ", content)
     t = _QUOTE_SEP.sub(" ", t)
     t = _QUOTE_FUENTE.sub(" ", t)
-    t = re.sub(r"([a-záéíóúñ])-\s+([a-záéíóúñ])", r"\1\2", t, flags=re.IGNORECASE)  # une corte de línea
+    t = re.sub(
+        r"([a-záéíóúñ])-\s+([a-záéíóúñ])", r"\1\2", t, flags=re.IGNORECASE
+    )  # une corte de línea
     t = _QUOTE_MULTISPACE.sub(" ", t).strip()
     t = _QUOTE_LEADING_NUM.sub("", t).strip()
     return t
@@ -250,10 +252,18 @@ def _is_abstention(body: str) -> bool:
 
 # Preámbulos/colofones de "meta-charla" que los modelos pequeños añaden en vez de ir al grano.
 _META_PATTERNS = [
-    re.compile(r"^\s*Para responder a (?:esta solicitud|esta pregunta|tu pregunta)[^.\n]*[.\n]\s*", re.IGNORECASE),
+    re.compile(
+        r"^\s*Para responder a (?:esta solicitud|esta pregunta|tu pregunta)[^.\n]*[.\n]\s*",
+        re.IGNORECASE,
+    ),
     re.compile(r"^\s*Sin embargo,?\s*bas[áa]ndome[^.\n]*[.\n]\s*", re.IGNORECASE),
-    re.compile(r"^\s*Bas[áa]ndome en (?:el contenido de )?los fragmentos[^.\n]*[.\n]\s*", re.IGNORECASE),
-    re.compile(r"\s*Para (?:obtener|dar) una respuesta m[áa]s (?:completa|precisa)[^.]*\.?\s*$", re.IGNORECASE),
+    re.compile(
+        r"^\s*Bas[áa]ndome en (?:el contenido de )?los fragmentos[^.\n]*[.\n]\s*", re.IGNORECASE
+    ),
+    re.compile(
+        r"\s*Para (?:obtener|dar) una respuesta m[áa]s (?:completa|precisa)[^.]*\.?\s*$",
+        re.IGNORECASE,
+    ),
     re.compile(r"\s*Estos son (?:solo )?algunos[^.]*\.?\s*$", re.IGNORECASE),
 ]
 
@@ -416,8 +426,14 @@ def _conversational(question: str, conv: str, pinfo: dict, t0: float) -> Answer:
 
 
 def _retrieve(
-    question: str, *, tenant: str, country: str, soil_type: str | None, region: str | None,
-    pinfo: dict, t0: float,
+    question: str,
+    *,
+    tenant: str,
+    country: str,
+    soil_type: str | None,
+    region: str | None,
+    pinfo: dict,
+    t0: float,
 ) -> tuple[Answer | None, dict | None]:
     """Recupera y decide abstención. La sesión de BD se mantiene SOLO durante la consulta (no
     durante el LLM). Devuelve (respuesta_temprana, None) si abstiene, o (None, datos-de-generación)."""
@@ -730,8 +746,13 @@ def answer(
             )
 
     early, gen = _retrieve(
-        question, tenant=tenant, country=country, soil_type=soil_type, region=region,
-        pinfo=pinfo, t0=t0,
+        question,
+        tenant=tenant,
+        country=country,
+        soil_type=soil_type,
+        region=region,
+        pinfo=pinfo,
+        t0=t0,
     )
     if early is not None or gen is None:
         return early  # type: ignore[return-value]
@@ -773,17 +794,25 @@ def answer_stream(
     if settings.cache_enabled:
         cached = _cache_get(ckey, settings.cache_ttl_seconds)
         if cached is not None:
-            yield "final", cached.model_copy(
-                update={
-                    "latency_ms": int((time.perf_counter() - t0) * 1000),
-                    "reason": ((cached.reason or "") + " · (cacheada)").strip(" ·"),
-                }
+            yield (
+                "final",
+                cached.model_copy(
+                    update={
+                        "latency_ms": int((time.perf_counter() - t0) * 1000),
+                        "reason": ((cached.reason or "") + " · (cacheada)").strip(" ·"),
+                    }
+                ),
             )
             return
 
     early, gen = _retrieve(
-        question, tenant=tenant, country=country, soil_type=soil_type, region=region,
-        pinfo=pinfo, t0=t0,
+        question,
+        tenant=tenant,
+        country=country,
+        soil_type=soil_type,
+        region=region,
+        pinfo=pinfo,
+        t0=t0,
     )
     if early is not None or gen is None:
         yield "final", early

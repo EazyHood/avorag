@@ -36,12 +36,16 @@ def test_state_stale_pasado_el_sla():
 
 def test_state_missing_sin_snapshot():
     assert freshness_state(None, now=NOW) is FreshnessState.MISSING
-    assert freshness_state(FeedSnapshotView("ica_simplifica", None), now=NOW) is FreshnessState.MISSING
+    assert (
+        freshness_state(FeedSnapshotView("ica_simplifica", None), now=NOW) is FreshnessState.MISSING
+    )
 
 
 def test_state_borde_exacto_es_ok():
     # Exactamente en el límite del TTL → OK (<=).
-    snap = FeedSnapshotView(str(FeedName.IDEAM), as_of=NOW - timedelta(hours=6), ttl_seconds=6 * 3600)
+    snap = FeedSnapshotView(
+        str(FeedName.IDEAM), as_of=NOW - timedelta(hours=6), ttl_seconds=6 * 3600
+    )
     assert freshness_state(snap, now=NOW) is FreshnessState.OK
 
 

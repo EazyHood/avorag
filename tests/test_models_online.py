@@ -15,7 +15,9 @@ MODELS = [FeedSnapshot, NormTable, HitlReview, Feedback]
 def _migration_sql() -> str:
     path = (
         Path(__file__).resolve().parents[1]
-        / "migrations" / "versions" / "0005_online_feeds_norms_hitl.py"
+        / "migrations"
+        / "versions"
+        / "0005_online_feeds_norms_hitl.py"
     )
     spec = importlib.util.spec_from_file_location("mig0005", path)
     assert spec is not None and spec.loader is not None
@@ -42,7 +44,8 @@ def test_columnas_orm_existen_en_la_migracion():
         # Bloque CREATE TABLE de esta tabla.
         block = re.search(
             rf"CREATE TABLE IF NOT EXISTS {m.__tablename__}\s*\((.*?)\)\s*\"\"\"",
-            sql, flags=re.DOTALL,
+            sql,
+            flags=re.DOTALL,
         )
         # Fallback: el bloque hasta el cierre de paréntesis de nivel superior.
         haystack = block.group(1) if block else sql
