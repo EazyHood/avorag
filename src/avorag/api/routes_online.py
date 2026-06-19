@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field
 
 from avorag.api.auth import rate_limit, require_api_key
 from avorag.db import get_session
-from avorag.online import hitl
+from avorag.online import feedback as fb_svc
+from avorag.online import hitl, roles
 from avorag.online.capabilities import current_capabilities
 
 router = APIRouter(prefix="/api", tags=["platform"])
@@ -59,6 +60,11 @@ def hitl_decision(
         qid = uuid.UUID(body.query_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="query_id no es un UUID válido.") from exc
+    if not roles.is_reviewer(body.reviewer_id):
+        raise HTTPException(
+            status_code=403,
+            detail="reviewer_id no autorizado para firmar decisiones HITL (ver AVORAG_HITL_REVIEWERS).",
+        )
     with get_session(tenant=auth_tenant) as session:
         try:
             review = hitl.submit_decision(
@@ -79,3 +85,40 @@ def hitl_decision(
             "decision": review.decision,
             "signature": review.signature,
         }
+
+
+class FeedbackIn(BaseModel):
+    response_id: str
+    util: bool
+    motivo: str | None = Field(
+        None, pattern="^(incorrecta|incompleta|desactualizada|peligrosa|otra)$"
+    )
+    comentario: str | None = Field(None, max_length=2000)
+    user_ref: str | None = Field(None, max_length=128)
+
+
+@router.post("/feedback", status_code=202)
+def post_feedback(
+    body: FeedbackIn,
+    auth_tenant: str = Depends(require_api_key),
+    _rl: None = Depends(rate_limit),
+) -> dict:
+    """Feedback del usuario sobre una respuesta (comentario por HASH, P-4). Cierra el bucle de eval."""
+    try:
+        rid = uuid.UUID(body.response_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="response_id no es un UUID válido.") from exc
+    with get_session(tenant=auth_tenant) as session:
+        try:
+            fb = fb_svc.submit_feedback(
+                session,
+                tenant=auth_tenant,
+                response_id=rid,
+                util=body.util,
+                motivo=body.motivo,
+                comentario=body.comentario,
+                user_ref=body.user_ref,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"id": str(fb.id)}

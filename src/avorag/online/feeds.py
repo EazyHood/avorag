@@ -17,8 +17,10 @@ Colisión: módulo NUEVO bajo `online/`. NO toca el núcleo compartido (guardrai
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -172,6 +174,49 @@ class Tol40CFRProvider(_RealStub):
     name = "tol-eeuu-40cfr180"
 
 
+# --- Proveedor REAL genérico por HTTP-JSON (para cualquier feed expuesto ya NORMALIZADO) ---------
+def _http_get_json(url: str, *, timeout: float = 15.0) -> dict:
+    """GET de una URL que devuelve el payload canónico en JSON (stdlib, sin dependencias)."""
+    import urllib.request
+
+    req = urllib.request.Request(  # noqa: S310 — URL de confianza configurada por el operador
+        url, headers={"User-Agent": "AvoRAG-feeds/1.0", "Accept": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        payload = json.loads(resp.read().decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("El feed HTTP no devolvió un objeto JSON (se espera el payload canónico).")
+    return payload
+
+
+class HttpJsonProvider(FeedProvider):
+    """Trae el payload canónico de un feed desde una URL JSON (env `AVORAG_FEED_<FEED>_URL`).
+
+    Útil cuando el operador expone el dato ya normalizado al esquema canónico (ver CANONICAL_SCHEMAS).
+    Los conectores que exigen scraping/parseo específico (portal SimplifICA, EU Pesticides Database…)
+    siguen como stubs hasta tener su formato exacto.
+    """
+
+    name = "http-json"
+
+    def __init__(self, feed: FeedName, url: str) -> None:
+        self.feed = feed
+        self._url = url
+
+    def fetch(self, *, now: datetime | None = None) -> FeedFetch:
+        payload = _http_get_json(self._url)
+        as_of = _now(now)
+        raw = payload.get("as_of")
+        if isinstance(raw, str):
+            with contextlib.suppress(ValueError):
+                as_of = datetime.fromisoformat(raw)
+        return FeedFetch(self.feed.value, as_of, self.default_ttl_seconds, payload, self._url)
+
+
+def _feed_url_env(feed: FeedName) -> str:
+    return os.getenv(f"AVORAG_FEED_{feed.name}_URL", "").strip()
+
+
 _FAKE_REGISTRY: dict[FeedName, type[FeedProvider]] = {
     FeedName.ICA: FakeIcaProvider,
     FeedName.LMR_UE: FakeLmrUeProvider,
@@ -186,11 +231,19 @@ _REAL_REGISTRY: dict[FeedName, type[FeedProvider]] = {
 
 
 def get_provider(feed: FeedName, *, mode: str = "fake") -> FeedProvider:
-    """Fábrica de proveedores. `mode='fake'` (determinista, sin red) o `'real'` (stub hasta conectar)."""
-    table = _FAKE_REGISTRY if mode == "fake" else _REAL_REGISTRY
-    cls = table.get(feed)
+    """Fábrica de proveedores. `mode='fake'` (determinista, sin red); `'real'` usa la URL HTTP-JSON
+    configurada (`AVORAG_FEED_<FEED>_URL`) y, si no hay, el stub específico del feed."""
+    if mode == "fake":
+        cls = _FAKE_REGISTRY.get(feed)
+        if cls is None:
+            raise ValueError(f"No hay proveedor 'fake' para el feed «{feed.value}».")
+        return cls()
+    url = _feed_url_env(feed)
+    if url:
+        return HttpJsonProvider(feed, url)
+    cls = _REAL_REGISTRY.get(feed)
     if cls is None:
-        raise ValueError(f"No hay proveedor '{mode}' para el feed «{feed.value}».")
+        raise ValueError(f"No hay proveedor 'real' para el feed «{feed.value}».")
     return cls()
 
 
