@@ -434,6 +434,7 @@ def _retrieve(
     region: str | None,
     pinfo: dict,
     t0: float,
+    export_market: str | None = None,
 ) -> tuple[Answer | None, dict | None]:
     """Recupera y decide abstención. La sesión de BD se mantiene SOLO durante la consulta (no
     durante el LLM). Devuelve (respuesta_temprana, None) si abstiene, o (None, datos-de-generación)."""
@@ -446,7 +447,7 @@ def _retrieve(
         from avorag.rag import destino
 
         banned_q = guardrails.banned_ingredients_in_answer(question, country)
-        destino_q = destino.unauthorized_for_destination(question)
+        destino_q = destino.unauthorized_for_destination(question, export_market)
         if banned_q or destino_q:
             ans = _forbidden_answer(
                 question, banned_q + destino_q, bool(destino_q), pinfo=pinfo, t0=t0
@@ -577,8 +578,11 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
     # mercado configurado. Mira el DESTINO, complementario a 'banned' que mira el registro ICA local.
     from avorag.rag import destino
 
-    destino_no_auth = destino.unauthorized_for_destination(question + "\n" + raw)
-    destino_lmr = destino.strict_lmr_for_destination(raw)
+    # Mismo mercado que el cruce online (request > .env): así offline y online NO miran destinos
+    # distintos en el mismo request (lo resuelve markets.normalize_market a la clave canónica).
+    dest_market = gen.get("export_market")
+    destino_no_auth = destino.unauthorized_for_destination(question + "\n" + raw, dest_market)
+    destino_lmr = destino.strict_lmr_for_destination(raw, dest_market)
     forbidden = banned + destino_no_auth
     if destino_lmr:
         warnings = [*warnings, *destino_lmr]
@@ -753,6 +757,7 @@ def answer(
         region=region,
         pinfo=pinfo,
         t0=t0,
+        export_market=export_market,
     )
     if early is not None or gen is None:
         return early  # type: ignore[return-value]
@@ -813,6 +818,7 @@ def answer_stream(
         region=region,
         pinfo=pinfo,
         t0=t0,
+        export_market=export_market,
     )
     if early is not None or gen is None:
         yield "final", early

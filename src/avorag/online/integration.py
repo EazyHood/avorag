@@ -19,6 +19,7 @@ from datetime import datetime
 
 from avorag.config import get_settings
 from avorag.logging import get_logger
+from avorag.markets import normalize_market
 from avorag.online import feeds, regulatory
 from avorag.rag.freshness import (
     apply_freshness_gate,
@@ -30,9 +31,10 @@ from avorag.rag.schemas import Answer, Semaforo
 log = get_logger(__name__)
 
 _TRUE = {"1", "true", "yes", "on", "si", "sí"}
-# Destinos con feed de residuo en vivo (UE→LMR, EE.UU.→40 CFR 180). Un destino de exportación FUERA de
-# este conjunto no se puede verificar y NO debe servirse como VERDE confiable (fail-closed de destino).
-_SUPPORTED_DEST_MARKETS = {"ue", "eeuu", "us", "usa"}
+# Destinos con feed de residuo en vivo (UE→LMR, EE.UU.→40 CFR 180), en CLAVE CANÓNICA (los alias
+# us/usa/estados_unidos→'eeuu' los resuelve markets.normalize_market). Un destino de exportación FUERA
+# de este conjunto no se puede verificar y NO debe servirse como VERDE confiable (fail-closed).
+_SUPPORTED_DEST_MARKETS = {"ue", "eeuu"}
 
 
 def online_safety_enabled() -> bool:
@@ -41,7 +43,8 @@ def online_safety_enabled() -> bool:
 
 
 def _resolve_market(export_market: str | None) -> str | None:
-    return (export_market or get_settings().export_market or "").strip().lower() or None
+    """Clave canónica del mercado (request > .env), compartida con el guardarraíl de destino offline."""
+    return normalize_market(export_market or get_settings().export_market)
 
 
 def apply_online_safety(

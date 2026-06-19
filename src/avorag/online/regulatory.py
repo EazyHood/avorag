@@ -25,6 +25,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from avorag.agro_terms import active_ingredients_in, commercial_actives_in
+from avorag.markets import normalize_market
 from avorag.online import feeds
 from avorag.rag.freshness import (
     FeedName,
@@ -115,13 +116,13 @@ def live_regulatory_findings(
     activo cancelado/sin-tolerancia que el diccionario no conoce igual dispara ROJO con el dato vivo.
     """
     answer_norm = strip_accents(answer_text or "")
-    market = (export_market or "").strip().lower()
+    market = normalize_market(export_market)
 
     ica = feeds.latest_snapshot(session, FeedName.ICA)
     ica_view = feeds.latest_view(session, FeedName.ICA)
     lmr = feeds.latest_snapshot(session, FeedName.LMR_UE) if market == "ue" else None
     lmr_view = feeds.latest_view(session, FeedName.LMR_UE) if market == "ue" else None
-    en_eeuu = market in ("eeuu", "us", "usa")
+    en_eeuu = market == "eeuu"
     tol = feeds.latest_snapshot(session, FeedName.TOL_EEUU) if en_eeuu else None
     tol_view = feeds.latest_view(session, FeedName.TOL_EEUU) if en_eeuu else None
 

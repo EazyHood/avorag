@@ -24,6 +24,7 @@ from pathlib import Path
 from avorag.agro_terms import commercial_actives_in
 from avorag.config import get_settings
 from avorag.logging import get_logger
+from avorag.markets import normalize_market
 
 log = get_logger(__name__)
 
@@ -73,7 +74,9 @@ def _matches(text: str, items: list[dict]) -> list[dict]:
 
 
 def _resolve_market(market: str | None) -> str:
-    return (market if market is not None else get_settings().export_market).lower()
+    """Clave canónica del mercado (request > .env), vía `markets.normalize_market` (us/usa→eeuu, …)."""
+    raw = market if market is not None else get_settings().export_market
+    return normalize_market(raw) or ""
 
 
 def unauthorized_for_destination(text: str, market: str | None = None) -> list[str]:
