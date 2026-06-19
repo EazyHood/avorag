@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from avorag.api.auth import rate_limit, require_api_key
 from avorag.db import get_session
 from avorag.online import feedback as fb_svc
-from avorag.online import hitl, roles
+from avorag.online import hitl, roles, sync
 from avorag.online.capabilities import current_capabilities
 
 router = APIRouter(prefix="/api", tags=["platform"])
@@ -28,6 +28,12 @@ router = APIRouter(prefix="/api", tags=["platform"])
 def capabilities() -> dict:
     """Capacidades del servidor + mode_hint (1/2). Los modos 3 (caché) y 4 (offline) los decide el cliente."""
     return current_capabilities()
+
+
+@router.get("/sync/manifest")
+def sync_manifest() -> dict:
+    """Manifiesto firmado de artefactos para el cliente: corpus/normas (servidor) + bundle/modelo (offline)."""
+    return sync.current_manifest()
 
 
 @router.get("/hitl/pending")

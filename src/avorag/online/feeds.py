@@ -18,12 +18,14 @@ Colisión: módulo NUEVO bajo `online/`. NO toca el núcleo compartido (guardrai
 from __future__ import annotations
 
 import contextlib
+import csv
 import hashlib
 import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -217,6 +219,112 @@ def _feed_url_env(feed: FeedName) -> str:
     return os.getenv(f"AVORAG_FEED_{feed.name}_URL", "").strip()
 
 
+# --- Proveedor REAL por ARCHIVO CSV (vía realista: el operador descarga el export OFICIAL) ---------
+# El operador deja periódicamente el export oficial (CSV) en una ruta y un NORMALIZADOR lo mapea al
+# esquema canónico. Robusto y testeable (sin scraping frágil de portales). Mapeo de columnas
+# configurable; los defaults asumen cabeceras con el nombre del campo canónico.
+DEFAULT_CSV_MAPPING: dict[FeedName, dict[str, str]] = {
+    FeedName.ICA: {
+        "ia": "ingrediente_activo",
+        "registro": "registro_ica",
+        "estado": "estado",
+        "cultivo": "cultivo",
+    },
+    FeedName.LMR_UE: {"ia": "ingrediente_activo", "lmr": "lmr_mg_kg", "aprobado": "aprobado"},
+    FeedName.TOL_EEUU: {
+        "ia": "ingrediente_activo",
+        "ppm": "tolerancia_ppm",
+        "tiene": "tiene_tolerancia",
+    },
+}
+_FALSEY = {"false", "no", "0", "n", "f", ""}
+
+
+def _read_csv(path: str) -> list[dict]:
+    with Path(path).open(encoding="utf-8-sig", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def _norm_ica(rows: list[dict], m: dict) -> dict:
+    out = []
+    for r in rows:
+        ia = str(r.get(m["ia"], "")).strip().lower()
+        if ia:
+            out.append(
+                {
+                    "ingrediente_activo": ia,
+                    "registro_ica": str(r.get(m.get("registro", ""), "")).strip(),
+                    "estado": str(r.get(m["estado"], "")).strip().lower(),
+                    "cultivo": str(r.get(m.get("cultivo", ""), "")).strip().lower(),
+                }
+            )
+    return {"registros": out}
+
+
+def _norm_lmr_ue(rows: list[dict], m: dict) -> dict:
+    lmr: dict[str, float] = {}
+    no_ap: list[str] = []
+    for r in rows:
+        ia = str(r.get(m["ia"], "")).strip().lower()
+        if not ia:
+            continue
+        if str(r.get(m.get("aprobado", ""), "")).strip().lower() in _FALSEY:
+            no_ap.append(ia)
+            continue
+        with contextlib.suppress(ValueError, TypeError):
+            lmr[ia] = float(str(r.get(m.get("lmr", ""), "")).replace(",", "."))
+    return {"lmr_mg_kg": lmr, "no_aprobados": no_ap}
+
+
+def _norm_eeuu(rows: list[dict], m: dict) -> dict:
+    tols: dict[str, float] = {}
+    sin: list[str] = []
+    for r in rows:
+        ia = str(r.get(m["ia"], "")).strip().lower()
+        if not ia:
+            continue
+        tiene = str(r.get(m.get("tiene", ""), "")).strip().lower()
+        ppm = str(r.get(m.get("ppm", ""), "")).strip()
+        if tiene in _FALSEY and not ppm:
+            sin.append(ia)
+            continue
+        try:
+            tols[ia] = float(ppm.replace(",", "."))
+        except (ValueError, TypeError):
+            sin.append(ia)
+    return {"avocado_tolerances_ppm": tols, "sin_tolerancia": sin}
+
+
+_CSV_NORMALIZERS = {
+    FeedName.ICA: _norm_ica,
+    FeedName.LMR_UE: _norm_lmr_ue,
+    FeedName.TOL_EEUU: _norm_eeuu,
+}
+
+
+class CsvFileProvider(FeedProvider):
+    """Lee un export OFICIAL en CSV de una ruta y lo normaliza al esquema canónico (env AVORAG_FEED_<FEED>_FILE)."""
+
+    name = "csv-file"
+
+    def __init__(self, feed: FeedName, path: str, mapping: dict | None = None) -> None:
+        if feed not in _CSV_NORMALIZERS:
+            raise ValueError(f"No hay normalizador CSV para «{feed.value}».")
+        self.feed = feed
+        self._path = path
+        self._mapping = mapping or DEFAULT_CSV_MAPPING[feed]
+
+    def fetch(self, *, now: datetime | None = None) -> FeedFetch:
+        payload = _CSV_NORMALIZERS[self.feed](_read_csv(self._path), self._mapping)
+        return FeedFetch(
+            self.feed.value, _now(now), self.default_ttl_seconds, payload, f"file://{self._path}"
+        )
+
+
+def _feed_file_env(feed: FeedName) -> str:
+    return os.getenv(f"AVORAG_FEED_{feed.name}_FILE", "").strip()
+
+
 _FAKE_REGISTRY: dict[FeedName, type[FeedProvider]] = {
     FeedName.ICA: FakeIcaProvider,
     FeedName.LMR_UE: FakeLmrUeProvider,
@@ -238,6 +346,10 @@ def get_provider(feed: FeedName, *, mode: str = "fake") -> FeedProvider:
         if cls is None:
             raise ValueError(f"No hay proveedor 'fake' para el feed «{feed.value}».")
         return cls()
+    # real: archivo CSV oficial → URL HTTP-JSON → stub específico.
+    path = _feed_file_env(feed)
+    if path and feed in _CSV_NORMALIZERS:
+        return CsvFileProvider(feed, path)
     url = _feed_url_env(feed)
     if url:
         return HttpJsonProvider(feed, url)
