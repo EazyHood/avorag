@@ -36,23 +36,28 @@ def _norm_q(q: str) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Reporte de retención desde la auditoría de consultas.")
-    ap.add_argument("--tenant", default=None, help="Filtra por tenant (por defecto, todos).")
+    ap = argparse.ArgumentParser(
+        description="Reporte de retención desde la auditoría de consultas."
+    )
+    ap.add_argument(
+        "--tenant", default=None, help="Tenant a reportar (por defecto, el configurado)."
+    )
     ap.add_argument("--weeks", type=int, default=12, help="Semanas recientes a mostrar.")
     args = ap.parse_args()
 
     from sqlalchemy import select
 
+    from avorag.config import get_settings
     from avorag.db import get_session
     from avorag.db.models import QueryLog
     from avorag.logging import configure_logging
 
     configure_logging()
 
-    with get_session(tenant=args.tenant) as s:
-        stmt = select(QueryLog)
-        if args.tenant:
-            stmt = stmt.where(QueryLog.tenant == args.tenant)
+    # RLS fail-closed: el acceso a datos requiere tenant; sin --tenant, usa el tenant por defecto.
+    tenant = args.tenant or get_settings().default_tenant
+    with get_session(tenant=tenant) as s:
+        stmt = select(QueryLog).where(QueryLog.tenant == tenant)
         rows = list(s.scalars(stmt))
 
     if not rows:
@@ -91,18 +96,30 @@ def main() -> None:
         seen.add(k)
     ratio_rep = repetidas / total if total else 0.0
 
-    print(f"\n=== Retención AvoRAG ({'tenant ' + args.tenant if args.tenant else 'todos los tenants'}) ===")
-    print(f"Consultas totales: {total} | desde {rows[0].created_at:%Y-%m-%d} hasta {rows[-1].created_at:%Y-%m-%d}")
-    print(f"Abstención: {abst/total:.0%} | con cita: {con_cita/total:.0%} | preguntas repetidas: {ratio_rep:.0%}")
+    print(
+        f"\n=== Retención AvoRAG ({'tenant ' + args.tenant if args.tenant else 'todos los tenants'}) ==="
+    )
+    print(
+        f"Consultas totales: {total} | desde {rows[0].created_at:%Y-%m-%d} hasta {rows[-1].created_at:%Y-%m-%d}"
+    )
+    print(
+        f"Abstención: {abst / total:.0%} | con cita: {con_cita / total:.0%} | preguntas repetidas: {ratio_rep:.0%}"
+    )
     print(f"\nPor semana (últimas {args.weeks}):")
     print(f"  {'semana':<12}{'consultas':>10}{'tenants':>9}")
-    for wk in weeks[-args.weeks:]:
+    for wk in weeks[-args.weeks :]:
         print(f"  {wk[0]}-W{wk[1]:<8}{by_week_count[wk]:>10}{len(by_week_tenants[wk]):>9}")
     if ret_lines:
-        print("\nRetención de tenants semana-a-semana (activos que ya lo estaban la semana previa):")
-        for cur, n_cur, ret, pct in ret_lines[-args.weeks:]:
-            print(f"  {cur[0]}-W{cur[1]:<8} activos {n_cur:>3} | retenidos {ret:>3} | retención {pct:.0%}")
-    print("\nNOTA: retención a nivel de TENANT (no por productor): `queries` no guarda id de usuario.")
+        print(
+            "\nRetención de tenants semana-a-semana (activos que ya lo estaban la semana previa):"
+        )
+        for cur, n_cur, ret, pct in ret_lines[-args.weeks :]:
+            print(
+                f"  {cur[0]}-W{cur[1]:<8} activos {n_cur:>3} | retenidos {ret:>3} | retención {pct:.0%}"
+            )
+    print(
+        "\nNOTA: retención a nivel de TENANT (no por productor): `queries` no guarda id de usuario."
+    )
     print("Para retención por productor, añadir `user_ref` (p.ej. teléfono hasheado) a QueryLog.")
 
 

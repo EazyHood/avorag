@@ -681,6 +681,12 @@ def _finalize(question: str, raw: str, gen: dict, *, pinfo: dict, t0: float, ten
         latency_ms=int((time.perf_counter() - t0) * 1000),
         provider_info=pinfo,
     )
+    # Guardarraíl ONLINE en vivo (feeds + cruce regulatorio): gated por AVORAG_ONLINE_FEEDS; no-op si
+    # está apagado (no cambia el modo offline), fail-safe (nunca rompe la respuesta). Muta `ans` antes
+    # de persistir, así el cambio queda en la respuesta Y en la auditoría. Ver online/integration.py.
+    from avorag.online.integration import apply_online_safety_for_tenant
+
+    apply_online_safety_for_tenant(tenant, ans, export_market=gen.get("export_market"))
     _persist(ans, tenant)
     log.info(
         "answered",
@@ -700,6 +706,7 @@ def answer(
     country: str | None = None,
     soil_type: str | None = None,
     region: str | None = None,
+    export_market: str | None = None,
 ) -> Answer:
     settings = get_settings()
     tenant = tenant or settings.default_tenant
@@ -729,6 +736,7 @@ def answer(
     if early is not None or gen is None:
         return early  # type: ignore[return-value]
 
+    gen["export_market"] = export_market
     raw = get_llm_provider().complete(gen["system"], gen["user"])
     if _raw_is_bad(raw):
         raw = _regenerate(gen)
@@ -745,6 +753,7 @@ def answer_stream(
     country: str | None = None,
     soil_type: str | None = None,
     region: str | None = None,
+    export_market: str | None = None,
 ):
     """Versión en streaming de `answer()`. Genera tuplas ('delta', texto) mientras el LLM produce
     la respuesta, y al final ('final', Answer) con el semáforo, citas y guardarraíles aplicados.
@@ -780,6 +789,7 @@ def answer_stream(
         yield "final", early
         return
 
+    gen["export_market"] = export_market
     parts: list[str] = []
     for piece in get_llm_provider().stream(gen["system"], gen["user"]):
         parts.append(piece)

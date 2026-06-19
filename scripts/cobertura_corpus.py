@@ -40,23 +40,28 @@ def _bar(n: int, total: int, width: int = 24) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Cobertura del corpus por tema/plaga (dónde abstiene el bot).")
+    ap = argparse.ArgumentParser(
+        description="Cobertura del corpus por tema/plaga (dónde abstiene el bot)."
+    )
     ap.add_argument("--tenant", default=None)
-    ap.add_argument("--plagas", default=_DEFAULT_PLAGAS, help="Plagas prioritarias a comprobar (coma).")
+    ap.add_argument(
+        "--plagas", default=_DEFAULT_PLAGAS, help="Plagas prioritarias a comprobar (coma)."
+    )
     args = ap.parse_args()
 
     from sqlalchemy import select
 
+    from avorag.config import get_settings
     from avorag.db import get_session
     from avorag.db.models import Chunk
     from avorag.logging import configure_logging
 
     configure_logging()
 
-    with get_session(tenant=args.tenant) as s:
-        stmt = select(Chunk)
-        if args.tenant:
-            stmt = stmt.where(Chunk.tenant == args.tenant)
+    # RLS fail-closed: el acceso a datos requiere tenant; sin --tenant, usa el tenant por defecto.
+    tenant = args.tenant or get_settings().default_tenant
+    with get_session(tenant=tenant) as s:
+        stmt = select(Chunk).where(Chunk.tenant == tenant)
         chunks = list(s.scalars(stmt))
 
     if not chunks:
@@ -70,7 +75,9 @@ def main() -> None:
     contenidos = [_norm((c.context or "") + " " + c.content) for c in chunks]
     plaga_meta = [_norm((c.meta or {}).get("plaga_objetivo") or "") for c in chunks]
 
-    print(f"\n=== Cobertura del corpus ({'tenant ' + args.tenant if args.tenant else 'todos'}) — {total} fragmentos ===")
+    print(
+        f"\n=== Cobertura del corpus ({'tenant ' + args.tenant if args.tenant else 'todos'}) — {total} fragmentos ==="
+    )
 
     print("\nPor TEMA:")
     for tema, n in temas.most_common():
@@ -91,9 +98,15 @@ def main() -> None:
         flag = "  ⚠️ SIN cobertura" if n == 0 else ("  ⚠️ delgado" if n < 5 else "")
         print(f"  {raw:<16}{n:>5}  {_bar(n, total)}{flag}")
 
-    print("\nNOTA honesta: cobertura por TEMA/PLAGA, no por ZONA agroclimática (falta un campo `region`")
-    print("en la metadata + curar corpus por zona). Donde un tema sale 0/delgado, el bot se abstiene o")
-    print("generaliza: ahí NO es útil todavía. Eso se cierra curando corpus (trabajo del agrónomo), no código.")
+    print(
+        "\nNOTA honesta: cobertura por TEMA/PLAGA, no por ZONA agroclimática (falta un campo `region`"
+    )
+    print(
+        "en la metadata + curar corpus por zona). Donde un tema sale 0/delgado, el bot se abstiene o"
+    )
+    print(
+        "generaliza: ahí NO es útil todavía. Eso se cierra curando corpus (trabajo del agrónomo), no código."
+    )
 
 
 if __name__ == "__main__":

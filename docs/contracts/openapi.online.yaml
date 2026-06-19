@@ -1,0 +1,730 @@
+openapi: 3.1.0
+info:
+  title: AvoRAG — API ONLINE
+  version: "1.0.0-draft"
+  summary: Contrato HTTP del modo online de AvoRAG (RAG agronómico, aguacate Hass de exportación).
+  description: |
+    Contrato del **modo ONLINE** de la app móvil de AvoRAG. Derivado de la arquitectura
+    `docs/ARQUITECTURA_ONLINE.md` y de los endpoints reales del backend FastAPI.
+
+    Principios vinculantes (ver §0 de la arquitectura):
+    - **Seguridad determinista primero (P-1):** el `semaforo` lo decide el servidor *después* del LLM;
+      ningún modelo declara `verde` por sí mismo.
+    - **Trazabilidad total (P-3):** toda respuesta lleva `response_id` y las cabeceras `X-AvoRAG-*`
+      con las versiones correlacionadas (api/prompt/model/corpus/norm/feed).
+    - **Frescura regulatoria (P-5):** un dato regulatorio sin cruce con su feed vivo dentro de SLA
+      se sirve marcado (`warnings`) y NO puede salir en `verde`.
+    - **Idempotencia (P-6):** las operaciones con efectos aceptan `Idempotency-Key`.
+    - **0 errores:** no es 0 abstención; es cero peligrosas, cero citas falsas, cero caducado-como-vigente.
+  contact:
+    name: Jhonatan del Rio
+    email: jhonatandelrio9@gmail.com
+  license:
+    name: Proprietary — © 2026 Jhonatan del Rio, todos los derechos reservados
+    url: https://example.invalid/LICENSE
+
+servers:
+  - url: https://api.avorag.app/v1
+    description: Producción
+  - url: https://staging.api.avorag.app/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+tags:
+  - name: chat
+    description: Consulta agronómica citada (síncrona y en streaming).
+  - name: vision
+    description: Identificación por foto (madurez y patología) → RAG citado.
+  - name: calc
+    description: Calculadoras agronómicas deterministas (paridad con el motor offline).
+  - name: platform
+    description: Capacidades, salud, sincronización y feedback.
+
+paths:
+  /capabilities:
+    get:
+      tags: [platform]
+      operationId: getCapabilities
+      summary: Estado por capacidad — el cliente decide a qué modo (1-4) degradar.
+      security: []
+      responses:
+        "200":
+          description: Estado de cada subsistema online.
+          headers:
+            X-AvoRAG-Versions: { $ref: "#/components/headers/XAvoRAGVersions" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Capabilities" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /ask:
+    post:
+      tags: [chat]
+      operationId: ask
+      summary: Consulta agronómica (respuesta citada con semáforo).
+      description: |
+        Modo 1 (online-pleno): generador fuerte (Claude) + juez independiente + reranker activo +
+        cruce con feeds vivos. El `semaforo` y los `warnings` reflejan los guardarraíles deterministas.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskRequest" }
+            examples:
+              dosis_trips:
+                value: { question: "¿Qué dosis de spinetoram uso para trips en Hass para exportar a la UE?", country: "CO", soil_type: "franco", region: "Antioquia" }
+      responses:
+        "200":
+          description: Respuesta citada. `semaforo=rojo` es una respuesta válida (rechazo seguro), no un error.
+          headers:
+            X-AvoRAG-Versions: { $ref: "#/components/headers/XAvoRAGVersions" }
+            X-Request-Id: { $ref: "#/components/headers/XRequestId" }
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Answer" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /ask/stream:
+    post:
+      tags: [chat]
+      operationId: askStream
+      summary: Consulta en streaming (Server-Sent Events).
+      description: |
+        `text/event-stream`. Cada línea `data:` es un JSON con `type`:
+        - `delta`  → `{ "type":"delta", "t":"texto parcial" }` (token/fragmento generado).
+        - `reset`  → `{ "type":"reset" }` (descartar el borrador: un guardarraíl reescribió la salida).
+        - `verifying` → `{ "type":"verifying" }` (corriendo juez + guardarraíles; aún no hay veredicto).
+        - `final`  → `{ "type":"final", "answer": <Answer> }` (objeto Answer definitivo con semáforo y citas).
+        - `error`  → `{ "type":"error", "message":"..." }`.
+        **Contrato de seguridad:** el cliente NO DEBE mostrar el texto `delta` como consejo firme hasta
+        recibir `final`; el `delta` puede ser reescrito (`reset`) por el guardarraíl.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskRequest" }
+      responses:
+        "200":
+          description: Flujo SSE de eventos.
+          headers:
+            X-AvoRAG-Versions: { $ref: "#/components/headers/XAvoRAGVersions" }
+          content:
+            text/event-stream:
+              schema: { type: string, description: "Secuencia de eventos SSE (ver descripción)." }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /vision/classify:
+    post:
+      tags: [vision]
+      operationId: visionClassify
+      summary: Identifica madurez/patología de una foto (sin pasar por el RAG).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary, description: "JPEG/PNG/WebP/HEIC ≤ 8 MB. El servidor DEBE eliminar GPS/EXIF." }
+                top_k: { type: integer, default: 3, minimum: 1, maximum: 5 }
+      responses:
+        "200":
+          description: Identificación visual (candidatos), nunca un veredicto ni una dosis.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VisionResult" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /vision/diagnose:
+    post:
+      tags: [vision]
+      operationId: visionDiagnose
+      summary: Foto → describidor VLM → RAG identifica con cita y semáforo (candidatos).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+                question: { type: string, maxLength: 2000, description: "Pregunta libre opcional." }
+                country: { type: string, pattern: "^[A-Z]{2}$" }
+                soil_type: { type: string, maxLength: 64 }
+                region: { type: string, maxLength: 80 }
+      responses:
+        "200":
+          description: Identificación visual + respuesta citada del RAG (con semáforo).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VisionDiagnosis" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+
+  /calc/materia-seca:
+    post:
+      tags: [calc]
+      operationId: calcMateriaSeca
+      summary: Materia seca de corte (muestreo n/CV/mínimo + objetivo por mercado).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DryMatterIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DryMatterResult" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/encalado:
+    post:
+      tags: [calc]
+      operationId: calcEncalado
+      summary: Encalado por saturación de Al (Cochrane; aviso ANDISOL si densidad < 1,0).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/LimingIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/relaciones-foliares:
+    post:
+      tags: [calc]
+      operationId: calcFoliar
+      summary: Diagnóstico foliar (relaciones + niveles absolutos B/Zn + estrés salino + limitante).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/FoliarIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/riego:
+    post:
+      tags: [calc]
+      operationId: calcRiego
+      summary: Requerimiento de riego (ETc=ETo·Kc; Kc por etapa; lámina y volumen).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/IrrigationIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/salinidad:
+    post:
+      tags: [calc]
+      operationId: calcSalinidad
+      summary: Riesgo salino del agua (CEe por portainjerto, fracción de lavado, SAR, RSC).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SalinityIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/grados-dia:
+    post:
+      tags: [calc]
+      operationId: calcGradosDia
+      summary: Grados-día desde cuaje (método seno por defecto). NO predice el corte por sí solo.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GddIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/calibre:
+    post:
+      tags: [calc]
+      operationId: calcCalibre
+      summary: Calibre/count-size desde el peso de un fruto.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CaliberIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/calibre-muestra:
+    post:
+      tags: [calc]
+      operationId: calcCalibreMuestra
+      summary: Distribución de calibre de una muestra/calibradora.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CaliberSampleIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/nitrogeno:
+    post:
+      tags: [calc]
+      operationId: calcNitrogeno
+      summary: Fraccionamiento de N por etapa fenológica (kg/ha y g/árbol).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NitrogenSplitIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /calc/umbral-mip:
+    post:
+      tags: [calc]
+      operationId: calcUmbralMip
+      summary: Decisión MIP (media por unidad vs TU umbral). La app NO inventa el umbral.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MipThresholdIn" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /hitl/pending:
+    get:
+      tags: [platform]
+      operationId: hitlPending
+      summary: Cola de respuestas ROJO del tenant pendientes de revisión del agrónomo (P-2).
+      responses:
+        "200":
+          description: Lista de consultas en cola (texto solo si audit_store_text=True).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending: { type: array, items: { $ref: "#/components/schemas/HitlItem" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /hitl/decision:
+    post:
+      tags: [platform]
+      operationId: hitlDecision
+      summary: Decisión firmada del agrónomo sobre una respuesta en cola.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HitlDecisionIn" }
+      responses:
+        "200":
+          description: Decisión registrada (con firma de tamper-evidence).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  query_id: { type: string, format: uuid }
+                  decision: { type: string, enum: [approved, rejected, edited] }
+                  signature: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: La consulta no existe o no es de tu tenant. }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /feedback:
+    post:
+      tags: [platform]
+      operationId: postFeedback
+      summary: Feedback del usuario sobre una respuesta (cierra el bucle de eval online).
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Feedback" } } } }
+      responses:
+        "202": { description: Aceptado. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /sync/manifest:
+    get:
+      tags: [platform]
+      operationId: getSyncManifest
+      summary: Manifiesto firmado de artefactos offline (corpus/normas/bundle/modelos) para el cliente.
+      description: |
+        El cliente compara este manifiesto con lo que tiene empaquetado y descarga los DELTAS.
+        Invariante (§12): online nunca debe entregar un artefacto que deje al cliente peor que offline.
+      parameters:
+        - name: have_bundle_version
+          in: query
+          schema: { type: string }
+          description: Versión del bundle que el cliente ya tiene (para calcular delta).
+      responses:
+        "200":
+          description: Manifiesto de sincronización firmado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncManifest" }
+
+  /health:
+    get:
+      tags: [platform]
+      operationId: health
+      summary: Liveness (proceso vivo).
+      security: []
+      responses:
+        "200": { description: OK }
+
+  /ready:
+    get:
+      tags: [platform]
+      operationId: ready
+      summary: Readiness (BD + dependencias mínimas). NO filtra trazas al cliente.
+      security: []
+      responses:
+        "200": { description: Listo }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth2/OIDC. El claim `tenant` fija el aislamiento; NO se acepta `tenant` del body en prod.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Para integraciones servidor-a-servidor (ERP, laboratorio).
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+      description: Deduplica reintentos de red móvil (P-6). Misma clave ⇒ misma respuesta, sin doble auditoría/cobro.
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema: { type: string }
+      description: ID de correlación cliente→servidor (se refleja en la respuesta y en las trazas).
+
+  headers:
+    XAvoRAGVersions:
+      description: Versiones correlacionadas de la respuesta (P-3), JSON compacto.
+      schema:
+        type: string
+        examples: ['{"api":"1.0.0","prompt":"2026-06-15.v8","model":"claude-sonnet","corpus":"2026-06-17.1","norm":"2026-06-17","feeds":{"ica":"2026-06-17T10:00Z"}}']
+    XRequestId:
+      description: Eco del X-Request-Id (o uno generado por el servidor).
+      schema: { type: string }
+    RateLimit:
+      description: RFC 9239 (límite/restante/reset).
+      schema: { type: string, examples: ['limit=60, remaining=59, reset=30'] }
+
+  schemas:
+    Semaforo:
+      type: string
+      enum: [verde, amarillo, rojo]
+      description: verde=auto-responde; amarillo=cautela/pide datos; rojo=requiere agrónomo (HITL) o rehúsa.
+    AbstentionType:
+      type: string
+      enum: [none, out_of_content, out_of_context, out_of_collection]
+    Citation:
+      type: object
+      required: [chunk_id, fuente]
+      properties:
+        chunk_id: { type: string }
+        fuente: { type: string }
+        pagina: { type: integer, nullable: true }
+        fecha_publicacion: { type: string, nullable: true }
+        url: { type: string, nullable: true }
+        doi: { type: string, nullable: true }
+        nivel_autoridad: { type: string, nullable: true }
+        licencia_uso: { type: string, nullable: true }
+        quote: { type: string, nullable: true }
+        as_of: { type: string, format: date-time, nullable: true, description: "Frescura del dato si proviene de un feed vivo (P-5)." }
+    RetrievedContext:
+      type: object
+      required: [chunk_id, fuente, score, content]
+      properties:
+        chunk_id: { type: string }
+        fuente: { type: string }
+        pagina: { type: integer, nullable: true }
+        score: { type: number }
+        content: { type: string }
+    Answer:
+      type: object
+      required: [question, text, semaforo, abstained]
+      properties:
+        response_id: { type: string, format: uuid, description: "ID de trazabilidad (P-3)." }
+        question: { type: string }
+        text: { type: string }
+        semaforo: { $ref: "#/components/schemas/Semaforo" }
+        abstained: { type: boolean }
+        abstention_type: { $ref: "#/components/schemas/AbstentionType" }
+        faithfulness: { type: number, nullable: true, description: "Fidelidad del juez INDEPENDIENTE (no del generador)." }
+        reason: { type: string, nullable: true, description: "Motivo del semáforo (p.ej. 'dosis no rastreable')." }
+        citations: { type: array, items: { $ref: "#/components/schemas/Citation" } }
+        contexts: { type: array, items: { $ref: "#/components/schemas/RetrievedContext" } }
+        follow_ups: { type: array, items: { type: string } }
+        conflict: { type: array, items: { type: string }, description: "Discrepancias entre fuentes citadas." }
+        warnings: { type: array, items: { type: string }, description: "Avisos (dato desactualizado, feed fuera de SLA…)." }
+        disclaimer: { type: string }
+        latency_ms: { type: integer }
+        provider_info:
+          type: object
+          additionalProperties: true
+          description: "Procedencia (modelo generador, juez y si es independiente, versiones, snapshots de feed)."
+        review_status:
+          type: string
+          enum: [none, pending, approved, rejected]
+          description: "Estado HITL (P-2). 'pending' ⇒ el cliente NO debe presentarlo como consejo firme."
+    AskRequest:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 3, maxLength: 2000 }
+        tenant: { type: string, minLength: 1, maxLength: 64, pattern: "^[a-z0-9_-]+$", description: "Ignorado en prod (el tenant sale del JWT)." }
+        country: { type: string, pattern: "^[A-Z]{2}$" }
+        soil_type: { type: string, maxLength: 64 }
+        region: { type: string, maxLength: 80 }
+        export_market: { type: string, enum: [ue, eeuu], description: "Activa el guardarraíl de destino (LMR/tolerancias)." }
+    VisionPrediction:
+      type: object
+      properties:
+        label_es: { type: string }
+        kind: { type: string, enum: [madurez, patologia] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+    VisionResult:
+      type: object
+      properties:
+        predictions: { type: array, items: { $ref: "#/components/schemas/VisionPrediction" } }
+        requires_review: { type: boolean, description: "Confianza < umbral ⇒ pedir mejor foto / consultar agrónomo." }
+        model_version: { type: string }
+        disclaimer: { type: string }
+    VisionDiagnosis:
+      type: object
+      properties:
+        vision: { $ref: "#/components/schemas/VisionResult" }
+        answer: { $ref: "#/components/schemas/Answer" }
+        candidatos: { type: array, items: { type: string }, description: "Identificaciones posibles (nunca veredicto único)." }
+    Capabilities:
+      type: object
+      required: [mode_hint, subsystems]
+      properties:
+        mode_hint: { type: integer, enum: [1, 2, 3, 4], description: "Modo recomendado (1=online-pleno … 4=fallback-offline)." }
+        subsystems:
+          type: object
+          properties:
+            llm_fuerte: { $ref: "#/components/schemas/CapState" }
+            judge: { $ref: "#/components/schemas/CapState" }
+            reranker: { $ref: "#/components/schemas/CapState" }
+            feed_ica: { $ref: "#/components/schemas/CapState" }
+            feed_ideam: { $ref: "#/components/schemas/CapState" }
+            feed_lmr_ue: { $ref: "#/components/schemas/CapState" }
+            feed_eeuu: { $ref: "#/components/schemas/CapState" }
+    CapState:
+      type: object
+      properties:
+        up: { type: boolean }
+        as_of: { type: string, format: date-time, nullable: true }
+        stale: { type: boolean, description: "True si el feed está fuera de su SLA de frescura (prohíbe verde sobre ese dato)." }
+    Feedback:
+      type: object
+      required: [response_id, util]
+      properties:
+        response_id: { type: string, format: uuid }
+        util: { type: boolean, description: "¿La respuesta fue útil?" }
+        motivo: { type: string, enum: [incorrecta, incompleta, desactualizada, peligrosa, otra], nullable: true }
+        comentario: { type: string, maxLength: 2000, description: "El servidor guarda HASH, no texto (P-4)." }
+    HitlItem:
+      type: object
+      properties:
+        query_id: { type: string, format: uuid }
+        tenant: { type: string }
+        semaforo: { $ref: "#/components/schemas/Semaforo" }
+        question: { type: string }
+        answer: { type: string, description: "Hash si audit_store_text=False (P-4)." }
+        review_status: { type: string }
+        corpus_version: { type: string }
+        created_at: { type: string, format: date-time }
+    HitlDecisionIn:
+      type: object
+      required: [query_id, reviewer_id, decision]
+      properties:
+        query_id: { type: string, format: uuid }
+        reviewer_id: { type: string, minLength: 1, maxLength: 64 }
+        decision: { type: string, enum: [approved, rejected, edited] }
+        edited_text: { type: string, maxLength: 8000 }
+        notes: { type: string, maxLength: 2000 }
+    SyncManifest:
+      type: object
+      required: [offline_contract_version, artifacts, signature]
+      properties:
+        offline_contract_version: { type: string }
+        generated_at: { type: string, format: date-time }
+        artifacts:
+          type: array
+          items:
+            type: object
+            required: [name, version, sha256, url, bytes]
+            properties:
+              name: { type: string, enum: [corpus, normas, knowledge_bundle, vision_model] }
+              version: { type: string }
+              sha256: { type: string }
+              url: { type: string, format: uri }
+              bytes: { type: integer }
+              min_app_version: { type: string }
+        signature: { type: string, description: "Firma (Ed25519) del manifiesto para evitar suplantación." }
+    # --- Entradas de calculadoras (paridad con agro_calc.py / routes_calc.py) ---
+    DryMatterIn:
+      type: object
+      properties:
+        peso_fresco_g: { type: number, exclusiveMinimum: 0 }
+        peso_seco_g: { type: number, exclusiveMinimum: 0 }
+        muestras: { type: array, items: { type: number }, description: "%MS por fruto (10-20). Prevalece sobre los pesos." }
+        umbral_pct: { type: number, exclusiveMinimum: 0, maximum: 100 }
+        objetivo: { type: string, enum: [minimo_legal, exportacion, premium] }
+    DryMatterResult:
+      type: object
+      properties:
+        materia_seca_pct: { type: number }
+        umbral_pct: { type: number }
+        veredicto: { type: string, enum: [apto, "limítrofe", "por debajo"] }
+        n_muestras: { type: integer }
+        cv_pct: { type: number, nullable: true }
+        minimo_muestra_pct: { type: number, nullable: true }
+        nota: { type: string }
+    LimingIn:
+      type: object
+      required: [al, ca, mg, k]
+      properties:
+        al: { type: number, minimum: 0 }
+        ca: { type: number, minimum: 0 }
+        mg: { type: number, minimum: 0 }
+        k: { type: number, minimum: 0 }
+        na: { type: number, minimum: 0, default: 0 }
+        psa_objetivo_pct: { type: number, minimum: 0, maximum: 100 }
+        factor_campo: { type: number, exclusiveMinimum: 0 }
+        prnt_pct: { type: number, exclusiveMinimum: 0, maximum: 100, default: 100 }
+        densidad_aparente: { type: number, exclusiveMinimum: 0, description: "< 1,0 ⇒ andisol (la fórmula avisa que subestima)." }
+        profundidad_cm: { type: number, exclusiveMinimum: 0, default: 20 }
+    FoliarIn:
+      type: object
+      description: "Macros en % MS; micros (b, zn, fe, mn, cu) en ppm; cl/na en % MS. Aporta ≥1 elemento."
+      properties:
+        n: { type: number, minimum: 0 }
+        p: { type: number, minimum: 0 }
+        k: { type: number, minimum: 0 }
+        ca: { type: number, minimum: 0 }
+        mg: { type: number, minimum: 0 }
+        s: { type: number, minimum: 0 }
+        b: { type: number, minimum: 0 }
+        zn: { type: number, minimum: 0 }
+        fe: { type: number, minimum: 0 }
+        mn: { type: number, minimum: 0 }
+        cu: { type: number, minimum: 0 }
+        cl: { type: number, minimum: 0 }
+        na: { type: number, minimum: 0 }
+    IrrigationIn:
+      type: object
+      required: [eto_mm_dia]
+      properties:
+        eto_mm_dia: { type: number, minimum: 0 }
+        kc: { type: number, exclusiveMinimum: 0, description: "Si se omite, se deriva de `etapa`." }
+        etapa: { type: string, enum: [reposo, floracion, cuaje, desarrollo, llenado] }
+        precip_efectiva_mm_dia: { type: number, minimum: 0, default: 0 }
+        eficiencia: { type: number, exclusiveMinimum: 0, maximum: 1, default: 0.9 }
+        area_ha: { type: number, exclusiveMinimum: 0 }
+        fraccion_lavado: { type: number, minimum: 0, exclusiveMaximum: 1, default: 0 }
+        capacidad_campo_pct: { type: number, exclusiveMinimum: 0 }
+        pmp_pct: { type: number, minimum: 0 }
+        densidad_aparente: { type: number, exclusiveMinimum: 0 }
+        profundidad_radical_cm: { type: number, exclusiveMinimum: 0 }
+        agotamiento_permisible: { type: number, exclusiveMinimum: 0, maximum: 1, default: 0.4 }
+    SalinityIn:
+      type: object
+      required: [ce_agua_dsm]
+      properties:
+        ce_agua_dsm: { type: number, minimum: 0 }
+        ce_umbral_suelo_dsm: { type: number, exclusiveMinimum: 0, description: "Si se omite, se deriva del portainjerto (Hass ~1,3)." }
+        portainjerto: { type: string, enum: [mexicano, guatemalteco, antillano] }
+        na_meq_l: { type: number, minimum: 0 }
+        ca_meq_l: { type: number, minimum: 0 }
+        mg_meq_l: { type: number, minimum: 0 }
+        hco3_meq_l: { type: number, minimum: 0, description: "Para RSC (carbonato sódico residual)." }
+        co3_meq_l: { type: number, minimum: 0 }
+    GddIn:
+      type: object
+      required: [temps]
+      properties:
+        temps:
+          type: array
+          items: { type: array, items: { type: number }, minItems: 2, maxItems: 2 }
+          description: "Lista de [Tmax, Tmin] diarias desde cuaje."
+        t_base: { type: number, default: 10 }
+        t_tope: { type: number, nullable: true }
+        objetivo_gdd: { type: number, exclusiveMinimum: 0 }
+        metodo: { type: string, enum: [seno, media], default: seno, description: "'seno' corrige el sesgo cuando Tmin < T_base." }
+    CaliberIn:
+      type: object
+      required: [peso_g]
+      properties:
+        peso_g: { type: number, exclusiveMinimum: 0 }
+        caja_kg: { type: number, exclusiveMinimum: 0, default: 4 }
+    CaliberSampleIn:
+      type: object
+      required: [pesos_g]
+      properties:
+        pesos_g: { type: array, items: { type: number }, minItems: 1 }
+        caja_kg: { type: number, exclusiveMinimum: 0, default: 4 }
+    NitrogenSplitIn:
+      type: object
+      required: [n_total_kg_ha]
+      properties:
+        n_total_kg_ha: { type: number, minimum: 0 }
+        fracciones: { type: object, additionalProperties: { type: number }, description: "etapa→fracción; si se omite, esquema orientativo." }
+        arboles_por_ha: { type: number, exclusiveMinimum: 0 }
+    MipThresholdIn:
+      type: object
+      required: [conteo_total, n_unidades, umbral]
+      properties:
+        conteo_total: { type: number, minimum: 0 }
+        n_unidades: { type: integer, exclusiveMinimum: 0 }
+        umbral: { type: number, minimum: 0, description: "De TU protocolo; la app NO lo inventa." }
+        unidad: { type: string, default: trampa }
+    Problem:
+      type: object
+      description: RFC 7807 (application/problem+json).
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri, default: "about:blank" }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: "Código estable de AvoRAG (p.ej. AVO-VALIDATION, AVO-RATE-LIMIT, AVO-FEED-STALE)." }
+        request_id: { type: string }
+
+  responses:
+    BadRequest:
+      description: Entrada inválida.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Unauthorized:
+      description: Falta o es inválido el token/clave.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Forbidden:
+      description: Sin permiso para el recurso/tenant.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    ValidationError:
+      description: Validación semántica fallida (422).
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    TooManyRequests:
+      description: Límite de tasa superado.
+      headers:
+        Retry-After: { schema: { type: integer }, description: Segundos hasta reintentar. }
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    PayloadTooLarge:
+      description: Imagen/cuerpo demasiado grande.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    UnsupportedMediaType:
+      description: Formato de imagen no soportado.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    ServiceUnavailable:
+      description: Dependencia caída (BD/LLM). El cliente DEBE degradar de modo.
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }

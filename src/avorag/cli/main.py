@@ -154,7 +154,9 @@ def vision_classify(
         table.add_row(p.label_es, p.kind.value, f"{p.confidence * 100:.1f}%")
     console.print(table)
     if res.requires_review:
-        console.print("[yellow]Baja confianza: toma una foto más clara o consulta al agrónomo.[/yellow]")
+        console.print(
+            "[yellow]Baja confianza: toma una foto más clara o consulta al agrónomo.[/yellow]"
+        )
     console.print(f"[dim]{res.disclaimer}[/dim]")
 
 
@@ -169,9 +171,7 @@ def vision_diagnose(
     from avorag.vision import diagnose as run_diagnose
 
     configure_logging()
-    res = run_diagnose(
-        image.read_bytes(), question=question, soil_type=soil, region=region
-    )
+    res = run_diagnose(image.read_bytes(), question=question, soil_type=soil, region=region)
     v = res.vision
     if v.top:
         console.print(
@@ -190,7 +190,11 @@ def vision_diagnose(
             pag = f", p.{c['pagina']}" if c.get("pagina") else ""
             body += f"\n  [{i}] {c.get('fuente', '')}{pag}"
         console.print(
-            Panel(body, title=f"[{color}]{a.get('semaforo', '').upper()}[/{color}]", border_style=color)
+            Panel(
+                body,
+                title=f"[{color}]{a.get('semaforo', '').upper()}[/{color}]",
+                border_style=color,
+            )
         )
     console.print(f"[dim]{v.disclaimer}[/dim]")
 
@@ -228,9 +232,12 @@ def audit(
 
     from sqlalchemy import desc, select
 
+    from avorag.config import get_settings
     from avorag.db import QueryLog, get_session
 
     configure_logging()
+    # RLS fail-closed: el acceso a datos requiere tenant; sin --tenant, audita el tenant por defecto.
+    tenant = tenant or get_settings().default_tenant
     with get_session(tenant=tenant) as session:
         stmt = select(QueryLog).order_by(desc(QueryLog.created_at)).limit(limit)
         if semaforo:
