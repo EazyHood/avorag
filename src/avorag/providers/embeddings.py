@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from avorag.config import get_settings
@@ -44,7 +46,11 @@ class OpenAIEmbedding(EmbeddingProvider):
         s = get_settings()
         if not s.openai_api_key:
             raise ValueError("OPENAI_API_KEY vacío pero EMBEDDING_PROVIDER=openai")
-        self._client = OpenAI(api_key=s.openai_api_key)
+        # Mismo `OPENAI_BASE_URL` que el LLM: permite usar embeddings de un proveedor OpenAI-compatible
+        # (p.ej. Gemini) para ingerir Y consultar con la MISMA fuente, sin GPU. OJO: el modelo/dim de
+        # consulta DEBE coincidir con el usado al ingerir el corpus (si no, la recuperación se rompe).
+        base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
+        self._client = OpenAI(api_key=s.openai_api_key, base_url=base_url)
         self._model = (
             s.embedding_model if s.embedding_model.startswith("text-") else "text-embedding-3-small"
         )

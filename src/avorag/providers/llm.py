@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from avorag.config import get_settings
@@ -96,7 +98,11 @@ class OpenAILLM(LLMProvider):
         s = get_settings()
         if not s.openai_api_key:
             raise ValueError("OPENAI_API_KEY vacío pero LLM_PROVIDER=openai")
-        self._client = OpenAI(api_key=s.openai_api_key)
+        # `base_url` OPCIONAL → apunta a CUALQUIER endpoint OpenAI-compatible (Groq, Gemini, OpenRouter,
+        # Cerebras, un proxy GLM…). Vacío = API de OpenAI por defecto. Así el backend usa un LLM GRATIS
+        # cambiando solo el .env (OPENAI_BASE_URL + OPENAI_API_KEY + OPENAI_LLM_MODEL), sin tocar código.
+        base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
+        self._client = OpenAI(api_key=s.openai_api_key, base_url=base_url)
         self._model = model or s.openai_llm_model
         self._temperature = s.llm_temperature
         self._max_tokens = s.llm_max_tokens
