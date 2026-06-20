@@ -24,7 +24,7 @@ from pathlib import Path
 from avorag.agro_terms import commercial_actives_in
 from avorag.config import get_settings
 from avorag.logging import get_logger
-from avorag.markets import normalize_market
+from avorag.markets import is_supported_market, normalize_market
 
 log = get_logger(__name__)
 
@@ -76,7 +76,14 @@ def _matches(text: str, items: list[dict]) -> list[dict]:
 def _resolve_market(market: str | None) -> str:
     """Clave canónica del mercado (request > .env), vía `markets.normalize_market` (us/usa→eeuu, …)."""
     raw = market if market is not None else get_settings().export_market
-    return normalize_market(raw) or ""
+    canon = normalize_market(raw) or ""
+    # Defensa en profundidad simétrica al fail-closed del online (online/integration.py): los bordes
+    # (validador de config + validador de la API) ya rechazan grafías sin cobertura, así que llegar aquí
+    # con una significa un caller interno que se saltó la validación. No se apaga en SILENCIO: se AVISA
+    # (sin destino_<canon>.json el guardarraíl base de destino queda mudo y este aviso lo hace visible).
+    if canon and not is_supported_market(canon):
+        log.warning("destino_market_unsupported", market=canon)
+    return canon
 
 
 def unauthorized_for_destination(text: str, market: str | None = None) -> list[str]:

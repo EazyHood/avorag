@@ -5,8 +5,10 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from avorag.markets import SUPPORTED_MARKETS, normalize_market
 
 # Ruta al .env relativa al paquete, no al cwd.
 _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
@@ -85,7 +87,9 @@ class Settings(BaseSettings):
     # abstendría en todo. No lo cambies a otro país sin cargar antes su corpus regulatorio.
     country: str = "CO"  # CO (único con corpus). ES/MX/PE requieren su propio corpus.
     # País de DESTINO de exportación: bloquea recomendar activos no autorizados allí (LMR/rechazos).
-    # Vacío = apagado. Valores con datos: "ue" (ver data/destinos/). Ej.: EXPORT_MARKET=ue
+    # Vacío = apagado. Valores con datos: "ue" | "eeuu" (ver data/destinos/). Alias aceptados:
+    # us/usa/estados_unidos/EE.UU.→eeuu, eu/europa/union_europea→ue. Ej.: EXPORT_MARKET=eeuu
+    # (validado y CANONIZADO al arrancar por `_normalize_export_market`; una grafía no soportada aborta).
     export_market: str = ""
 
     # --- Visión (identificación por foto: madurez/patología) ---
@@ -126,6 +130,31 @@ class Settings(BaseSettings):
 
     # --- Observabilidad ---
     sentry_dsn: str = ""
+
+    @field_validator("export_market", mode="after")
+    @classmethod
+    def _normalize_export_market(cls, v: str) -> str:
+        """Valida y CANONIZA el mercado de destino contra `markets.SUPPORTED_MARKETS`.
+
+        Vacío = guardarraíl de destino apagado (permitido). Un valor con cobertura se canoniza a su
+        clave ('estados_unidos'/'EE.UU.'/'usa' → 'eeuu'; 'eu'/'europa' → 'ue'), de modo que TODOS los
+        consumidores (destino offline, cruce online de LMR/40 CFR 180) miren el MISMO mercado.
+
+        Una grafía DESCONOCIDA (p.ej. 'usa-en', 'japon', 'estadosunidos') aborta el arranque en vez de
+        apagar EN SILENCIO el cruce de tolerancias del destino: ese apagado silencioso dejaba salir
+        VERDE a un i.a. sin tolerancia EE.UU. (falso negativo existencial). Fail-loud, no fail-open.
+        """
+        if not v or not v.strip():
+            return ""
+        canon = normalize_market(v)
+        if canon not in SUPPORTED_MARKETS:
+            soportados = ", ".join(sorted(SUPPORTED_MARKETS))
+            raise ValueError(
+                f"EXPORT_MARKET={v!r} no es un mercado de destino soportado (soportados: {soportados}; "
+                "alias: us/usa/estados_unidos/EE.UU.→eeuu, eu/europa/union_europea→ue). "
+                "Déjalo vacío para apagar el guardarraíl de destino, o usa una grafía soportada."
+            )
+        return canon
 
     @model_validator(mode="after")
     def _check_prod_invariants(self) -> Settings:

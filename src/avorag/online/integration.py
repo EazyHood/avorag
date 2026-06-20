@@ -19,7 +19,7 @@ from datetime import datetime
 
 from avorag.config import get_settings
 from avorag.logging import get_logger
-from avorag.markets import normalize_market
+from avorag.markets import SUPPORTED_MARKETS, normalize_market
 from avorag.online import feeds, regulatory
 from avorag.rag.freshness import (
     apply_freshness_gate,
@@ -31,10 +31,9 @@ from avorag.rag.schemas import Answer, Semaforo
 log = get_logger(__name__)
 
 _TRUE = {"1", "true", "yes", "on", "si", "sí"}
-# Destinos con feed de residuo en vivo (UE→LMR, EE.UU.→40 CFR 180), en CLAVE CANÓNICA (los alias
-# us/usa/estados_unidos→'eeuu' los resuelve markets.normalize_market). Un destino de exportación FUERA
-# de este conjunto no se puede verificar y NO debe servirse como VERDE confiable (fail-closed).
-_SUPPORTED_DEST_MARKETS = {"ue", "eeuu"}
+# Destinos con feed de residuo en vivo (UE→LMR, EE.UU.→40 CFR 180): se reutiliza el conjunto canónico
+# de `markets.SUPPORTED_MARKETS` (única fuente de verdad, DRY). Un destino FUERA de este conjunto no se
+# puede verificar en vivo y NO debe servirse como VERDE confiable (fail-closed más abajo).
 
 
 def online_safety_enabled() -> bool:
@@ -80,7 +79,7 @@ def apply_online_safety(
     # Destino de exportación SIN feed de residuo mapeado (ni UE ni EE.UU.): no se puede confirmar la
     # admisibilidad del residuo → no es un VERDE confiable (fail-closed para destinos no soportados).
     dest_av: list[str] = []
-    if market and market not in _SUPPORTED_DEST_MARKETS:
+    if market and market not in SUPPORTED_MARKETS:
         aviso = (
             f"No hay feed de residuos para el destino «{market}»: no se puede confirmar la "
             "admisibilidad del residuo en ese mercado. Verifica el LMR/tolerancia del país de destino."

@@ -6,10 +6,11 @@ import json
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from avorag.api.auth import rate_limit, require_api_key
 from avorag.config import get_settings
+from avorag.markets import SUPPORTED_MARKETS, normalize_market
 from avorag.rag import Answer, answer, answer_stream
 
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -22,9 +23,27 @@ class AskRequest(BaseModel):
     country: str | None = Field(None, pattern=r"^[A-Z]{2}$")
     soil_type: str | None = Field(None, max_length=64)  # arenoso, arcilloso, franco…
     region: str | None = Field(None, max_length=80)
-    # Mercado de DESTINO para el guardarraíl de LMR/tolerancias en vivo (ue|eeuu). El guardarraíl
-    # online solo actúa si AVORAG_ONLINE_FEEDS está activo; sin esto, se usa EXPORT_MARKET de la config.
-    export_market: str | None = Field(None, pattern=r"^(ue|eeuu)$")
+    # Mercado de DESTINO para el guardarraíl de LMR/tolerancias en vivo. Se acepta cualquier grafía
+    # soportada (ue/eeuu y alias us/usa/estados_unidos/EE.UU./union_europea…) y se CANONIZA en backend a
+    # {ue, eeuu} (DRY con el núcleo, vía markets); una grafía sin cobertura da 422 (no se acepta en
+    # silencio un destino sin feed de residuo). El guardarraíl online solo actúa si AVORAG_ONLINE_FEEDS
+    # está activo; sin `export_market` en el request, se usa EXPORT_MARKET de la config.
+    export_market: str | None = Field(None, max_length=40)
+
+    @field_validator("export_market", mode="after")
+    @classmethod
+    def _canonize_market(cls, v: str | None) -> str | None:
+        """Canoniza el mercado a su clave soportada o devuelve None (vacío). Grafía no soportada → 422."""
+        if v is None or not v.strip():
+            return None
+        canon = normalize_market(v)
+        if canon not in SUPPORTED_MARKETS:
+            soportados = ", ".join(sorted(SUPPORTED_MARKETS))
+            raise ValueError(
+                f"export_market no soportado: {v!r} (soportados: {soportados}; "
+                "alias: us/usa/estados_unidos→eeuu, eu/europa/union_europea→ue)."
+            )
+        return canon
 
 
 def _tenant_for(req: AskRequest, auth_tenant: str) -> str:
